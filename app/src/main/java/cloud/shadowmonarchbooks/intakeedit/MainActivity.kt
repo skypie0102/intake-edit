@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -81,6 +82,17 @@ private enum class EntryFilter(val label: String) {
     NEEDS_ATTENTION("Needs Attention"), ALL("All"), RESTRICTED("Restricted"), REVISED("Revised"), UNREVISED("Unrevised")
 }
 
+private data class ChapterProgress(
+    val restrictedSupplied: Int,
+    val restrictedTotal: Int,
+    val safeRevised: Int,
+    val editorReviewComplete: Boolean,
+    val qaActive: Int = 0,
+    val qaTotal: Int = 0,
+) {
+    val complete: Boolean get() = editorReviewComplete && restrictedSupplied == restrictedTotal
+}
+
 private data class OpenChapter(
     val file: ChapterFile,
     val remote: FileSnapshot,
@@ -100,6 +112,7 @@ private fun IntakeApp() {
     var token by remember { mutableStateOf(tokenStore.load()) }
     var showSettings by remember { mutableStateOf(token.isBlank()) }
     var files by remember { mutableStateOf<List<ChapterFile>>(emptyList()) }
+    var progressByPath by remember { mutableStateOf<Map<String, ChapterProgress>>(emptyMap()) }
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var open by remember { mutableStateOf<OpenChapter?>(null) }
@@ -111,11 +124,37 @@ private fun IntakeApp() {
         return QaFindingsSnapshot(path, snapshot.sha, snapshot.content, QaFindingsParser.parse(snapshot.content))
     }
 
+    suspend fun loadChapterProgress(client: GitHubApi, file: ChapterFile): ChapterProgress {
+        val remote = client.getFile(file.path)
+        val document = IntakeParser.parse(remote.content)
+        val qa = runCatching { loadQa(client, file) }.getOrNull()
+        val editorSha = QaFindingsParser.sha256(remote.content)
+        return ChapterProgress(
+            restrictedSupplied = document.restrictedSupplied,
+            restrictedTotal = document.restrictedTotal,
+            safeRevised = document.safeRevised,
+            editorReviewComplete = document.editorReviewComplete,
+            qaActive = qa?.document?.active(editorSha)?.size ?: 0,
+            qaTotal = qa?.document?.findings?.size ?: 0,
+        )
+    }
+
     fun refresh() {
         val client = api ?: return
         scope.launch {
             busy = true
-            try { files = client.listIntakeFiles(); notice = null }
+            try {
+                val listed = client.listIntakeFiles()
+                files = listed
+                progressByPath = emptyMap()
+                listed.forEach { file ->
+                    launch {
+                        runCatching { loadChapterProgress(client, file) }
+                            .onSuccess { progress -> progressByPath = progressByPath + (file.path to progress) }
+                    }
+                }
+                notice = null
+            }
             catch (t: Throwable) { notice = t.message ?: "Could not refresh chapter list." }
             finally { busy = false }
         }
@@ -180,8 +219,9 @@ private fun IntakeApp() {
                         val newSha = client.updateFile(next.file.path, next.remote.sha, raw, "edit: revise ch_${next.file.chapter.toString().padStart(4, '0')} English")
                         draftStore.delete(next.file.path)
                         val remote = next.remote.copy(sha = newSha.ifBlank { next.remote.sha }, content = raw)
-                        open = next.copy(remote = remote, raw = raw, document = document)
                         notice = "Committed to ${settings.owner}/${settings.repo}."
+                        open = null
+                        refresh()
                     } catch (t: Throwable) { notice = t.message ?: "Commit failed." }
                     finally { busy = false }
                 }
@@ -204,19 +244,27 @@ private fun IntakeApp() {
             },
         )
     } else {
-        ChapterListScreen(files, busy, notice, ::refresh, { showSettings = true }, ::openFile)
+        ChapterListScreen(files, progressByPath, busy, notice, ::refresh, { showSettings = true }, ::openFile)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChapterListScreen(
-    files: List<ChapterFile>, busy: Boolean, notice: String?, onRefresh: () -> Unit,
+    files: List<ChapterFile>, progressByPath: Map<String, ChapterProgress>, busy: Boolean, notice: String?, onRefresh: () -> Unit,
     onSettings: () -> Unit, onOpen: (ChapterFile) -> Unit,
 ) {
     var search by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(ChapterListFilter.ACTIVE) }
-    val visible = files.filter { val q = search.trim(); q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q) }
+    val searched = files.filter { val q = search.trim(); q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q) }
+    val visible = searched.filter { file ->
+        val progress = progressByPath[file.path]
+        when (filter) {
+            ChapterListFilter.ACTIVE -> progress?.complete != true
+            ChapterListFilter.COMPLETED -> progress?.complete == true
+            ChapterListFilter.ALL -> true
+        }
+    }
     Scaffold(topBar = {
         TopAppBar(title = { Text("Intake Edit") }, actions = {
             IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Default.Refresh, "Refresh") }
@@ -235,8 +283,16 @@ private fun ChapterListScreen(
                     Card(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
+                                val progress = progressByPath[file.path]
                                 Text("Volume ${file.volume} • Chapter ${file.chapter}", fontWeight = FontWeight.Bold)
                                 Text(file.path, style = MaterialTheme.typography.bodySmall)
+                                if (progress == null) {
+                                    Text("English supplied: loading", style = MaterialTheme.typography.bodySmall)
+                                } else {
+                                    Text("English supplied: ${progress.restrictedSupplied}/${progress.restrictedTotal}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Safe revisions: ${progress.safeRevised} • Review: ${if (progress.editorReviewComplete) "complete" else "pending"}", style = MaterialTheme.typography.bodySmall)
+                                    if (progress.qaTotal > 0) Text("QA: ${progress.qaActive} active / ${progress.qaTotal} total", style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                             TextButton(onClick = { onOpen(file) }, enabled = !busy) { Text("Open") }
                         }
@@ -257,42 +313,117 @@ private fun EditorScreen(
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
     var filter by rememberSaveable { mutableStateOf(EntryFilter.NEEDS_ATTENTION) }
     var showQa by rememberSaveable { mutableStateOf(false) }
+    var showWholeFile by rememberSaveable { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
+    var editorNotice by remember { mutableStateOf<String?>(null) }
+    var jumpLocator by remember { mutableStateOf<String?>(null) }
+    var jumpRequestId by remember { mutableStateOf(0) }
+    val listState = rememberLazyListState()
     fun updateDocument(document: EditorDocument) {
         val raw = IntakeParser.patchDocument(current.raw, document)
         current = current.copy(raw = raw, document = document); onDraft(current)
     }
+    val missingRestricted = current.document.entries.filter { it.isRestricted && !InlineMarkup.hasVisibleText(it.english) }
+    val entries = filteredEntries(current.document, filter)
+    LaunchedEffect(jumpRequestId, filter, showQa, showWholeFile) {
+        val locator = jumpLocator
+        if (jumpRequestId > 0 && locator != null && !showQa && !showWholeFile) {
+            val target = entries.indexOfFirst { it.locator == locator }
+            if (target >= 0) listState.animateScrollToItem(target)
+        }
+    }
     Scaffold(topBar = {
-        TopAppBar(title = { Text("V${current.file.volume} Ch ${current.file.chapter}") }, navigationIcon = {
-            IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") }
-        })
+        TopAppBar(
+            title = { Text("V${current.file.volume} Ch ${current.file.chapter}") },
+            navigationIcon = {
+                IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") }
+            },
+            actions = {
+                Text(if (current.raw == current.remote.content) "No changes" else "Changes", style = MaterialTheme.typography.labelSmall)
+                TextButton(onClick = { showWholeFile = !showWholeFile; showQa = false }, enabled = !busy) {
+                    Text(if (showWholeFile) "Cards" else "Whole")
+                }
+            },
+        )
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Text(current.document.englishTitle, style = MaterialTheme.typography.titleMedium)
             Text("Restricted supplied: ${current.document.restrictedSupplied}/${current.document.restrictedTotal} • Safe revisions: ${current.document.safeRevised}")
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(selected = !showQa, onClick = { showQa = false }, label = { Text("Entries") })
-                FilterChip(selected = showQa, onClick = { showQa = true }, label = { Text("QA Findings") })
-            }
-            if (showQa) {
-                QaFindingsView(current.qa, QaFindingsParser.sha256(current.raw), busy, { id, reason -> onOverride(current, id, reason) }, Modifier.weight(1f))
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    EntryFilter.entries.forEach { item -> FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) }) }
-                }
-                val entries = filteredEntries(current.document, filter)
-                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(entries, key = { it.locator }) { entry ->
-                        EntryCard(entry) { english ->
-                            val updated = current.document.entries.map { if (it.locator == entry.locator) it.copy(english = english) else it }
-                            updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
+            if (showWholeFile) {
+                WholeFileEditor(
+                    raw = current.raw,
+                    onRawChange = { raw ->
+                        val parsed = runCatching { IntakeParser.parse(raw) }.getOrNull()
+                        current = current.copy(raw = raw, document = parsed ?: current.document)
+                        onDraft(current)
+                        editorNotice = null
+                    },
+                    onValidate = {
+                        runCatching {
+                            IntakeParser.validate(current.raw).getOrThrow()
+                            val parsed = IntakeParser.parse(current.raw)
+                            current = current.copy(document = parsed)
+                            onDraft(current)
+                        }.onSuccess {
+                            editorNotice = "Whole file is valid and synced."
+                        }.onFailure {
+                            editorNotice = it.message ?: "Whole file is invalid."
                         }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(selected = !showQa, onClick = { showQa = false }, label = { Text("Entries") })
+                    FilterChip(selected = showQa, onClick = { showQa = true }, label = { Text("QA Findings") })
+                }
+                if (showQa) {
+                    QaFindingsView(
+                        snapshot = current.qa,
+                        editorSha = QaFindingsParser.sha256(current.raw),
+                        busy = busy,
+                        onOverride = { id, reason -> onOverride(current, id, reason) },
+                        onShowParagraph = { locator ->
+                            showQa = false
+                            showWholeFile = false
+                            filter = EntryFilter.ALL
+                            jumpLocator = locator
+                            jumpRequestId += 1
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        EntryFilter.entries.forEach { item -> FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) }) }
                     }
-                    if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(16.dp)) }
+                    LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(entries, key = { it.locator }) { entry ->
+                            EntryCard(entry) { english ->
+                                val updated = current.document.entries.map { if (it.locator == entry.locator) it.copy(english = english) else it }
+                                updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
+                            }
+                        }
+                        if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(16.dp)) }
+                    }
                 }
             }
-            Button(onClick = { showCommit = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Review & commit") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = {
+                        val target = missingRestricted.firstOrNull() ?: return@TextButton
+                        showQa = false
+                        showWholeFile = false
+                        filter = EntryFilter.ALL
+                        jumpLocator = target.locator
+                        jumpRequestId += 1
+                    },
+                    enabled = !busy && missingRestricted.isNotEmpty(),
+                ) { Text("Next (${missingRestricted.size.toString().padStart(2, '0')})") }
+                Spacer(Modifier.weight(1f))
+                Button(onClick = { showCommit = true }, enabled = !busy) { Text("Review & commit") }
+            }
         }
     }
     if (showCommit) {
@@ -321,41 +452,95 @@ private fun EntryCard(entry: EditorEntry, onEnglishChange: (String) -> Unit) {
     val context = LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val focusRequester = remember(entry.locator) { FocusRequester() }
-    var value by remember(entry.locator) { mutableStateOf(TextFieldValue(entry.english, selection = TextRange(entry.english.length))) }
-    LaunchedEffect(entry.english) { if (entry.english != value.text) value = TextFieldValue(entry.english, selection = TextRange(entry.english.length)) }
+    var rich by remember(entry.locator) {
+        mutableStateOf(
+            runCatching { RichInlineState.fromMarkup(entry.english) }
+                .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) },
+        )
+    }
+    LaunchedEffect(entry.english) {
+        if (entry.english != rich.toMarkup()) {
+            rich = runCatching { RichInlineState.fromMarkup(entry.english) }
+                .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) }
+        }
+    }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { Text(entry.locator, fontWeight = FontWeight.Bold); Text(if (entry.isRestricted) "RESTRICTED" else "SAFE", style = MaterialTheme.typography.labelSmall) }
+                Column(Modifier.weight(1f)) {
+                    Text(entry.locator, fontWeight = FontWeight.Bold)
+                    Text(if (entry.isRestricted) "RESTRICTED" else "SAFE", style = MaterialTheme.typography.labelSmall)
+                }
                 TextButton(onClick = {
                     val referenceTitle = if (entry.isRestricted) "SANITIZED TRANSLATION" else "DRAFT TRANSLATION"
-                    clipboard.setPrimaryClip(ClipData.newPlainText("raw + reference ${entry.locator}", "RAW:\n${entry.sourceJapanese}\n\n$referenceTitle:\n${entry.referenceTranslation}"))
-                    value = value.copy(selection = TextRange(value.text.length)); focusRequester.requestFocus()
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            "raw + reference ${entry.locator}",
+                            "RAW:\n${entry.sourceJapanese}\n\n$referenceTitle:\n${entry.referenceTranslation}",
+                        ),
+                    )
+                    rich = rich.moveCaretToEnd()
+                    focusRequester.requestFocus()
                 }) { Icon(Icons.Default.ContentCopy, null); Text("Copy both") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
             DisplayBlock(if (entry.isRestricted) "Sanitized Translation" else "Draft Translation", entry.referenceTranslation)
-            OutlinedTextField(value = value, onValueChange = { value = it; onEnglishChange(it.text) }, label = { Text(if (entry.isRestricted) "English Supplied" else "English Revision") }, minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focusRequester))
+            OutlinedTextField(
+                value = rich.asTextFieldValue(),
+                onValueChange = { next ->
+                    rich = rich.edited(next)
+                    onEnglishChange(rich.toMarkup())
+                },
+                label = { Text(if (entry.isRestricted) "English Supplied" else "English Revision") },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { value = applyInlineFormat(value, "b"); onEnglishChange(value.text); focusRequester.requestFocus() }) { Text("B", fontWeight = FontWeight.Bold) }
-                TextButton(onClick = { value = applyInlineFormat(value, "i"); onEnglishChange(value.text); focusRequester.requestFocus() }) { Text("I", fontStyle = FontStyle.Italic) }
+                TextButton(
+                    onClick = {
+                        rich = rich.toggle(InlineStyle.BOLD)
+                        onEnglishChange(rich.toMarkup())
+                        focusRequester.requestFocus()
+                    },
+                    enabled = rich.hasSelection(),
+                ) { Text("B", fontWeight = FontWeight.Bold) }
+                TextButton(
+                    onClick = {
+                        rich = rich.toggle(InlineStyle.ITALIC)
+                        onEnglishChange(rich.toMarkup())
+                        focusRequester.requestFocus()
+                    },
+                    enabled = rich.hasSelection(),
+                ) { Text("I", fontStyle = FontStyle.Italic) }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = {
                     val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
-                    if (text.isNotEmpty()) { value = TextFieldValue(text, selection = TextRange(text.length)); onEnglishChange(text); focusRequester.requestFocus() }
+                    if (text.isNotEmpty()) {
+                        rich = RichInlineState.fromClipboard(text)
+                        onEnglishChange(rich.toMarkup())
+                        focusRequester.requestFocus()
+                    }
                 }, enabled = clipboard.hasPrimaryClip()) { Icon(Icons.Default.ContentPaste, null); Text("Paste") }
             }
         }
     }
 }
 
-private fun applyInlineFormat(value: TextFieldValue, tag: String): TextFieldValue {
-    val open = "[$tag]"; val close = "[/$tag]"
-    val start = minOf(value.selection.start, value.selection.end).coerceIn(0, value.text.length)
-    val end = maxOf(value.selection.start, value.selection.end).coerceIn(0, value.text.length)
-    val updated = buildString(value.text.length + open.length + close.length) { append(value.text, 0, start); append(open); append(value.text, start, end); append(close); append(value.text, end, value.text.length) }
-    val selection = if (start == end) TextRange(start + open.length) else TextRange(start + open.length, end + open.length)
-    return TextFieldValue(updated, selection = selection)
+@Composable
+private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Direct JSON-compatible YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+            TextButton(onClick = onValidate) { Text("Validate") }
+        }
+        Text("Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(
+            value = raw,
+            onValueChange = onRawChange,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            minLines = 12,
+        )
+    }
 }
 
 @Composable
@@ -364,7 +549,14 @@ private fun DisplayBlock(title: String, value: String) {
 }
 
 @Composable
-private fun QaFindingsView(snapshot: QaFindingsSnapshot?, editorSha: String, busy: Boolean, onOverride: (String, String) -> Unit, modifier: Modifier = Modifier) {
+private fun QaFindingsView(
+    snapshot: QaFindingsSnapshot?,
+    editorSha: String,
+    busy: Boolean,
+    onOverride: (String, String) -> Unit,
+    onShowParagraph: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     if (snapshot == null) { Column(modifier.padding(12.dp)) { Text("No machine-readable QA findings have been recorded for this chapter yet.") }; return }
     var pending by remember { mutableStateOf<QaFinding?>(null) }; var reason by remember { mutableStateOf("") }
     LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -376,7 +568,10 @@ private fun QaFindingsView(snapshot: QaFindingsSnapshot?, editorSha: String, bus
                     if (finding.locator.isNotBlank()) Text(finding.locator)
                     Text(finding.message)
                     Text(if (overridden) "OVERRIDDEN" else if (finding.override != null) "ACTIVE • old override stale" else "ACTIVE")
-                    if (finding.overridable) TextButton(onClick = { pending = finding }, enabled = !busy && !overridden) { Text("Override finding") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (finding.locator.isNotBlank()) TextButton(onClick = { onShowParagraph(finding.locator) }, enabled = !busy) { Text("Show paragraph") }
+                        if (finding.overridable) TextButton(onClick = { pending = finding }, enabled = !busy && !overridden) { Text("Override finding") }
+                    }
                 }
             }
         }
