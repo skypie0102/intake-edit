@@ -136,7 +136,7 @@ object DiffText {
             out.append("@@ line ${i + 1} @@\n")
             if (old != null) out.append("- ").append(old).append('\n')
             if (new != null) out.append("+ ").append(new).append('\n')
-            if (out.length > limit) return (out.take(limit) + "…diff truncated…\n").trimEnd()
+            if (out.length > limit) return out.take(limit).toString().plus("…diff truncated…\n").trimEnd()
         }
         return out.toString().trimEnd()
     }
