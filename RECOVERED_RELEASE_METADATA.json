@@ -1,0 +1,10 @@
+{
+  "android_release": "v0.5.1",
+  "apk_name": "intake-edit-v0.5.1.apk",
+  "apk_sha256": "4ec9b29e69bc5da66907efd6be03ca4127c1671433642465f5bd6bff030823a1",
+  "apk_size_bytes": 12820943,
+  "application_id": "cloud.shadowmonarchbooks.intakeedit",
+  "version_code": 12,
+  "version_name": "0.5.1",
+  "release_published_at": "2026-09-12T08:12:17Z"
+}
