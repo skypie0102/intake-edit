@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -79,7 +80,7 @@ private fun IntakeEditTheme(content: @Composable () -> Unit) {
 
 private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), COMPLETED("Completed"), ALL("All") }
 private enum class EntryFilter(val label: String) {
-    NEEDS_ATTENTION("Needs Attention"), ALL("All"), RESTRICTED("Restricted"), REVISED("Revised"), UNREVISED("Unrevised")
+    NEEDS_ATTENTION("Need Attention"), ALL("All"), RESTRICTED("Restricted"), REVISED("Revised"), UNREVISED("Unrevised")
 }
 
 private data class ChapterProgress(
@@ -274,7 +275,10 @@ private fun ChapterListScreen(
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             OutlinedTextField(search, { search = it }, label = { Text("Chapter, path, or filename") }, modifier = Modifier.fillMaxWidth())
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 ChapterListFilter.entries.forEach { item -> FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) }) }
             }
             if (busy && files.isEmpty()) CircularProgressIndicator()
@@ -324,6 +328,7 @@ private fun EditorScreen(
         current = current.copy(raw = raw, document = document); onDraft(current)
     }
     val missingRestricted = current.document.entries.filter { it.isRestricted && !InlineMarkup.hasVisibleText(it.english) }
+    val filterCounts = EntryFilter.entries.associateWith { item -> filteredEntries(current.document, item).size }
     val entries = filteredEntries(current.document, filter)
     LaunchedEffect(jumpRequestId, filter, showQa, showWholeFile) {
         val locator = jumpLocator
@@ -395,8 +400,17 @@ private fun EditorScreen(
                         modifier = Modifier.weight(1f),
                     )
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        EntryFilter.entries.forEach { item -> FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) }) }
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        EntryFilter.entries.forEach { item ->
+                            FilterChip(
+                                selected = filter == item,
+                                onClick = { filter = item },
+                                label = { Text("${item.label} (${filterCounts.getValue(item)})") },
+                            )
+                        }
                     }
                     LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(entries, key = { it.locator }) { entry ->
