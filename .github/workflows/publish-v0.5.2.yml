@@ -1,0 +1,87 @@
+name: Publish v0.5.2 recovery release
+on:
+  push:
+    branches: [release/v0.5.2]
+    paths:
+      - '.github/workflows/publish-v0.5.2.yml'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: v0.5.2
+      INTAKE_EDIT_KEYSTORE_PATH: ${{ github.workspace }}/release-signing.jks
+    steps:
+      - name: Checkout validated tag
+        uses: actions/checkout@v4
+        with:
+          ref: v0.5.2
+          fetch-depth: 0
+      - name: Verify release target
+        run: |
+          test "$(git rev-parse HEAD)" = "817eb8b31db17b96207483ac551431e47e2e557e"
+          grep -q 'versionCode = 13' app/build.gradle.kts
+          grep -q 'versionName = "0.5.2"' app/build.gradle.kts
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          SECRET_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$SECRET_KEYSTORE_PASSWORD" ] && [ -n "$SECRET_KEY_ALIAS" ] && [ -n "$SECRET_KEY_PASSWORD" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$INTAKE_EDIT_KEYSTORE_PATH"
+            echo "INTAKE_EDIT_KEYSTORE_PASSWORD=$SECRET_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_ALIAS=$SECRET_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_PASSWORD=$SECRET_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "SIGNING_MODE=persistent-secrets" >> "$GITHUB_ENV"
+          else
+            TEMP_PASSWORD='intake-edit-oneoff'
+            TEMP_ALIAS='intake-edit-oneoff'
+            keytool -genkeypair -keystore "$INTAKE_EDIT_KEYSTORE_PATH" -storepass "$TEMP_PASSWORD" -keypass "$TEMP_PASSWORD" -alias "$TEMP_ALIAS" -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Intake Edit ${RELEASE_TAG} Recovery Release, O=Intake Edit, C=PH"
+            echo "INTAKE_EDIT_KEYSTORE_PASSWORD=$TEMP_PASSWORD" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_ALIAS=$TEMP_ALIAS" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_PASSWORD=$TEMP_PASSWORD" >> "$GITHUB_ENV"
+            echo "SIGNING_MODE=one-off-fallback" >> "$GITHUB_ENV"
+          fi
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Test and build signed release APK
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+      - name: Verify, name, and checksum APK
+        run: |
+          APK="$(find app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$APK"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          cp "$APK" "intake-edit-v0.5.2.apk"
+          sha256sum intake-edit-v0.5.2.apk | tee intake-edit-v0.5.2.apk.sha256
+          echo "### Intake Edit v0.5.2" >> "$GITHUB_STEP_SUMMARY"
+          echo "Signing mode: $SIGNING_MODE" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat intake-edit-v0.5.2.apk.sha256 >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.5.2
+          target_commitish: 817eb8b31db17b96207483ac551431e47e2e557e
+          name: Intake Edit v0.5.2
+          generate_release_notes: true
+          body: |
+            Recovery release rebuilt from the surviving v0.5.1 APK and validated source reconstruction.
+
+            Includes restored Android editor parity, exact recovered launcher icon, and smart visual bold/italic editing with canonical [b]/[i] persistence.
+
+            Signing mode for this build: ${{ env.SIGNING_MODE }}
+          files: |
+            intake-edit-v0.5.2.apk
+            intake-edit-v0.5.2.apk.sha256
