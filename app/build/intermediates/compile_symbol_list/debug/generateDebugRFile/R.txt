@@ -1,2 +1,0 @@
-int drawable intake_edit_icon 0x0
-int style Theme_IntakeEdit 0x0

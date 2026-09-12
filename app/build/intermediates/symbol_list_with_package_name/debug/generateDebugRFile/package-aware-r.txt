@@ -1,3 +1,0 @@
-cloud.shadowmonarchbooks.intakeedit
-drawable intake_edit_icon
-style Theme_IntakeEdit
