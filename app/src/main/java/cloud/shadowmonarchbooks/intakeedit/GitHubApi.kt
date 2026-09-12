@@ -60,43 +60,50 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
             }
         }
 
-        val headCommit = request("GET", "$repoBase/git/commits/${encode(headSha)}")
-        val baseTree = headCommit.getJSONObject("tree").getString("sha")
-        val entries = JSONArray()
+        val additions = JSONArray()
         updates.forEach { update ->
-            val blob = request(
-                "POST",
-                "$repoBase/git/blobs",
-                JSONObject().put("content", update.content).put("encoding", "utf-8"),
-            )
-            entries.put(
+            additions.put(
                 JSONObject()
                     .put("path", update.path)
-                    .put("mode", "100644")
-                    .put("type", "blob")
-                    .put("sha", blob.getString("sha")),
+                    .put(
+                        "contents",
+                        Base64.encodeToString(update.content.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP),
+                    ),
             )
         }
-        val tree = request(
-            "POST",
-            "$repoBase/git/trees",
-            JSONObject().put("base_tree", baseTree).put("tree", entries),
-        )
-        val commit = request(
-            "POST",
-            "$repoBase/git/commits",
-            JSONObject()
-                .put("message", message)
-                .put("tree", tree.getString("sha"))
-                .put("parents", JSONArray().put(headSha)),
-        )
-        val commitSha = commit.getString("sha")
-        request(
-            "PATCH",
-            "$repoBase/git/refs/heads/${encodePath(settings.branch)}",
-            JSONObject().put("sha", commitSha).put("force", false),
-        )
-        return commitSha
+        val input = JSONObject()
+            .put(
+                "branch",
+                JSONObject()
+                    .put("repositoryNameWithOwner", "${settings.owner}/${settings.repo}")
+                    .put("branchName", settings.branch),
+            )
+            .put("message", JSONObject().put("headline", message))
+            .put("fileChanges", JSONObject().put("additions", additions))
+            .put("expectedHeadOid", headSha)
+        val payload = JSONObject()
+            .put(
+                "query",
+                "mutation(\$input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: \$input) { commit { oid } } }",
+            )
+            .put("variables", JSONObject().put("input", input))
+        val response = request("POST", "/graphql", payload)
+        response.optJSONArray("errors")?.takeIf { it.length() > 0 }?.let { errors ->
+            val messages = buildList {
+                for (i in 0 until errors.length()) add(errors.getJSONObject(i).optString("message"))
+            }.filter { it.isNotBlank() }
+            throw GitHubException(
+                messages.joinToString("; ").ifBlank { "GitHub rejected the atomic glossary commit." },
+                409,
+            )
+        }
+        return response
+            .optJSONObject("data")
+            ?.optJSONObject("createCommitOnBranch")
+            ?.optJSONObject("commit")
+            ?.optString("oid")
+            ?.takeIf { it.isNotBlank() }
+            ?: throw GitHubException("GitHub did not return a commit id for the glossary update.")
     }
 
     private suspend fun getFileAtRef(path: String, ref: String): FileSnapshot {
