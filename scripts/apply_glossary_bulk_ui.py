@@ -106,8 +106,14 @@ text = replace_once(
 )
 text = replace_once(
     text,
-    '            TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }',
-    '            TextButton(onClick = onEdit, enabled = !busy) { Text(if (entry.qaLock) "Edit Lock" else "Edit") }',
+    '''                if (entry.description.isNotBlank()) Text(entry.description, style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }
+''',
+    '''                if (entry.description.isNotBlank()) Text(entry.description, style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = onEdit, enabled = !busy) { Text(if (entry.qaLock) "Edit Lock" else "Edit") }
+''',
     "locked edit label",
 )
 HOME.write_text(text, encoding="utf-8")
