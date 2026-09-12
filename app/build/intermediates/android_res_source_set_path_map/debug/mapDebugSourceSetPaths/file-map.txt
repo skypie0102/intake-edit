@@ -1,0 +1,8 @@
+cloud.shadowmonarchbooks.intakeedit.app-pngs-0 /home/runner/work/intake-edit/intake-edit/app/build/generated/res/pngs/debug
+cloud.shadowmonarchbooks.intakeedit.app-updated_navigation_xml-1 /home/runner/work/intake-edit/intake-edit/app/build/generated/updated_navigation_xml/debug
+cloud.shadowmonarchbooks.intakeedit.app-packageDebugResources-2 /home/runner/work/intake-edit/intake-edit/app/build/intermediates/incremental/debug/packageDebugResources/merged.dir
+cloud.shadowmonarchbooks.intakeedit.app-packageDebugResources-3 /home/runner/work/intake-edit/intake-edit/app/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
+cloud.shadowmonarchbooks.intakeedit.app-debug-4 /home/runner/work/intake-edit/intake-edit/app/build/intermediates/merged_res/debug/mergeDebugResources
+cloud.shadowmonarchbooks.intakeedit.app-debug-5 /home/runner/work/intake-edit/intake-edit/app/src/debug/res
+cloud.shadowmonarchbooks.intakeedit.app-main-6 /home/runner/work/intake-edit/intake-edit/app/src/main/res
+gradleHome-0 /home/runner/.gradle

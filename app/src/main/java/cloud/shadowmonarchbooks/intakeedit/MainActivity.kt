@@ -81,6 +81,17 @@ private enum class EntryFilter(val label: String) {
     NEEDS_ATTENTION("Needs Attention"), ALL("All"), RESTRICTED("Restricted"), REVISED("Revised"), UNREVISED("Unrevised")
 }
 
+private data class ChapterProgress(
+    val restrictedSupplied: Int,
+    val restrictedTotal: Int,
+    val safeRevised: Int,
+    val editorReviewComplete: Boolean,
+    val qaActive: Int = 0,
+    val qaTotal: Int = 0,
+) {
+    val complete: Boolean get() = editorReviewComplete && restrictedSupplied == restrictedTotal
+}
+
 private data class OpenChapter(
     val file: ChapterFile,
     val remote: FileSnapshot,
@@ -100,6 +111,7 @@ private fun IntakeApp() {
     var token by remember { mutableStateOf(tokenStore.load()) }
     var showSettings by remember { mutableStateOf(token.isBlank()) }
     var files by remember { mutableStateOf<List<ChapterFile>>(emptyList()) }
+    var progressByPath by remember { mutableStateOf<Map<String, ChapterProgress>>(emptyMap()) }
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var open by remember { mutableStateOf<OpenChapter?>(null) }
@@ -111,11 +123,37 @@ private fun IntakeApp() {
         return QaFindingsSnapshot(path, snapshot.sha, snapshot.content, QaFindingsParser.parse(snapshot.content))
     }
 
+    suspend fun loadChapterProgress(client: GitHubApi, file: ChapterFile): ChapterProgress {
+        val remote = client.getFile(file.path)
+        val document = IntakeParser.parse(remote.content)
+        val qa = runCatching { loadQa(client, file) }.getOrNull()
+        val editorSha = QaFindingsParser.sha256(remote.content)
+        return ChapterProgress(
+            restrictedSupplied = document.restrictedSupplied,
+            restrictedTotal = document.restrictedTotal,
+            safeRevised = document.safeRevised,
+            editorReviewComplete = document.editorReviewComplete,
+            qaActive = qa?.document?.active(editorSha)?.size ?: 0,
+            qaTotal = qa?.document?.findings?.size ?: 0,
+        )
+    }
+
     fun refresh() {
         val client = api ?: return
         scope.launch {
             busy = true
-            try { files = client.listIntakeFiles(); notice = null }
+            try {
+                val listed = client.listIntakeFiles()
+                files = listed
+                progressByPath = emptyMap()
+                listed.forEach { file ->
+                    launch {
+                        runCatching { loadChapterProgress(client, file) }
+                            .onSuccess { progress -> progressByPath = progressByPath + (file.path to progress) }
+                    }
+                }
+                notice = null
+            }
             catch (t: Throwable) { notice = t.message ?: "Could not refresh chapter list." }
             finally { busy = false }
         }
@@ -180,8 +218,9 @@ private fun IntakeApp() {
                         val newSha = client.updateFile(next.file.path, next.remote.sha, raw, "edit: revise ch_${next.file.chapter.toString().padStart(4, '0')} English")
                         draftStore.delete(next.file.path)
                         val remote = next.remote.copy(sha = newSha.ifBlank { next.remote.sha }, content = raw)
-                        open = next.copy(remote = remote, raw = raw, document = document)
                         notice = "Committed to ${settings.owner}/${settings.repo}."
+                        open = null
+                        refresh()
                     } catch (t: Throwable) { notice = t.message ?: "Commit failed." }
                     finally { busy = false }
                 }
@@ -204,19 +243,27 @@ private fun IntakeApp() {
             },
         )
     } else {
-        ChapterListScreen(files, busy, notice, ::refresh, { showSettings = true }, ::openFile)
+        ChapterListScreen(files, progressByPath, busy, notice, ::refresh, { showSettings = true }, ::openFile)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChapterListScreen(
-    files: List<ChapterFile>, busy: Boolean, notice: String?, onRefresh: () -> Unit,
+    files: List<ChapterFile>, progressByPath: Map<String, ChapterProgress>, busy: Boolean, notice: String?, onRefresh: () -> Unit,
     onSettings: () -> Unit, onOpen: (ChapterFile) -> Unit,
 ) {
     var search by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(ChapterListFilter.ACTIVE) }
-    val visible = files.filter { val q = search.trim(); q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q) }
+    val searched = files.filter { val q = search.trim(); q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q) }
+    val visible = searched.filter { file ->
+        val progress = progressByPath[file.path]
+        when (filter) {
+            ChapterListFilter.ACTIVE -> progress?.complete != true
+            ChapterListFilter.COMPLETED -> progress?.complete == true
+            ChapterListFilter.ALL -> true
+        }
+    }
     Scaffold(topBar = {
         TopAppBar(title = { Text("Intake Edit") }, actions = {
             IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Default.Refresh, "Refresh") }
@@ -235,8 +282,16 @@ private fun ChapterListScreen(
                     Card(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
+                                val progress = progressByPath[file.path]
                                 Text("Volume ${file.volume} • Chapter ${file.chapter}", fontWeight = FontWeight.Bold)
                                 Text(file.path, style = MaterialTheme.typography.bodySmall)
+                                if (progress == null) {
+                                    Text("English supplied: loading", style = MaterialTheme.typography.bodySmall)
+                                } else {
+                                    Text("English supplied: ${progress.restrictedSupplied}/${progress.restrictedTotal}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Safe revisions: ${progress.safeRevised} • Review: ${if (progress.editorReviewComplete) "complete" else "pending"}", style = MaterialTheme.typography.bodySmall)
+                                    if (progress.qaTotal > 0) Text("QA: ${progress.qaActive} active / ${progress.qaTotal} total", style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                             TextButton(onClick = { onOpen(file) }, enabled = !busy) { Text("Open") }
                         }
