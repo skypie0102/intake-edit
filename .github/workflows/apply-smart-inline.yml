@@ -1,0 +1,40 @@
+name: Apply smart visual inline editor
+
+on:
+  push:
+    branches:
+      - recovery/v0.5.1-parity
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: recovery/v0.5.1-parity
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Apply smart inline patch
+        run: python tmp/apply-smart-inline.py
+      - name: Build debug APK
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Commit production changes and clean helpers
+        shell: bash
+        run: |
+          rm -f tmp/apply-smart-inline.py .github/workflows/apply-smart-inline.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Add smart visual bold and italic editing'
+          git push origin HEAD:recovery/v0.5.1-parity
