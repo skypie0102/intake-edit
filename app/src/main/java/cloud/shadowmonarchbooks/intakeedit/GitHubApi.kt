@@ -3,6 +3,7 @@ package cloud.shadowmonarchbooks.intakeedit
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -12,6 +13,12 @@ import java.nio.charset.StandardCharsets
 import javax.net.ssl.HttpsURLConnection
 
 class GitHubException(message: String, val statusCode: Int? = null) : Exception(message)
+
+data class GitHubFileUpdate(
+    val path: String,
+    val expectedSha: String,
+    val content: String,
+)
 
 class GitHubApi(private val settings: RepoSettings, private val token: String) {
     private val repoBase = "/repos/${encode(settings.owner)}/${encode(settings.repo)}"
@@ -33,15 +40,69 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
             }
         }.sortedWith(compareBy<ChapterFile> { it.volume }.thenBy { it.chapter })
     }
-    suspend fun getFile(path: String): FileSnapshot {
-        val response = request("GET", "$repoBase/contents/${encodePath(path)}?ref=${encode(settings.branch)}")
-        val bytes = Base64.decode(response.getString("content").replace("\n", ""), Base64.DEFAULT)
-        return FileSnapshot(path, response.getString("sha"), String(bytes, StandardCharsets.UTF_8))
-    }
+    suspend fun getFile(path: String): FileSnapshot = getFileAtRef(path, settings.branch)
     suspend fun getFileOrNull(path: String): FileSnapshot? = try { getFile(path) } catch (e: GitHubException) { if (e.statusCode == 404) null else throw e }
     suspend fun updateFile(path: String, sha: String, content: String, message: String): String {
         val payload = JSONObject().put("message", message).put("content", Base64.encodeToString(content.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)).put("sha", sha).put("branch", settings.branch)
         return request("PUT", "$repoBase/contents/${encodePath(path)}", payload).optJSONObject("content")?.optString("sha").orEmpty()
+    }
+
+    suspend fun updateFilesAtomically(updates: List<GitHubFileUpdate>, message: String): String {
+        require(updates.isNotEmpty()) { "At least one file update is required." }
+        require(updates.map { it.path }.distinct().size == updates.size) { "Atomic update contains duplicate file paths." }
+
+        val branch = request("GET", "$repoBase/branches/${encode(settings.branch)}")
+        val headSha = branch.getJSONObject("commit").getString("sha")
+        updates.forEach { update ->
+            val current = getFileAtRef(update.path, headSha)
+            if (current.sha != update.expectedSha) {
+                throw GitHubException("${update.path} changed after the glossary was loaded. Refresh before committing.", 409)
+            }
+        }
+
+        val headCommit = request("GET", "$repoBase/git/commits/${encode(headSha)}")
+        val baseTree = headCommit.getJSONObject("tree").getString("sha")
+        val entries = JSONArray()
+        updates.forEach { update ->
+            val blob = request(
+                "POST",
+                "$repoBase/git/blobs",
+                JSONObject().put("content", update.content).put("encoding", "utf-8"),
+            )
+            entries.put(
+                JSONObject()
+                    .put("path", update.path)
+                    .put("mode", "100644")
+                    .put("type", "blob")
+                    .put("sha", blob.getString("sha")),
+            )
+        }
+        val tree = request(
+            "POST",
+            "$repoBase/git/trees",
+            JSONObject().put("base_tree", baseTree).put("tree", entries),
+        )
+        val commit = request(
+            "POST",
+            "$repoBase/git/commits",
+            JSONObject()
+                .put("message", message)
+                .put("tree", tree.getString("sha"))
+                .put("parents", JSONArray().put(headSha)),
+        )
+        val commitSha = commit.getString("sha")
+        request(
+            "PATCH",
+            "$repoBase/git/refs/heads/${encodePath(settings.branch)}",
+            JSONObject().put("sha", commitSha).put("force", false),
+        )
+        return commitSha
+    }
+
+    private suspend fun getFileAtRef(path: String, ref: String): FileSnapshot {
+        val response = request("GET", "$repoBase/contents/${encodePath(path)}?ref=${encode(ref)}")
+        val bytes = Base64.decode(response.getString("content").replace("\n", ""), Base64.DEFAULT)
+        return FileSnapshot(path, response.getString("sha"), String(bytes, StandardCharsets.UTF_8))
     }
     private fun encodePath(path: String) = path.split('/').joinToString("/") { encode(it) }
     private fun encode(value: String) = URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")
@@ -60,7 +121,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                 val friendly = when (status) {
                     401 -> "GitHub rejected the token. Check it in Settings."
                     403 -> "GitHub denied this operation. Check repository access and Contents permissions."
-                    409 -> "GitHub rejected the update, usually because the file changed after you opened it. Reload the chapter before editing again."
+                    409, 422 -> "GitHub rejected the update, usually because the repository changed after you opened it. Refresh before editing again."
                     else -> if (apiMessage.isNotBlank()) "GitHub request failed with HTTP $status. $apiMessage" else "GitHub request failed with HTTP $status."
                 }
                 throw GitHubException(friendly, status)
