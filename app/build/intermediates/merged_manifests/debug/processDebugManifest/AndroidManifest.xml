@@ -21,7 +21,9 @@
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
         android:debuggable="true"
         android:extractNativeLibs="false"
+        android:icon="@drawable/intake_edit_icon"
         android:label="Intake Edit"
+        android:roundIcon="@drawable/intake_edit_icon"
         android:supportsRtl="true"
         android:theme="@style/Theme.IntakeEdit"
         android:usesCleartextTraffic="false" >
