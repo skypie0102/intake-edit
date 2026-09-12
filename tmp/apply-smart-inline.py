@@ -5,7 +5,7 @@ text = path.read_text(encoding='utf-8')
 
 start = text.index('@Composable\nprivate fun EntryCard(')
 end = text.index('@Composable\nprivate fun WholeFileEditor', start)
-replacement = '''@Composable
+replacement = r'''@Composable
 private fun EntryCard(entry: EditorEntry, onEnglishChange: (String) -> Unit) {
     val context = LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
