@@ -107,6 +107,12 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                     }
                 },
                 actions = {
+                    TextButton(
+                        onClick = { glossaryViewModel.commitPooled(settings, token) },
+                        enabled = !state.busy && token.isNotBlank() && state.pooledApprovalCount > 0,
+                    ) {
+                        Text("Commit (${state.pooledApprovalCount})")
+                    }
                     IconButton(
                         onClick = { glossaryViewModel.refresh(settings, token) },
                         enabled = !state.busy && token.isNotBlank(),
@@ -166,15 +172,18 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                         } else {
                             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(proposals, key = { it.id }) { proposal ->
+                                    val resolvedEntry = glossaryViewModel.proposalEntry(proposal, settings, token)
+                                    val pooledEntry = state.approvalDrafts[proposal.id]
                                     GlossaryProposalCard(
                                         proposal = proposal,
+                                        resolvedEntry = pooledEntry ?: resolvedEntry,
+                                        pooled = pooledEntry != null,
                                         busy = state.busy,
                                         onEdit = { editingProposal = proposal },
                                         onApprove = {
-                                            glossaryViewModel.proposalEntry(proposal, settings, token)?.let { entry ->
-                                                glossaryViewModel.approveProposal(proposal, entry, settings, token)
-                                            }
+                                            resolvedEntry?.let { entry -> glossaryViewModel.poolApproval(proposal, entry) }
                                         },
+                                        onRemoveFromPool = { glossaryViewModel.removePooledApproval(proposal.id) },
                                         onReject = {
                                             glossaryViewModel.rejectProposal(proposal, settings, token)
                                         },
@@ -226,15 +235,17 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
     }
 
     editingProposal?.let { proposal ->
-        val initial = glossaryViewModel.proposalEntry(proposal, settings, token) ?: GlossaryEntry(
-            id = "proposal:${proposal.id}",
-            section = proposal.section ?: "terms",
-            sourceAliases = proposal.sourceAliases,
-            translatedName = proposal.translatedName.orEmpty(),
-            gender = proposal.gender,
-            description = proposal.description,
-            qaLock = proposal.recommendQaLock,
-        )
+        val initial = state.approvalDrafts[proposal.id]
+            ?: glossaryViewModel.proposalEntry(proposal, settings, token)
+            ?: GlossaryEntry(
+                id = "proposal:${proposal.id}",
+                section = proposal.section ?: "terms",
+                sourceAliases = proposal.sourceAliases,
+                translatedName = proposal.translatedName.orEmpty(),
+                gender = proposal.gender,
+                description = proposal.description,
+                qaLock = proposal.recommendQaLock,
+            )
         GlossaryWorkspaceEditDialog(
             title = "Edit suggestion",
             initial = initial,
@@ -297,16 +308,23 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
 @Composable
 private fun GlossaryProposalCard(
     proposal: GlossaryProposal,
+    resolvedEntry: GlossaryEntry?,
+    pooled: Boolean,
     onEdit: () -> Unit,
     onApprove: () -> Unit,
+    onRemoveFromPool: () -> Unit,
     onReject: () -> Unit,
     busy: Boolean,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(proposal.action.replace('_', ' ').uppercase(), fontWeight = FontWeight.Bold)
-            proposal.translatedName?.takeIf { it.isNotBlank() }?.let { Text("English: $it") }
-            if (proposal.sourceAliases.isNotEmpty()) Text("Japanese: ${proposal.sourceAliases.joinToString(" / ")}")
+            val english = proposal.translatedName?.takeIf { it.isNotBlank() }
+                ?: resolvedEntry?.translatedName?.takeIf { it.isNotBlank() }
+            english?.let { Text("English: $it") }
+            val japanese = proposal.sourceAliases.takeIf { it.isNotEmpty() }
+                ?: resolvedEntry?.sourceAliases.orEmpty()
+            if (japanese.isNotEmpty()) Text("Japanese: ${japanese.joinToString(" / ")}")
             proposal.targetId?.let { Text("Target: $it", style = MaterialTheme.typography.bodySmall) }
             val source = if (proposal.sourceVolume != null && proposal.occurrenceCount != null) {
                 buildString {
@@ -329,11 +347,16 @@ private fun GlossaryProposalCard(
             if (source.isNotBlank()) Text("Source: $source", style = MaterialTheme.typography.bodySmall)
             Text(proposal.reason)
             if (proposal.recommendQaLock) Text("Agent recommends QA lock", fontWeight = FontWeight.SemiBold)
+            if (pooled) Text("Pooled for batch commit", fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }
                 TextButton(onClick = onReject, enabled = !busy) { Text("Reject") }
+                if (pooled) TextButton(onClick = onRemoveFromPool, enabled = !busy) { Text("Undo") }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = onApprove, enabled = !busy) { Text("Approve") }
+                Button(
+                    onClick = onApprove,
+                    enabled = !busy && !pooled && resolvedEntry != null,
+                ) { Text(if (pooled) "Pooled" else "Approve") }
             }
         }
     }

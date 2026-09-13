@@ -42,6 +42,45 @@ class GlossaryViewModelTest {
     }
 
     @Test
+    fun singleApprovalIsPooledWithoutRepositoryMutation() = runTest(dispatcher) {
+        val snapshot = glossarySnapshot(proposalStatus = "pending")
+        val repository = FakeGlossaryRepository(snapshot, snapshot)
+        val viewModel = GlossaryViewModel(GlossaryRepositoryFactory { _, _ -> repository })
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        val proposal = snapshot.documents.pendingProposals.single()
+        val entry = repository.proposalEntry(proposal, snapshot.documents)
+
+        viewModel.poolApproval(proposal, entry)
+
+        assertEquals(1, viewModel.uiState.value.pooledApprovalCount)
+        assertFalse(repository.mutated)
+        assertFalse(repository.commitDraftsCalled)
+    }
+
+    @Test
+    fun commitPooledWritesBatchAndClearsPool() = runTest(dispatcher) {
+        val before = glossarySnapshot(proposalStatus = "pending")
+        val after = glossarySnapshot(proposalStatus = "approved")
+        val repository = FakeGlossaryRepository(before, after)
+        val viewModel = GlossaryViewModel(GlossaryRepositoryFactory { _, _ -> repository })
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        val proposal = before.documents.pendingProposals.single()
+        val entry = repository.proposalEntry(proposal, before.documents)
+        viewModel.poolApproval(proposal, entry)
+
+        viewModel.commitPooled(RepoSettings(), "token")
+        advanceUntilIdle()
+
+        assertTrue(repository.commitDraftsCalled)
+        assertEquals(setOf(proposal.id), repository.lastApprovalDrafts.keys)
+        assertEquals(after, viewModel.uiState.value.snapshot)
+        assertEquals(0, viewModel.uiState.value.pooledApprovalCount)
+        assertEquals("1 pooled glossary approval(s) committed.", viewModel.uiState.value.notice)
+    }
+
+    @Test
     fun approveAllReloadsAuthoritativeGlossaryState() = runTest(dispatcher) {
         val before = glossarySnapshot(proposalStatus = "pending")
         val after = glossarySnapshot(proposalStatus = "approved")
@@ -90,7 +129,9 @@ private class FakeGlossaryRepository(
     private val afterMutation: GlossarySnapshot,
 ) : GlossaryRepository {
     var approveAllCalled = false
-    private var mutated = false
+    var commitDraftsCalled = false
+    var mutated = false
+    var lastApprovalDrafts: Map<String, GlossaryEntry> = emptyMap()
 
     override suspend fun load(): GlossarySnapshot = if (mutated) afterMutation else initial
 
@@ -110,8 +151,21 @@ private class FakeGlossaryRepository(
         mutated = true
     }
 
-    override suspend fun approveAllSuggestions(state: GlossarySnapshot) {
+    override suspend fun commitApprovalDrafts(
+        state: GlossarySnapshot,
+        approvalDrafts: Map<String, GlossaryEntry>,
+    ) {
+        commitDraftsCalled = true
+        lastApprovalDrafts = approvalDrafts
+        mutated = true
+    }
+
+    override suspend fun approveAllSuggestions(
+        state: GlossarySnapshot,
+        approvalDrafts: Map<String, GlossaryEntry>,
+    ) {
         approveAllCalled = true
+        lastApprovalDrafts = approvalDrafts
         mutated = true
     }
 }

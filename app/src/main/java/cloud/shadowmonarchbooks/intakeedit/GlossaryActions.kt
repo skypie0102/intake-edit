@@ -32,20 +32,25 @@ object GlossaryActions {
         }
     }
 
-    fun approveAllPending(documents: GlossaryDocuments): GlossaryDocuments {
+    fun approvePending(
+        documents: GlossaryDocuments,
+        approvalDrafts: Map<String, GlossaryEntry>,
+        approveAll: Boolean,
+    ): GlossaryDocuments {
         var additions = documents.additions
         var governance = documents.governance
         var proposals = documents.proposals
-        val pending = documents.pendingProposals
+        val selected = documents.pendingProposals.filter { approveAll || it.id in approvalDrafts }
+        require(selected.isNotEmpty()) { "There are no glossary approvals to commit." }
 
-        pending.forEach { proposal ->
+        selected.forEach { proposal ->
             val currentDocuments = GlossaryDocuments(
                 baseEntries = documents.baseEntries,
                 additions = additions,
                 governance = governance,
                 proposals = proposals,
             )
-            val entry = proposalEntry(proposal, currentDocuments)
+            val entry = approvalDrafts[proposal.id] ?: proposalEntry(proposal, currentDocuments)
             val additionIndex = additions.indexOfFirst { it.id == entry.id }
             val baseExists = documents.baseEntries.any { it.id == entry.id }
             additions = when {
@@ -74,4 +79,7 @@ object GlossaryActions {
             proposals = proposals,
         )
     }
+
+    fun approveAllPending(documents: GlossaryDocuments): GlossaryDocuments =
+        approvePending(documents, approvalDrafts = emptyMap(), approveAll = true)
 }

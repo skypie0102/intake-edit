@@ -24,7 +24,8 @@ internal interface GlossaryRepository {
     fun proposalEntry(proposal: GlossaryProposal, documents: GlossaryDocuments): GlossaryEntry
     suspend fun saveApprovedEntry(state: GlossarySnapshot, entry: GlossaryEntry, allowNew: Boolean)
     suspend fun saveProposal(state: GlossarySnapshot, proposal: GlossaryProposal)
-    suspend fun approveAllSuggestions(state: GlossarySnapshot)
+    suspend fun commitApprovalDrafts(state: GlossarySnapshot, approvalDrafts: Map<String, GlossaryEntry>)
+    suspend fun approveAllSuggestions(state: GlossarySnapshot, approvalDrafts: Map<String, GlossaryEntry> = emptyMap())
 }
 
 internal fun interface GlossaryRepositoryFactory {
@@ -105,10 +106,36 @@ internal class GitHubGlossaryRepository(
         )
     }
 
-    override suspend fun approveAllSuggestions(state: GlossarySnapshot) {
+    override suspend fun commitApprovalDrafts(
+        state: GlossarySnapshot,
+        approvalDrafts: Map<String, GlossaryEntry>,
+    ) {
+        require(approvalDrafts.isNotEmpty()) { "There are no pooled glossary approvals to commit." }
+        commitApprovals(
+            state = state,
+            approved = GlossaryActions.approvePending(state.documents, approvalDrafts, approveAll = false),
+            message = "glossary: approve ${approvalDrafts.size} pooled suggestions",
+        )
+    }
+
+    override suspend fun approveAllSuggestions(
+        state: GlossarySnapshot,
+        approvalDrafts: Map<String, GlossaryEntry>,
+    ) {
         val pendingCount = state.documents.pendingProposals.size
         require(pendingCount > 0) { "There are no pending glossary suggestions." }
-        val approved = GlossaryActions.approveAllPending(state.documents)
+        commitApprovals(
+            state = state,
+            approved = GlossaryActions.approvePending(state.documents, approvalDrafts, approveAll = true),
+            message = "glossary: approve $pendingCount suggestions",
+        )
+    }
+
+    private suspend fun commitApprovals(
+        state: GlossarySnapshot,
+        approved: GlossaryDocuments,
+        message: String,
+    ) {
         val additions = GlossaryParser.serializeAdditions(approved.additions)
         val governance = GlossaryParser.serializeGovernance(approved.governance)
         val proposals = GlossaryParser.serializeProposals(approved.proposals)
@@ -124,39 +151,9 @@ internal class GitHubGlossaryRepository(
             }
         }
         require(updates.isNotEmpty()) { "No glossary files changed." }
-        client.updateFilesAtomically(updates, "glossary: approve $pendingCount suggestions")
+        client.updateFilesAtomically(updates, message)
     }
 
-    override fun proposalEntry(proposal: GlossaryProposal, documents: GlossaryDocuments): GlossaryEntry {
-        val target = proposal.targetId?.let { id -> documents.effectiveEntries.firstOrNull { it.id == id } }
-        return when (proposal.action) {
-            "new_entry" -> {
-                val section = proposal.section.orEmpty().ifBlank { "terms" }
-                val aliases = proposal.sourceAliases
-                GlossaryEntry(
-                    id = GlossaryParser.entryId(section, aliases),
-                    section = section,
-                    sourceAliases = aliases,
-                    translatedName = proposal.translatedName.orEmpty(),
-                    gender = proposal.gender,
-                    description = proposal.description,
-                    qaLock = proposal.recommendQaLock,
-                    origin = "editor-approved",
-                )
-            }
-            "lock_recommendation" -> requireNotNull(target) {
-                "Proposal target not found: ${proposal.targetId}"
-            }.copy(qaLock = true)
-            else -> {
-                val current = requireNotNull(target) { "Proposal target not found: ${proposal.targetId}" }
-                current.copy(
-                    sourceAliases = proposal.sourceAliases.takeIf { it.isNotEmpty() } ?: current.sourceAliases,
-                    translatedName = proposal.translatedName?.takeIf { it.isNotBlank() } ?: current.translatedName,
-                    gender = proposal.gender ?: current.gender,
-                    description = proposal.description.takeIf { it.isNotBlank() } ?: current.description,
-                    qaLock = current.qaLock || proposal.recommendQaLock,
-                )
-            }
-        }
-    }
+    override fun proposalEntry(proposal: GlossaryProposal, documents: GlossaryDocuments): GlossaryEntry =
+        GlossaryActions.proposalEntry(proposal, documents)
 }
