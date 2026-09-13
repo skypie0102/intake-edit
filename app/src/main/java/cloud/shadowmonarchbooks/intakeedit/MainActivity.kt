@@ -54,6 +54,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.collect
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ModalBottomSheet
 
 private enum class AppDestination { HOME, CHAPTERS, GLOSSARY }
 
@@ -210,7 +215,7 @@ private fun ChapterListScreen(
 ) {
     var search by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(ChapterListFilter.ACTIVE) }
-    var volumeMenuExpanded by remember { mutableStateOf(false) }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     val searched = files.filter {
         val q = search.trim()
         q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q)
@@ -223,15 +228,26 @@ private fun ChapterListScreen(
             ChapterListFilter.ALL -> true
         }
     }
+    val activeFilterCount = (if (search.isNotBlank()) 1 else 0) + (if (filter != ChapterListFilter.ACTIVE) 1 else 0)
+
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("Chapter Intake") },
+            title = { Text(selectedVolume?.let { "Chapter Intake • V$it" } ?: "Chapter Intake") },
             navigationIcon = {
                 IconButton(onClick = onBack, enabled = openingPath == null) {
                     Icon(Icons.Default.ArrowBack, "Back")
                 }
             },
             actions = {
+                BadgedBox(
+                    badge = {
+                        if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
+                    },
+                ) {
+                    IconButton(onClick = { showFilters = true }, enabled = openingPath == null) {
+                        Icon(Icons.Default.FilterList, "Chapter filters")
+                    }
+                }
                 IconButton(onClick = onRefresh, enabled = !refreshing && openingPath == null) {
                     Icon(Icons.Default.Refresh, "Refresh")
                 }
@@ -241,71 +257,95 @@ private fun ChapterListScreen(
             },
         )
     }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            OutlinedTextField(search, { search = it }, label = { Text("Chapter, path, or filename") }, modifier = Modifier.fillMaxWidth())
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            if (refreshing && files.isEmpty()) CircularProgressIndicator()
+            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(visible, key = { it.path }) { file ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                val progress = progressByPath[file.path]
+                                Text("Volume ${file.volume} • Chapter ${file.chapter}", fontWeight = FontWeight.Bold)
+                                Text(file.path, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                val status = if (progress == null) {
+                                    "English loading"
+                                } else {
+                                    buildString {
+                                        append("${progress.englishSupplied}/${progress.englishTotal}")
+                                        append(if (progress.editorReviewComplete) " • Reviewed" else " • Review pending")
+                                        if (progress.qaTotal > 0) append(" • QA ${progress.qaActive}/${progress.qaTotal}")
+                                    }
+                                }
+                                Text(status, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                            }
+                            IconButton(
+                                onClick = { onOpen(file) },
+                                enabled = openingPath == null,
+                            ) {
+                                Icon(Icons.Default.ChevronRight, if (openingPath == file.path) "Opening" else "Open chapter")
+                            }
+                        }
+                    }
+                }
+                if (visible.isEmpty() && !refreshing) item {
+                    Text("No chapters match these filters.", modifier = Modifier.padding(12.dp))
+                }
+            }
+        }
+    }
+
+    if (showFilters) {
+        ModalBottomSheet(onDismissRequest = { showFilters = false }) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                Text("Chapter filters", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    label = { Text("Chapter, path, or filename") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                Text("Status", style = MaterialTheme.typography.labelLarge)
                 Row(
-                    Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     ChapterListFilter.entries.forEach { item ->
                         FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) })
                     }
                 }
-                Box {
-                    TextButton(
-                        onClick = { volumeMenuExpanded = true },
-                        enabled = availableVolumes.isNotEmpty() && openingPath == null,
-                    ) {
-                        Text(selectedVolume?.let { "Volume $it ▾" } ?: "Volume —")
-                    }
-                    DropdownMenu(
-                        expanded = volumeMenuExpanded,
-                        onDismissRequest = { volumeMenuExpanded = false },
+                if (availableVolumes.isNotEmpty()) {
+                    Text("Volume", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         availableVolumes.forEach { volume ->
-                            DropdownMenuItem(
-                                text = { Text("Volume $volume") },
-                                onClick = {
-                                    volumeMenuExpanded = false
-                                    onSelectVolume(volume)
-                                },
+                            FilterChip(
+                                selected = selectedVolume == volume,
+                                onClick = { onSelectVolume(volume) },
+                                label = { Text("Volume $volume") },
                             )
                         }
                     }
                 }
-            }
-            if (refreshing && files.isEmpty()) CircularProgressIndicator()
-            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(visible, key = { it.path }) { file ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                val progress = progressByPath[file.path]
-                                Text("Volume ${file.volume} • Chapter ${file.chapter}", fontWeight = FontWeight.Bold)
-                                Text(file.path, style = MaterialTheme.typography.bodySmall)
-                                if (progress == null) {
-                                    Text("English supplied: loading", style = MaterialTheme.typography.bodySmall)
-                                } else {
-                                    Text("English supplied: ${progress.englishSupplied}/${progress.englishTotal}", style = MaterialTheme.typography.bodySmall)
-                                    Text("Review: ${if (progress.editorReviewComplete) "complete" else "pending"}", style = MaterialTheme.typography.bodySmall)
-                                    if (progress.qaTotal > 0) Text("QA: ${progress.qaActive} active / ${progress.qaTotal} total", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                            TextButton(
-                                onClick = { onOpen(file) },
-                                enabled = openingPath == null,
-                            ) {
-                                Text(if (openingPath == file.path) "Opening…" else "Open")
-                            }
-                        }
-                    }
-                }
+                TextButton(
+                    onClick = {
+                        search = ""
+                        filter = ChapterListFilter.ACTIVE
+                    },
+                    enabled = activeFilterCount > 0,
+                ) { Text("Reset filters") }
             }
         }
     }

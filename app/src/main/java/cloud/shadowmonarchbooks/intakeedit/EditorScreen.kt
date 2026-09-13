@@ -55,6 +55,21 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.runtime.derivedStateOf
 
 private enum class EntryFilter(val label: String) {
     ALL("All"), NEEDS_ATTENTION("Attention"), SUPPLIED("Supplied"), UNSUPPLIED("Unsupplied")
@@ -82,6 +97,7 @@ internal fun EditorScreen(
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
     var showRemoveAllConfirm by remember { mutableStateOf(false) }
@@ -185,6 +201,15 @@ internal fun EditorScreen(
         editorNotice = "All English entries were cleared."
     }
 
+    fun jumpToFirstMissing() {
+        val target = current.document.entries.firstOrNull { !it.isSupplied } ?: return
+        showQa = false
+        showWholeFile = false
+        filter = EntryFilter.ALL
+        jumpLocator = target.locator
+        jumpRequestId += 1
+    }
+
     val missingEnglish = current.document.entries.filterNot { it.isSupplied }
     val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
     val fillableImportCount = imported?.let { overlay ->
@@ -192,6 +217,10 @@ internal fun EditorScreen(
     } ?: 0
     val filterCounts = EntryFilter.entries.associateWith { item -> filteredEntries(current.document, item).size }
     val entries = filteredEntries(current.document, filter)
+    val headerExpanded by remember {
+        derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 48 }
+    }
+    val activeFilterCount = (if (showQa) 1 else 0) + (if (!showQa && filter != EntryFilter.ALL) 1 else 0)
 
     LaunchedEffect(jumpRequestId, filter, showQa, showWholeFile) {
         val locator = jumpLocator
@@ -201,23 +230,77 @@ internal fun EditorScreen(
         }
     }
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text("V${current.file.volume} Ch ${current.file.chapter}") },
-            navigationIcon = { IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") } },
-            actions = {
-                Text(if (current.raw == current.remote.content) "No changes" else "Changes", style = MaterialTheme.typography.labelSmall)
-                TextButton(onClick = { showWholeFile = !showWholeFile; showQa = false }, enabled = !busy) {
-                    Text(if (showWholeFile) "Cards" else "Whole")
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "V${current.file.volume} Ch ${current.file.chapter} • ${current.document.englishSupplied}/${current.document.englishTotal}",
+                        maxLines = 1,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") }
+                },
+                actions = {
+                    Icon(
+                        if (current.raw == current.remote.content) Icons.Default.CloudDone else Icons.Default.EditNote,
+                        if (current.raw == current.remote.content) "No changes" else "Unsaved local changes",
+                    )
+                    BadgedBox(
+                        badge = { if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) } },
+                    ) {
+                        IconButton(
+                            onClick = { showFilters = true },
+                            enabled = !busy && !showWholeFile,
+                        ) {
+                            Icon(Icons.Default.FilterList, "Editor filters")
+                        }
+                    }
+                    IconButton(
+                        onClick = {
+                            showWholeFile = !showWholeFile
+                            showQa = false
+                        },
+                        enabled = !busy,
+                    ) {
+                        Icon(
+                            if (showWholeFile) Icons.Default.ViewAgenda else Icons.Default.Description,
+                            if (showWholeFile) "Show cards" else "Show whole file",
+                        )
+                    }
+                },
+            )
+        },
+        floatingActionButton = {
+            if (missingEnglish.isNotEmpty() && !busy) {
+                SmallFloatingActionButton(
+                    onClick = { jumpToFirstMissing() },
+                    modifier = Modifier.padding(bottom = 52.dp),
+                ) {
+                    BadgedBox(badge = { Badge { Text(missingEnglish.size.toString()) } }) {
+                        Icon(Icons.Default.SkipNext, "Go to first unsupplied English field")
+                    }
                 }
-            },
-        )
-    }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            }
+        },
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            Text(current.document.englishTitle, style = MaterialTheme.typography.titleMedium)
-            Text("English supplied: ${current.document.englishSupplied}/${current.document.englishTotal} • Review: ${if (current.document.editorReviewComplete) "complete" else "pending"}")
+            AnimatedVisibility(visible = showWholeFile || showQa || headerExpanded) {
+                Text(
+                    buildString {
+                        append(current.document.englishTitle.ifBlank { "Untitled chapter" })
+                        append(if (current.document.editorReviewComplete) " • Reviewed" else " • Review pending")
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                )
+            }
 
             if (showWholeFile) {
                 WholeFileEditor(
@@ -243,22 +326,15 @@ internal fun EditorScreen(
                     modifier = Modifier.weight(1f),
                 )
             } else {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    FilterChip(selected = !showQa, onClick = { showQa = false }, label = { Text("Entries") })
-                    FilterChip(selected = showQa, onClick = { showQa = true }, label = { Text("QA Findings") })
-                    Spacer(Modifier.weight(1f))
-                    imported?.let { overlay ->
+                imported?.let { overlay ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         if (fillableImportCount > 0) {
-                            Button(
+                            TextButton(
                                 onClick = { fillBlanksFromImport(overlay) },
                                 enabled = !busy && !importBusy,
                             ) { Text("Fill blanks ($fillableImportCount)") }
                         } else {
-                            Button(
+                            TextButton(
                                 onClick = { showRemoveAllConfirm = true },
                                 enabled = !busy && !importBusy && suppliedEnglishCount > 0,
                             ) { Text("Remove all") }
@@ -281,9 +357,72 @@ internal fun EditorScreen(
                         modifier = Modifier.weight(1f),
                     )
                 } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(entries, key = { it.locator }) { entry ->
+                            EntryCard(
+                                entry = entry,
+                                importedTranslation = imported?.translationFor(entry.locator),
+                                onUseImport = { text -> useImported(entry.locator, text) },
+                                onEnglishChange = { english -> updateEnglish(entry.locator, english) },
+                            )
+                        }
+                        if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(12.dp)) }
+                    }
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (imported == null) {
+                    IconButton(
+                        onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },
+                        enabled = !busy && !importBusy,
+                    ) {
+                        Icon(Icons.Default.UploadFile, if (importBusy) "Loading import" else "Import translation")
+                    }
+                } else {
+                    IconButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy && !importBusy) {
+                        Icon(Icons.Default.DeleteOutline, "Remove imported translation")
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Review & commit") }
+            }
+        }
+    }
+
+    if (showFilters) {
+        ModalBottomSheet(onDismissRequest = { showFilters = false }) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Editor filters", style = MaterialTheme.typography.titleMedium)
+                Text("View", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = !showQa,
+                        onClick = { showQa = false },
+                        label = { Text("Entries") },
+                    )
+                    FilterChip(
+                        selected = showQa,
+                        onClick = { showQa = true },
+                        label = { Text("QA findings") },
+                    )
+                }
+                if (!showQa) {
+                    Text("Entries", style = MaterialTheme.typography.labelLarge)
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         EntryFilter.entries.forEach { item ->
                             FilterChip(
@@ -293,42 +432,14 @@ internal fun EditorScreen(
                             )
                         }
                     }
-                    LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(entries, key = { it.locator }) { entry ->
-                            EntryCard(
-                                entry = entry,
-                                importedTranslation = imported?.translationFor(entry.locator),
-                                onUseImport = { text -> useImported(entry.locator, text) },
-                                onEnglishChange = { english -> updateEnglish(entry.locator, english) },
-                            )
-                        }
-                        if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(16.dp)) }
-                    }
                 }
-            }
-
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(
                     onClick = {
-                        val target = missingEnglish.firstOrNull() ?: return@TextButton
                         showQa = false
-                        showWholeFile = false
                         filter = EntryFilter.ALL
-                        jumpLocator = target.locator
-                        jumpRequestId += 1
                     },
-                    enabled = !busy && missingEnglish.isNotEmpty(),
-                ) { Text("Next (${missingEnglish.size.toString().padStart(2, '0')})") }
-                if (imported == null) {
-                    TextButton(
-                        onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },
-                        enabled = !busy && !importBusy,
-                    ) { Text(if (importBusy) "Loading…" else "Import") }
-                } else {
-                    TextButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy && !importBusy) { Text("Remove") }
-                }
-                Spacer(Modifier.weight(1f))
-                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Review & commit") }
+                    enabled = activeFilterCount > 0,
+                ) { Text("Reset filters") }
             }
         }
     }
@@ -444,22 +555,26 @@ private fun EntryCard(
     }
 
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(entry.locator, fontWeight = FontWeight.Bold)
-                    Text(if (entry.isSupplied) "SUPPLIED" else "UNSUPPLIED", style = MaterialTheme.typography.labelSmall)
-                }
-                TextButton(onClick = {
+                Text(
+                    "${entry.locator} • ${if (entry.isSupplied) "Supplied" else "Unsupplied"}",
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = {
                     val reference = importedTranslation?.let { "\n\nIMPORTED TRANSLATION:\n$it" }.orEmpty()
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
                     rich = rich.moveCaretToEnd()
                     focusRequester.requestFocus()
-                }) { Icon(Icons.Default.ContentCopy, null); Text("Copy") }
+                }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
-            importedTranslation?.let { DisplayBlock("Imported Translation", it) }
+            importedTranslation?.let { DisplayBlock("Imported", it) }
             OutlinedTextField(
                 value = rich.asTextFieldValue(),
                 onValueChange = { next ->
@@ -472,7 +587,7 @@ private fun EntryCard(
             )
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(
@@ -499,14 +614,16 @@ private fun EntryCard(
                         focusRequester.requestFocus()
                     }) { Text("Use Import") }
                 }
-                TextButton(onClick = {
+                IconButton(onClick = {
                     val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
                     if (text.isNotEmpty()) {
                         rich = RichInlineState.fromClipboard(text)
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
                     }
-                }, enabled = clipboard.hasPrimaryClip()) { Icon(Icons.Default.ContentPaste, null); Text("Paste") }
+                }, enabled = clipboard.hasPrimaryClip()) {
+                    Icon(Icons.Default.ContentPaste, "Paste English")
+                }
             }
         }
     }
@@ -514,10 +631,10 @@ private fun EntryCard(
 
 @Composable
 private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Direct schema-v5 YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-            TextButton(onClick = onValidate) { Text("Validate") }
+            IconButton(onClick = onValidate) { Icon(Icons.Default.CheckCircle, "Validate whole file") }
         }
         Text("Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(value = raw, onValueChange = onRawChange, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
@@ -526,8 +643,8 @@ private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValida
 
 @Composable
 private fun DisplayBlock(title: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold)
+    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
         Text(if (value.isBlank()) "—" else value)
     }
 }
@@ -542,16 +659,16 @@ private fun QaFindingsView(
     modifier: Modifier = Modifier,
 ) {
     if (snapshot == null) {
-        Column(modifier.padding(12.dp)) { Text("No machine-readable QA findings have been recorded for this chapter yet.") }
+        Column(modifier.padding(8.dp)) { Text("No machine-readable QA findings have been recorded for this chapter yet.") }
         return
     }
     var pending by remember { mutableStateOf<QaFinding?>(null) }
     var reason by remember { mutableStateOf("") }
-    LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         items(snapshot.document.findings, key = { it.id }) { finding ->
             val overridden = finding.override?.editorContentSha256 == editorSha
             Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("${finding.severity.uppercase()} • ${finding.category}", fontWeight = FontWeight.Bold)
                     if (finding.locator.isNotBlank()) Text(finding.locator)
                     Text(finding.message)

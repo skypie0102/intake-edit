@@ -98,6 +98,18 @@ internal class GlossaryViewModel() : ViewModel() {
         }
     }
 
+    fun clearPooledDecisions() {
+        val state = _uiState.value
+        if (state.pooledDecisionCount == 0 || state.busy) return
+        _uiState.update {
+            it.copy(
+                approvalDrafts = emptyMap(),
+                rejectionDraftIds = emptySet(),
+                notice = null,
+            )
+        }
+    }
+
     fun commitPooled(settings: RepoSettings, token: String) {
         val approvals = _uiState.value.approvalDrafts
         val rejections = _uiState.value.rejectionDraftIds
