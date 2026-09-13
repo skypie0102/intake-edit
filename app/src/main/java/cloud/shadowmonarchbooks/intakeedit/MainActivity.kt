@@ -38,6 +38,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -152,19 +153,21 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     if (chapter != null) {
         val editorBusy = editorState.actionInProgress
         BackHandler(enabled = !editorBusy) { editorViewModel.closeEditor() }
-        EditorScreen(
-            initial = chapter,
-            busy = editorBusy,
-            notice = editorState.notice,
-            onBack = editorViewModel::closeEditor,
-            onDraft = editorViewModel::onDraft,
-            onCommit = { next, markReviewed ->
-                editorViewModel.commit(next, markReviewed, settings, token)
-            },
-            onOverride = { next, findingId, reason ->
-                editorViewModel.overrideQa(next, findingId, reason, settings, token)
-            },
-        )
+        key(chapter.qa?.sha) {
+            EditorScreen(
+                initial = chapter,
+                busy = editorBusy,
+                notice = editorState.notice,
+                onBack = editorViewModel::closeEditor,
+                onDraft = editorViewModel::onDraft,
+                onCommit = { next, markReviewed ->
+                    editorViewModel.commit(next, markReviewed, settings, token)
+                },
+                onOverride = { next, findingId, reason ->
+                    editorViewModel.overrideQa(next, findingId, reason, settings, token)
+                },
+            )
+        }
     } else {
         val listBusy = chapterListState.refreshing || editorState.loadingPath != null
         BackHandler(enabled = !listBusy) { onExitToHome() }
