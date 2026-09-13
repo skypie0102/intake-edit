@@ -346,8 +346,6 @@ private fun GlossaryProposalCard(
             }
             if (source.isNotBlank()) Text("Source: $source", style = MaterialTheme.typography.bodySmall)
             Text(proposal.reason)
-            if (proposal.recommendQaLock) Text("Agent recommends QA lock", fontWeight = FontWeight.SemiBold)
-            if (pooled) Text("Pooled for batch commit", fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }
                 TextButton(onClick = onReject, enabled = !busy) { Text("Reject") }
