@@ -82,6 +82,16 @@ internal fun EditorScreen(
     var jumpRequestId by remember { mutableStateOf(0) }
     val listState = rememberLazyListState()
 
+    LaunchedEffect(initial.qa?.sha) {
+        if (
+            initial.file.path == current.file.path &&
+            initial.remote.sha == current.remote.sha &&
+            initial.qa?.sha != current.qa?.sha
+        ) {
+            current = current.copy(qa = initial.qa)
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
