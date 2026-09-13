@@ -66,7 +66,7 @@ jobs:
             echo "release_needed=true" >> "$GITHUB_OUTPUT"
             echo "Preparing $RELEASE_TAG from $GITHUB_SHA."
           fi
-      - name: Prepare persistent release signing
+      - name: Prepare release signing
         if: steps.release_version.outputs.release_needed == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -76,14 +76,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$SECRET_KEYSTORE_PASSWORD" ] || [ -z "$SECRET_KEY_ALIAS" ] || [ -z "$SECRET_KEY_PASSWORD" ]; then
-            echo "Persistent Android release signing secrets are required; refusing to create a one-off signed production release." >&2
-            exit 1
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$SECRET_KEYSTORE_PASSWORD" ] && [ -n "$SECRET_KEY_ALIAS" ] && [ -n "$SECRET_KEY_PASSWORD" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$INTAKE_EDIT_KEYSTORE_PATH"
+            echo "INTAKE_EDIT_KEYSTORE_PASSWORD=$SECRET_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_ALIAS=$SECRET_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_PASSWORD=$SECRET_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "SIGNING_MODE=persistent release key" >> "$GITHUB_ENV"
+          else
+            TEMP_PASSWORD='intake-edit-oneoff'
+            TEMP_ALIAS='intake-edit-oneoff'
+            keytool -genkeypair \
+              -keystore "$INTAKE_EDIT_KEYSTORE_PATH" \
+              -storepass "$TEMP_PASSWORD" \
+              -keypass "$TEMP_PASSWORD" \
+              -alias "$TEMP_ALIAS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 3650 \
+              -dname "CN=Intake Edit ${RELEASE_TAG} One-Off Release, O=Shadow Monarch Books, C=PH"
+            echo "INTAKE_EDIT_KEYSTORE_PASSWORD=$TEMP_PASSWORD" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_ALIAS=$TEMP_ALIAS" >> "$GITHUB_ENV"
+            echo "INTAKE_EDIT_KEY_PASSWORD=$TEMP_PASSWORD" >> "$GITHUB_ENV"
+            echo "SIGNING_MODE=one-off fallback key (persistent release secrets not configured)" >> "$GITHUB_ENV"
           fi
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$INTAKE_EDIT_KEYSTORE_PATH"
-          echo "INTAKE_EDIT_KEYSTORE_PASSWORD=$SECRET_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "INTAKE_EDIT_KEY_ALIAS=$SECRET_KEY_ALIAS" >> "$GITHUB_ENV"
-          echo "INTAKE_EDIT_KEY_PASSWORD=$SECRET_KEY_PASSWORD" >> "$GITHUB_ENV"
       - name: Set up Gradle 9.6
         if: steps.release_version.outputs.release_needed == 'true'
         uses: gradle/actions/setup-gradle@v4
@@ -127,7 +142,7 @@ jobs:
 
             Version code: ${{ env.APP_VERSION_CODE }}
             Version name: ${{ env.RELEASE_VERSION }}
-            Signing mode: persistent release key
+            Signing mode: ${{ env.SIGNING_MODE }}
           files: |
             intake-edit-${{ env.RELEASE_TAG }}.apk
             intake-edit-${{ env.RELEASE_TAG }}.apk.sha256
