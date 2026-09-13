@@ -8,6 +8,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -145,45 +146,47 @@ internal class ChapterListViewModel(
         }
         scheduleCacheSave(settings)
 
-        listed.forEach { file ->
-            viewModelScope.launch {
-                val loaded = progressConcurrency.withPermit {
-                    try {
-                        repository.loadBaseProgress(file)
-                    } catch (t: Throwable) {
-                        if (t is CancellationException) throw t
-                        null
+        coroutineScope {
+            listed.forEach { file ->
+                launch {
+                    val loaded = progressConcurrency.withPermit {
+                        try {
+                            repository.loadBaseProgress(file)
+                        } catch (t: Throwable) {
+                            if (t is CancellationException) throw t
+                            null
+                        }
+                    } ?: return@launch
+
+                    if (_uiState.value.selectedVolume != volume) return@launch
+                    _uiState.update { state ->
+                        state.copy(progressByPath = state.progressByPath + (file.path to loaded.progress))
                     }
-                } ?: return@launch
+                    scheduleCacheSave(settings)
 
-                if (_uiState.value.selectedVolume != volume) return@launch
-                _uiState.update { state ->
-                    state.copy(progressByPath = state.progressByPath + (file.path to loaded.progress))
-                }
-                scheduleCacheSave(settings)
+                    val qaCounts = progressConcurrency.withPermit {
+                        try {
+                            repository.loadQaCounts(file, loaded.editorContentSha256)
+                        } catch (t: Throwable) {
+                            if (t is CancellationException) throw t
+                            null
+                        }
+                    } ?: return@launch
 
-                val qaCounts = progressConcurrency.withPermit {
-                    try {
-                        repository.loadQaCounts(file, loaded.editorContentSha256)
-                    } catch (t: Throwable) {
-                        if (t is CancellationException) throw t
-                        null
+                    if (_uiState.value.selectedVolume != volume) return@launch
+                    _uiState.update { state ->
+                        val current = state.progressByPath[file.path] ?: loaded.progress
+                        state.copy(
+                            progressByPath = state.progressByPath + (
+                                file.path to current.copy(
+                                    qaActive = qaCounts.active,
+                                    qaTotal = qaCounts.total,
+                                )
+                            ),
+                        )
                     }
-                } ?: return@launch
-
-                if (_uiState.value.selectedVolume != volume) return@launch
-                _uiState.update { state ->
-                    val current = state.progressByPath[file.path] ?: loaded.progress
-                    state.copy(
-                        progressByPath = state.progressByPath + (
-                            file.path to current.copy(
-                                qaActive = qaCounts.active,
-                                qaTotal = qaCounts.total,
-                            )
-                        ),
-                    )
+                    scheduleCacheSave(settings)
                 }
-                scheduleCacheSave(settings)
             }
         }
     }
