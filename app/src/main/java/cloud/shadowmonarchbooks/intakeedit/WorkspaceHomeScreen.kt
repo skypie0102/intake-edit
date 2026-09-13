@@ -25,19 +25,19 @@ internal fun WorkspaceHomeScreen(
 ) {
     Scaffold(topBar = { TopAppBar(title = { Text("Intake Edit") }) }) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxSize().padding(padding).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Workspace", style = MaterialTheme.typography.titleLarge)
             Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Chapter Intake", fontWeight = FontWeight.Bold)
                     Text("Import rough translations, edit authoritative English, review QA findings, and commit schema-v5 chapter files.")
                     Button(onClick = onOpenChapters) { Text("Open Chapter Intake") }
                 }
             }
             Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Glossary", fontWeight = FontWeight.Bold)
                     Text("Review whole-volume suggestions, manage approved terminology and QA locks, and export the running glossary in the original file format.")
                     Button(onClick = onOpenGlossary) { Text("Open Glossary") }

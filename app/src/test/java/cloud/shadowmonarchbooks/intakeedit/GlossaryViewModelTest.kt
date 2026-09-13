@@ -59,6 +59,23 @@ class GlossaryViewModelTest {
     }
 
     @Test
+    fun clearPooledDecisionsStaysLocal() = runTest(dispatcher) {
+        val snapshot = glossarySnapshot(proposalStatus = "pending")
+        val repository = FakeGlossaryRepository(snapshot, snapshot)
+        val viewModel = GlossaryViewModel(GlossaryRepositoryFactory { _, _ -> repository })
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        val proposal = snapshot.documents.pendingProposals.single()
+
+        viewModel.poolRejection(proposal)
+        assertEquals(1, viewModel.uiState.value.pooledDecisionCount)
+        viewModel.clearPooledDecisions()
+
+        assertEquals(0, viewModel.uiState.value.pooledDecisionCount)
+        assertFalse(repository.mutated)
+    }
+
+    @Test
     fun commitPooledWritesBatchAndClearsPool() = runTest(dispatcher) {
         val before = glossarySnapshot(proposalStatus = "pending")
         val after = glossarySnapshot(proposalStatus = "approved")

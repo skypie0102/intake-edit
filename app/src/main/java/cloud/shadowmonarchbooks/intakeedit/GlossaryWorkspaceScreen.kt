@@ -47,6 +47,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.ModalBottomSheet
 
 private const val GLOSSARY_EXPORT_NAME = "Pure_Love_x_Violation_glossary_updated-v5.csv"
 
@@ -67,6 +80,8 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
     val token = settingsState.token
     var tab by rememberSaveable { mutableStateOf(GlossaryWorkspaceTab.SUGGESTIONS) }
     var search by rememberSaveable { mutableStateOf("") }
+    var sectionFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     var editingProposal by remember { mutableStateOf<GlossaryProposal?>(null) }
     var editingEntry by remember { mutableStateOf<GlossaryEntry?>(null) }
     var addingEntry by remember { mutableStateOf(false) }
@@ -97,6 +112,9 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
         if (token.isNotBlank()) glossaryViewModel.refresh(settings, token)
     }
 
+    val snapshot = state.snapshot
+    val activeFilterCount = (if (search.isNotBlank()) 1 else 0) + (if (sectionFilter != null) 1 else 0)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -107,11 +125,25 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = { glossaryViewModel.commitPooled(settings, token) },
-                        enabled = !state.busy && token.isNotBlank() && state.pooledDecisionCount > 0,
-                    ) {
-                        Text("Commit (${state.pooledDecisionCount})")
+                    if (tab != GlossaryWorkspaceTab.SUGGESTIONS && snapshot != null) {
+                        IconButton(onClick = { addingEntry = true }, enabled = !state.busy) {
+                            Icon(Icons.Default.Add, "Add glossary entry")
+                        }
+                        IconButton(
+                            onClick = { exportLauncher.launch(GLOSSARY_EXPORT_NAME) },
+                            enabled = !state.busy,
+                        ) {
+                            Icon(Icons.Default.FileDownload, "Export glossary")
+                        }
+                        BadgedBox(
+                            badge = {
+                                if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
+                            },
+                        ) {
+                            IconButton(onClick = { showFilters = true }, enabled = !state.busy) {
+                                Icon(Icons.Default.FilterList, "Glossary filters")
+                            }
+                        }
                     }
                     IconButton(
                         onClick = { glossaryViewModel.refresh(settings, token) },
@@ -122,10 +154,29 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                 },
             )
         },
+        bottomBar = {
+            if (state.pooledDecisionCount > 0) {
+                BottomAppBar {
+                    Text(
+                        "${state.pooledDecisionCount} decision${if (state.pooledDecisionCount == 1) "" else "s"}",
+                        modifier = Modifier.weight(1f).padding(start = 16.dp),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    TextButton(onClick = { glossaryViewModel.clearPooledDecisions() }, enabled = !state.busy) {
+                        Text("Clear")
+                    }
+                    Button(
+                        onClick = { glossaryViewModel.commitPooled(settings, token) },
+                        enabled = !state.busy && token.isNotBlank(),
+                        modifier = Modifier.padding(end = 8.dp),
+                    ) { Text("Commit") }
+                }
+            }
+        },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             (localNotice ?: state.notice)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             if (token.isBlank()) {
@@ -139,8 +190,10 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                 return@Column
             }
 
-            val snapshot = state.snapshot
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 GlossaryWorkspaceTab.entries.forEach { item ->
                     val count = when (item) {
                         GlossaryWorkspaceTab.SUGGESTIONS -> snapshot?.documents?.pendingProposals?.size ?: 0
@@ -161,16 +214,17 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                     GlossaryWorkspaceTab.SUGGESTIONS -> {
                         val proposals = snapshot.documents.pendingProposals
                         if (proposals.isNotEmpty()) {
-                            Button(
-                                onClick = { glossaryViewModel.approveAll(settings, token) },
-                                enabled = !state.busy,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) { Text("Approve All (${proposals.size})") }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(
+                                    onClick = { glossaryViewModel.approveAll(settings, token) },
+                                    enabled = !state.busy,
+                                ) { Text("Approve all (${proposals.size})") }
+                            }
                         }
                         if (proposals.isEmpty()) {
                             Text("No pending glossary suggestions.", modifier = Modifier.padding(12.dp))
                         } else {
-                            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 items(proposals, key = { it.id }) { proposal ->
                                     val resolvedEntry = glossaryViewModel.proposalEntry(proposal, settings, token)
                                     val pooledEntry = state.approvalDrafts[proposal.id]
@@ -195,31 +249,18 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                     GlossaryWorkspaceTab.QA_LOCKED,
                     GlossaryWorkspaceTab.APPROVED,
                     -> {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = search,
-                                onValueChange = { search = it },
-                                label = { Text("Search glossary") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                            )
-                            TextButton(onClick = { addingEntry = true }, enabled = !state.busy) { Text("Add") }
-                            TextButton(
-                                onClick = { exportLauncher.launch(GLOSSARY_EXPORT_NAME) },
-                                enabled = !state.busy,
-                            ) { Text("Export") }
-                        }
                         val q = search.trim()
                         val visible = snapshot.documents.effectiveEntries.filter { entry ->
                             val tabMatch = tab != GlossaryWorkspaceTab.QA_LOCKED || entry.qaLock
-                            tabMatch && (
+                            val sectionMatch = sectionFilter == null || entry.section == sectionFilter
+                            tabMatch && sectionMatch && (
                                 q.isBlank() ||
                                     entry.translatedName.contains(q, true) ||
                                     entry.sourceAliases.any { it.contains(q, true) } ||
                                     entry.section.contains(q, true)
                                 )
                         }
-                        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(visible, key = { it.id }) { entry ->
                                 GlossaryApprovedEntryCard(
                                     entry = entry,
@@ -227,9 +268,52 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                                     onEdit = { editingEntry = entry },
                                 )
                             }
+                            if (visible.isEmpty()) item {
+                                Text("No glossary entries match these filters.", modifier = Modifier.padding(12.dp))
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    if (showFilters && snapshot != null) {
+        val sections = snapshot.documents.effectiveEntries.map { it.section }.distinct().sorted()
+        ModalBottomSheet(onDismissRequest = { showFilters = false }) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Glossary filters", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    label = { Text("Search English or Japanese") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                Text("Category", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    FilterChip(selected = sectionFilter == null, onClick = { sectionFilter = null }, label = { Text("All") })
+                    sections.forEach { section ->
+                        FilterChip(
+                            selected = sectionFilter == section,
+                            onClick = { sectionFilter = section },
+                            label = { Text(section) },
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = {
+                        search = ""
+                        sectionFilter = null
+                    },
+                    enabled = activeFilterCount > 0,
+                ) { Text("Reset filters") }
             }
         }
     }
@@ -317,43 +401,71 @@ private fun GlossaryProposalCard(
     onReject: () -> Unit,
     busy: Boolean,
 ) {
+    var detailsExpanded by rememberSaveable(proposal.id) { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(proposal.action.replace('_', ' ').uppercase(), fontWeight = FontWeight.Bold)
+        Column(
+            Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             val english = proposal.translatedName?.takeIf { it.isNotBlank() }
                 ?: resolvedEntry?.translatedName?.takeIf { it.isNotBlank() }
-            english?.let { Text("English: $it") }
             val japanese = proposal.sourceAliases.takeIf { it.isNotEmpty() }
                 ?: resolvedEntry?.sourceAliases.orEmpty()
-            if (japanese.isNotEmpty()) Text("Japanese: ${japanese.joinToString(" / ")}")
-            proposal.targetId?.let { Text("Target: $it", style = MaterialTheme.typography.bodySmall) }
-            val source = if (proposal.sourceVolume != null && proposal.occurrenceCount != null) {
-                buildString {
-                    append("Volume ${proposal.sourceVolume}")
-                    if (proposal.sourceChapters.isNotEmpty()) append(" • ${proposal.sourceChapters.size} chapters")
-                    append(" • ${proposal.occurrenceCount} occurrences")
-                    if (proposal.sourceChapter != null || proposal.sourceLocator != null) {
-                        append(" • first ")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(english ?: "No English value", fontWeight = FontWeight.SemiBold)
+                    if (japanese.isNotEmpty()) {
+                        Text(japanese.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(proposal.action.replace('_', ' ').uppercase(), style = MaterialTheme.typography.labelSmall)
+                }
+                IconButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                    Icon(
+                        if (detailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        if (detailsExpanded) "Hide details" else "Show details",
+                    )
+                }
+            }
+
+            if (detailsExpanded) {
+                proposal.targetId?.let { Text("Target: $it", style = MaterialTheme.typography.bodySmall) }
+                val source = if (proposal.sourceVolume != null && proposal.occurrenceCount != null) {
+                    buildString {
+                        append("Volume ${proposal.sourceVolume}")
+                        if (proposal.sourceChapters.isNotEmpty()) append(" • ${proposal.sourceChapters.size} chapters")
+                        append(" • ${proposal.occurrenceCount} occurrences")
+                        if (proposal.sourceChapter != null || proposal.sourceLocator != null) {
+                            append(" • first ")
+                            proposal.sourceChapter?.let { append("Ch $it ") }
+                            proposal.sourceLocator?.let { append(it) }
+                        }
+                    }
+                } else {
+                    buildString {
+                        proposal.sourceVolume?.let { append("V$it ") }
                         proposal.sourceChapter?.let { append("Ch $it ") }
                         proposal.sourceLocator?.let { append(it) }
-                    }
+                    }.trim()
                 }
-            } else {
-                buildString {
-                    proposal.sourceVolume?.let { append("V$it ") }
-                    proposal.sourceChapter?.let { append("Ch $it ") }
-                    proposal.sourceLocator?.let { append(it) }
-                }.trim()
+                if (source.isNotBlank()) Text("Source: $source", style = MaterialTheme.typography.bodySmall)
+                Text(proposal.reason, style = MaterialTheme.typography.bodySmall)
             }
-            if (source.isNotBlank()) Text("Source: $source", style = MaterialTheme.typography.bodySmall)
-            Text(proposal.reason)
+
             val pooled = approvalPooled || rejectionPooled
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onEdit, enabled = !busy) { Text("Edit") }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onEdit, enabled = !busy) { Icon(Icons.Default.Edit, "Edit suggestion") }
                 TextButton(onClick = onReject, enabled = !busy && !rejectionPooled) {
                     Text(if (rejectionPooled) "Rejected" else "Reject")
                 }
-                if (pooled) TextButton(onClick = onRemoveFromPool, enabled = !busy) { Text("Undo") }
+                if (pooled) {
+                    IconButton(onClick = onRemoveFromPool, enabled = !busy) {
+                        Icon(Icons.Default.Undo, "Undo staged decision")
+                    }
+                }
                 Spacer(Modifier.weight(1f))
                 Button(
                     onClick = onApprove,
@@ -367,17 +479,22 @@ private fun GlossaryProposalCard(
 @Composable
 private fun GlossaryApprovedEntryCard(entry: GlossaryEntry, onEdit: () -> Unit, busy: Boolean) {
     Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(entry.translatedName, fontWeight = FontWeight.Bold)
-                Text(entry.sourceAliases.joinToString(" / "))
+                Text(entry.sourceAliases.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
                 Text(
                     entry.section.uppercase() + if (entry.qaLock) " • QA LOCK" else "",
                     style = MaterialTheme.typography.labelSmall,
                 )
-                if (entry.description.isNotBlank()) Text(entry.description, style = MaterialTheme.typography.bodySmall)
+                if (entry.description.isNotBlank()) Text(entry.description, style = MaterialTheme.typography.bodySmall, maxLines = 2)
             }
-            TextButton(onClick = onEdit, enabled = !busy) { Text(if (entry.qaLock) "Edit Lock" else "Edit") }
+            IconButton(onClick = onEdit, enabled = !busy) {
+                Icon(Icons.Default.Edit, if (entry.qaLock) "Edit QA lock" else "Edit glossary entry")
+            }
         }
     }
 }
