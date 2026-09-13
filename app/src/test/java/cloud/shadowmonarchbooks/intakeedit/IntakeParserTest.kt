@@ -59,6 +59,18 @@ class IntakeParserTest {
     }
 
     @Test
+    fun patchesOnlySelectedEnglishEntry() {
+        val patchedEnglish = IntakeParser.patchEnglishAt(yaml, 1, "Only the second entry changes.")
+        val patched = IntakeParser.patchReviewComplete(patchedEnglish, true)
+        val reparsed = IntakeParser.parse(patched)
+
+        assertEquals("It's a test.", reparsed.entries[0].english)
+        assertEquals("Only the second entry changes.", reparsed.entries[1].english)
+        assertTrue(reparsed.editorReviewComplete)
+        assertTrue(IntakeParser.validate(patched).isSuccess)
+    }
+
+    @Test
     fun rejectsOldSchemaFields() {
         val invalid = yaml.replace("  english: 'It''s a test.'", "  kind: safe\n  english: 'It''s a test.'")
         assertTrue(IntakeParser.validate(invalid).isFailure)
