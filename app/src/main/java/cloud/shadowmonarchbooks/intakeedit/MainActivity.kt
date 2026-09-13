@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -175,12 +178,15 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
         ChapterListScreen(
             files = chapterListState.files,
             progressByPath = chapterListState.progressByPath,
+            availableVolumes = chapterListState.availableVolumes,
+            selectedVolume = chapterListState.selectedVolume,
             refreshing = chapterListState.refreshing,
             openingPath = openingPath,
             notice = editorState.notice ?: repoSettingsState.notice ?: chapterListState.notice,
             onBack = onExitToHome,
             onRefresh = ::refresh,
             onSettings = repoSettingsViewModel::openSettings,
+            onSelectVolume = { volume -> chapterListViewModel.selectVolume(volume, settings, token) },
             onOpen = { file -> editorViewModel.open(file, settings, token) },
         )
     }
@@ -191,16 +197,20 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
 private fun ChapterListScreen(
     files: List<ChapterFile>,
     progressByPath: Map<String, ChapterProgress>,
+    availableVolumes: List<Int>,
+    selectedVolume: Int?,
     refreshing: Boolean,
     openingPath: String?,
     notice: String?,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onSettings: () -> Unit,
+    onSelectVolume: (Int) -> Unit,
     onOpen: (ChapterFile) -> Unit,
 ) {
     var search by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(ChapterListFilter.ACTIVE) }
+    var volumeMenuExpanded by remember { mutableStateOf(false) }
     val searched = files.filter {
         val q = search.trim()
         q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q)
@@ -234,9 +244,40 @@ private fun ChapterListScreen(
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             OutlinedTextField(search, { search = it }, label = { Text("Chapter, path, or filename") }, modifier = Modifier.fillMaxWidth())
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ChapterListFilter.entries.forEach { item ->
-                    FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) })
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(
+                    Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ChapterListFilter.entries.forEach { item ->
+                        FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) })
+                    }
+                }
+                Box {
+                    TextButton(
+                        onClick = { volumeMenuExpanded = true },
+                        enabled = availableVolumes.isNotEmpty() && openingPath == null,
+                    ) {
+                        Text(selectedVolume?.let { "Volume $it ▾" } ?: "Volume —")
+                    }
+                    DropdownMenu(
+                        expanded = volumeMenuExpanded,
+                        onDismissRequest = { volumeMenuExpanded = false },
+                    ) {
+                        availableVolumes.forEach { volume ->
+                            DropdownMenuItem(
+                                text = { Text("Volume $volume") },
+                                onClick = {
+                                    volumeMenuExpanded = false
+                                    onSelectVolume(volume)
+                                },
+                            )
+                        }
+                    }
                 }
             }
             if (refreshing && files.isEmpty()) CircularProgressIndicator()
