@@ -31,6 +31,7 @@ internal sealed interface EditorEvent {
 
 internal class EditorViewModel(application: Application) : AndroidViewModel(application) {
     private val draftStore = DraftStore(application)
+    private var repositoryFactory: ChapterRepositoryFactory = DefaultChapterRepositoryFactory
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
 
@@ -42,6 +43,13 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
     private var draftSaveJob: Job? = null
     private var draftFlushJob: Job? = null
 
+    internal constructor(
+        application: Application,
+        repositoryFactory: ChapterRepositoryFactory,
+    ) : this(application) {
+        this.repositoryFactory = repositoryFactory
+    }
+
     fun chapterForDisplay(): OpenChapter? = latest ?: _uiState.value.open
 
     fun open(file: ChapterFile, settings: RepoSettings, token: String) {
@@ -50,7 +58,7 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
             _uiState.update { it.copy(loadingPath = file.path, notice = null) }
             try {
                 draftFlushJob?.join()
-                val repository: ChapterRepository = GitHubChapterRepository(settings, token)
+                val repository = repositoryFactory.create(settings, token)
                 val remoteChapter = repository.loadChapter(file)
                 val draft = withContext(Dispatchers.IO) { draftStore.load(file.path) }
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
@@ -117,7 +125,7 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
                 draftSaveJob = null
                 draftFlushJob?.join()
                 persistDraft(next)
-                val repository: ChapterRepository = GitHubChapterRepository(settings, token)
+                val repository = repositoryFactory.create(settings, token)
                 repository.commitChapter(next, markReviewed)
                 withContext(Dispatchers.IO) { draftStore.delete(next.file.path) }
                 latest = null
@@ -140,7 +148,7 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
         viewModelScope.launch {
             _uiState.update { it.copy(actionInProgress = true, notice = null) }
             try {
-                val repository: ChapterRepository = GitHubChapterRepository(settings, token)
+                val repository = repositoryFactory.create(settings, token)
                 val updated = repository.overrideQa(next, findingId, reason)
                 latest = updated
                 _uiState.update {
