@@ -9,8 +9,8 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 - ✅ Milestone 3 — ViewModel/state extraction: complete for Chapter Intake, editor, repository settings, and glossary.
 - ✅ Milestone 4 — repository boundaries: chapter, glossary, and local-draft workflows are behind injectable data boundaries with fake-backed ViewModel tests; the small settings/token store remains intentionally cohesive rather than wrapped for symmetry.
 - ✅ Milestone 5 — chapter-list loading/cache: repository paths and cached progress render before network progress completes; base English/review progress is published before QA counts; progress/QA work is bounded to four concurrent requests; cache writes are debounced; cached rows stay interactive during background refresh.
-- 🟡 Milestone 6 — glossary decomposition: the old `HomeActivity` controller has been removed; glossary load/mutation logic is behind `GlossaryViewModel`/`GlossaryRepository`, and UI cards/dialogs are split. Export file I/O remains UI-owned.
-- ⬜ Milestone 7 — UI polish and performance verification: structural work is largely complete; device-oriented profiling and final interaction polish remain.
+- ✅ Milestone 6 — glossary decomposition: the old `HomeActivity` controller has been removed; glossary load/mutation logic is behind `GlossaryViewModel`/`GlossaryRepository`; UI cards/dialogs are split; export serialization/file writing runs off the main thread while the document picker remains UI-owned.
+- 🟡 Milestone 7 — UI polish and performance verification: the main structural/runtime hot paths have been reduced; representative-device profiling and final interaction polish remain.
 
 ## Principles
 
@@ -87,20 +87,22 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 - Move glossary loading, proposal mutation, approval, and export preparation behind state/actions.
 - Split proposal and approved-entry surfaces into smaller composables.
 - Preserve atomic multi-file approval commits.
+- Keep Android document-picker ownership in Compose while running export serialization/file writing on `Dispatchers.IO`.
 
-**Acceptance:** glossary business workflows are testable without rendering Compose UI.
+**Acceptance:** glossary business workflows are testable without rendering Compose UI, and export file work does not block the main thread.
 
 ## Milestone 7 — UI polish and performance verification
 
 **Goal:** capitalize on the cleaner architecture.
 
-- Profile typing, chapter opening, list refresh, and glossary loading.
-- Reduce unnecessary recompositions and large object copying where measurements justify it.
-- Add loading/error affordances tied to specific operations.
-- Revisit spacing, button density, and screen-space usage after structural work is complete.
+- Profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File path on representative devices.
+- Keep normal card typing on the single-entry raw-patch path instead of rewriting every English field for each character.
+- Keep local draft persistence debounced/off-main and XLIFF cache/read/XML parse/save/remove work off the main thread.
+- Preserve editor UI state across QA override refreshes instead of recreating the editor subtree.
+- Revisit spacing, button density, and screen-space usage only after device profiling identifies remaining interaction issues.
 
 **Acceptance:** no obvious input jank on representative chapter files; navigation remains responsive during background work; regression tests and CI stay green.
 
 ## Delivery order
 
-Milestones 1–5 are complete. Finish the small remaining Milestone 6 export/I/O edge where it provides concrete value, then use Milestone 7 for device-oriented verification and polish rather than another broad rewrite.
+Milestones 1–6 are complete. Milestone 7 is now a focused device-verification/polish pass: validate the optimized typing, chapter-list, glossary, QA, and XLIFF flows on representative hardware, then address only measured remaining issues rather than doing another broad rewrite.
