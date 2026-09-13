@@ -117,7 +117,8 @@ private class FakeEditorChapterRepository(
     var restoredRaw: String? = null
         private set
 
-    override suspend fun listFiles(): List<ChapterFile> = error("Not used in this test")
+    override suspend fun listVolumes(): List<Int> = error("Not used in this test")
+    override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress = error("Not used in this test")
     override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
     override suspend fun loadChapter(file: ChapterFile): OpenChapter = remote
