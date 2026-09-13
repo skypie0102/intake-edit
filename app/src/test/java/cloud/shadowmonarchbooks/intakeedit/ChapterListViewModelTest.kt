@@ -54,6 +54,9 @@ class ChapterListViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals(listOf(first, second), state.files)
+        assertEquals(listOf(1), state.availableVolumes)
+        assertEquals(1, state.selectedVolume)
+        assertEquals(listOf(1), repository.requestedVolumes)
         assertEquals(ChapterProgress(4, 5, false), state.progressByPath[first.path])
         assertEquals(ChapterProgress(8, 8, true, qaActive = 1, qaTotal = 2), state.progressByPath[second.path])
         assertFalse(state.refreshing)
@@ -120,6 +123,7 @@ class ChapterListViewModelTest {
         var state = viewModel.uiState.value
         assertEquals(listOf(file), state.files)
         assertEquals(cachedProgress, state.progressByPath[file.path])
+        assertEquals(1, state.selectedVolume)
         assertTrue(state.refreshing)
 
         remoteGate.complete(Unit)
@@ -130,6 +134,44 @@ class ChapterListViewModelTest {
         assertEquals(ChapterProgress(4, 6, false, qaActive = 1, qaTotal = 2), state.progressByPath[file.path])
         assertEquals(state.files, cache.saved?.files)
         assertEquals(state.progressByPath, cache.saved?.progressByPath)
+    }
+
+    @Test
+    fun refreshDefaultsToLatestVolumeAndSelectionFetchesOnlyChosenVolume() = runTest(dispatcher) {
+        val volumeOne = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val volumeTwo = ChapterFile("editor_input/vol-02/chapters/ch_0001.yml", 2, 1)
+        val repository = FakeChapterRepository(
+            files = listOf(volumeOne, volumeTwo),
+            progress = mapOf(
+                volumeOne.path to ChapterProgress(1, 2, false),
+                volumeTwo.path to ChapterProgress(2, 2, true),
+            ),
+            qaProgress = mapOf(
+                volumeOne.path to QaProgressCounts(0, 0),
+                volumeTwo.path to QaProgressCounts(0, 0),
+            ),
+        )
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheDispatcher = dispatcher,
+        )
+
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+
+        var state = viewModel.uiState.value
+        assertEquals(listOf(1, 2), state.availableVolumes)
+        assertEquals(2, state.selectedVolume)
+        assertEquals(listOf(volumeTwo), state.files)
+        assertEquals(listOf(2), repository.requestedVolumes)
+
+        viewModel.selectVolume(1, RepoSettings(), "token")
+        advanceUntilIdle()
+
+        state = viewModel.uiState.value
+        assertEquals(1, state.selectedVolume)
+        assertEquals(listOf(volumeOne), state.files)
+        assertEquals(listOf(2, 1), repository.requestedVolumes)
     }
 
     @Test
@@ -155,9 +197,14 @@ private class FakeChapterRepository(
     private val beforeList: suspend () -> Unit = {},
     private val beforeQa: suspend () -> Unit = {},
 ) : ChapterRepository {
-    override suspend fun listFiles(): List<ChapterFile> {
+    val requestedVolumes = mutableListOf<Int>()
+
+    override suspend fun listVolumes(): List<Int> = files.map { it.volume }.distinct().sorted()
+
+    override suspend fun listFiles(volume: Int): List<ChapterFile> {
+        requestedVolumes += volume
         beforeList()
-        return files
+        return files.filter { it.volume == volume }
     }
 
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress =
@@ -178,7 +225,8 @@ private class FakeChapterRepository(
 }
 
 private class ThrowingChapterRepository(private val message: String) : ChapterRepository {
-    override suspend fun listFiles(): List<ChapterFile> = error(message)
+    override suspend fun listVolumes(): List<Int> = error(message)
+    override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress = error("Not used in this test")
     override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
     override suspend fun loadChapter(file: ChapterFile): OpenChapter = error("Not used in this test")
