@@ -8,19 +8,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
-data class ChapterListUiState(
+internal data class ChapterListUiState(
     val files: List<ChapterFile> = emptyList(),
     val progressByPath: Map<String, ChapterProgress> = emptyMap(),
     val refreshing: Boolean = false,
     val notice: String? = null,
 )
 
-class ChapterListViewModel : ViewModel() {
+internal class ChapterListViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ChapterListUiState())
     val uiState: StateFlow<ChapterListUiState> = _uiState.asStateFlow()
 
     private var refreshJob: Job? = null
+    private val progressConcurrency = Semaphore(4)
 
     fun refresh(settings: RepoSettings, token: String) {
         if (token.isBlank()) return
@@ -30,15 +33,23 @@ class ChapterListViewModel : ViewModel() {
             _uiState.update { it.copy(refreshing = true, notice = null) }
             try {
                 val listed = client.listIntakeFiles()
-                _uiState.update { it.copy(files = listed, progressByPath = emptyMap()) }
+                val listedPaths = listed.mapTo(hashSetOf()) { it.path }
+                _uiState.update { state ->
+                    state.copy(
+                        files = listed,
+                        progressByPath = state.progressByPath.filterKeys { it in listedPaths },
+                    )
+                }
                 listed.forEach { file ->
                     launch {
-                        runCatching { loadChapterProgress(client, file) }
-                            .onSuccess { progress ->
-                                _uiState.update { state ->
-                                    state.copy(progressByPath = state.progressByPath + (file.path to progress))
+                        progressConcurrency.withPermit {
+                            runCatching { loadChapterProgress(client, file) }
+                                .onSuccess { progress ->
+                                    _uiState.update { state ->
+                                        state.copy(progressByPath = state.progressByPath + (file.path to progress))
+                                    }
                                 }
-                            }
+                        }
                     }
                 }
             } catch (t: Throwable) {
