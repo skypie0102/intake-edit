@@ -26,8 +26,7 @@ internal class GlossaryViewModel() : ViewModel() {
     }
 
     fun refresh(settings: RepoSettings, token: String) {
-        if (token.isBlank()) return
-        activeJob?.cancel()
+        if (token.isBlank() || _uiState.value.busy) return
         activeJob = viewModelScope.launch {
             val repository = repositoryFactory.create(settings, token)
             _uiState.update { it.copy(busy = true, notice = null) }
