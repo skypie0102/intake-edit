@@ -49,8 +49,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
+
+private const val DRAFT_SAVE_DEBOUNCE_MS = 650L
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,6 +106,7 @@ private fun IntakeApp() {
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var open by remember { mutableStateOf<OpenChapter?>(null) }
+    var draftSaveJob by remember { mutableStateOf<Job?>(null) }
     val api = remember(settings, token) { token.takeIf { it.isNotBlank() }?.let { GitHubApi(settings, it) } }
 
     suspend fun loadQa(client: GitHubApi, file: ChapterFile): QaFindingsSnapshot? {
@@ -119,6 +127,34 @@ private fun IntakeApp() {
             qaActive = qa?.document?.active(editorSha)?.size ?: 0,
             qaTotal = qa?.document?.findings?.size ?: 0,
         )
+    }
+
+    fun scheduleDraftSave(next: OpenChapter) {
+        open = next
+        draftSaveJob?.cancel()
+        draftSaveJob = scope.launch {
+            delay(DRAFT_SAVE_DEBOUNCE_MS)
+            withContext(Dispatchers.IO) {
+                draftStore.save(next.file.path, next.remote.sha, next.raw)
+            }
+        }
+    }
+
+    fun closeEditor() {
+        val current = open
+        val pending = draftSaveJob
+        draftSaveJob = null
+        open = null
+        if (current != null && current.raw != current.remote.content) {
+            scope.launch {
+                pending?.cancelAndJoin()
+                withContext(Dispatchers.IO) {
+                    draftStore.save(current.file.path, current.remote.sha, current.raw)
+                }
+            }
+        } else {
+            pending?.cancel()
+        }
     }
 
     fun refresh() {
@@ -150,7 +186,7 @@ private fun IntakeApp() {
             busy = true
             try {
                 val remote = client.getFile(file.path)
-                val draft = draftStore.load(file.path)
+                val draft = withContext(Dispatchers.IO) { draftStore.load(file.path) }
                 val raw = if (draft?.baseSha == remote.sha) draft.raw else remote.content
                 val document = IntakeParser.parse(raw)
                 val qa = runCatching { loadQa(client, file) }.getOrNull()
@@ -200,21 +236,23 @@ private fun IntakeApp() {
 
     val chapter = open
     if (chapter != null) {
-        BackHandler(enabled = !busy) { open = null }
+        BackHandler(enabled = !busy) { closeEditor() }
         EditorScreen(
             initial = chapter,
             busy = busy,
             notice = notice,
-            onBack = { open = null },
-            onDraft = { next ->
-                open = next
-                draftStore.save(next.file.path, next.remote.sha, next.raw)
-            },
+            onBack = ::closeEditor,
+            onDraft = ::scheduleDraftSave,
             onCommit = { next, markReviewed ->
                 val client = api ?: return@EditorScreen
                 scope.launch {
                     busy = true
                     try {
+                        draftSaveJob?.cancelAndJoin()
+                        draftSaveJob = null
+                        withContext(Dispatchers.IO) {
+                            draftStore.save(next.file.path, next.remote.sha, next.raw)
+                        }
                         val document = if (markReviewed) {
                             require(next.document.englishSupplied == next.document.englishTotal) {
                                 "Supply English for every paragraph before marking editor review complete."
@@ -229,7 +267,7 @@ private fun IntakeApp() {
                             raw,
                             "edit: revise ch_${next.file.chapter.toString().padStart(4, '0')} English",
                         )
-                        draftStore.delete(next.file.path)
+                        withContext(Dispatchers.IO) { draftStore.delete(next.file.path) }
                         notice = "Committed to ${settings.owner}/${settings.repo}."
                         open = null
                         refresh()
