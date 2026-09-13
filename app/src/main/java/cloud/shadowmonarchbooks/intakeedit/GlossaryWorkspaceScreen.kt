@@ -50,8 +50,9 @@ import kotlinx.coroutines.withContext
 
 private const val GLOSSARY_EXPORT_NAME = "Pure_Love_x_Violation_glossary_updated-v5.csv"
 
-private enum class GlossaryWorkspaceTab(val label: String) { SUGGESTIONS("Suggestions"), APPROVED("Approved") }
-private enum class GlossaryApprovedFilter { ALL, LOCKED_QA }
+private enum class GlossaryWorkspaceTab(val label: String) {
+    SUGGESTIONS("Suggestions"), QA_LOCKED("QA Locked"), APPROVED("Approved")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +67,6 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
     val token = settingsState.token
     var tab by rememberSaveable { mutableStateOf(GlossaryWorkspaceTab.SUGGESTIONS) }
     var search by rememberSaveable { mutableStateOf("") }
-    var approvedFilter by rememberSaveable { mutableStateOf(GlossaryApprovedFilter.ALL) }
     var editingProposal by remember { mutableStateOf<GlossaryProposal?>(null) }
     var editingEntry by remember { mutableStateOf<GlossaryEntry?>(null) }
     var addingEntry by remember { mutableStateOf(false) }
@@ -138,6 +138,7 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                 GlossaryWorkspaceTab.entries.forEach { item ->
                     val count = when (item) {
                         GlossaryWorkspaceTab.SUGGESTIONS -> snapshot?.documents?.pendingProposals?.size ?: 0
+                        GlossaryWorkspaceTab.QA_LOCKED -> snapshot?.documents?.effectiveEntries?.count { it.qaLock } ?: 0
                         GlossaryWorkspaceTab.APPROVED -> snapshot?.documents?.effectiveEntries?.size ?: 0
                     }
                     FilterChip(
@@ -182,7 +183,9 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                             }
                         }
                     }
-                    GlossaryWorkspaceTab.APPROVED -> {
+                    GlossaryWorkspaceTab.QA_LOCKED,
+                    GlossaryWorkspaceTab.APPROVED,
+                    -> {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
                                 value = search,
@@ -197,24 +200,10 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                                 enabled = !state.busy,
                             ) { Text("Export") }
                         }
-                        val approvedEntries = snapshot.documents.effectiveEntries
-                        val lockedCount = approvedEntries.count { it.qaLock }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(
-                                selected = approvedFilter == GlossaryApprovedFilter.ALL,
-                                onClick = { approvedFilter = GlossaryApprovedFilter.ALL },
-                                label = { Text("All (${approvedEntries.size})") },
-                            )
-                            FilterChip(
-                                selected = approvedFilter == GlossaryApprovedFilter.LOCKED_QA,
-                                onClick = { approvedFilter = GlossaryApprovedFilter.LOCKED_QA },
-                                label = { Text("Locked QA ($lockedCount)") },
-                            )
-                        }
                         val q = search.trim()
-                        val visible = approvedEntries.filter { entry ->
-                            val filterMatch = approvedFilter == GlossaryApprovedFilter.ALL || entry.qaLock
-                            filterMatch && (
+                        val visible = snapshot.documents.effectiveEntries.filter { entry ->
+                            val tabMatch = tab != GlossaryWorkspaceTab.QA_LOCKED || entry.qaLock
+                            tabMatch && (
                                 q.isBlank() ||
                                     entry.translatedName.contains(q, true) ||
                                     entry.sourceAliases.any { it.contains(q, true) } ||
