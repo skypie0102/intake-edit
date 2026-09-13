@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,6 +21,8 @@ import kotlinx.coroutines.withContext
 internal data class ChapterListUiState(
     val files: List<ChapterFile> = emptyList(),
     val progressByPath: Map<String, ChapterProgress> = emptyMap(),
+    val availableVolumes: List<Int> = emptyList(),
+    val selectedVolume: Int? = null,
     val refreshing: Boolean = false,
     val notice: String? = null,
 )
@@ -43,11 +46,16 @@ internal class ChapterListViewModel(
         refreshJob = viewModelScope.launch {
             _uiState.update { it.copy(refreshing = true, notice = null) }
             val cached = withContext(cacheDispatcher) { cacheStore.load(settings) }
-            if (cached != null) {
-                _uiState.update {
-                    it.copy(
-                        files = cached.files,
-                        progressByPath = cached.progressByPath,
+            val cachedVolume = _uiState.value.selectedVolume ?: cached?.files?.firstOrNull()?.volume
+            if (cached != null && cachedVolume != null) {
+                val cachedFiles = cached.files.filter { it.volume == cachedVolume }
+                val cachedPaths = cachedFiles.mapTo(hashSetOf()) { it.path }
+                _uiState.update { state ->
+                    state.copy(
+                        files = cachedFiles,
+                        progressByPath = cached.progressByPath.filterKeys { it in cachedPaths },
+                        availableVolumes = (state.availableVolumes + cached.files.map { it.volume }).distinct().sorted(),
+                        selectedVolume = cachedVolume,
                         refreshing = true,
                     )
                 }
@@ -55,55 +63,127 @@ internal class ChapterListViewModel(
 
             val repository = repositoryFactory.create(settings, token)
             try {
-                val listed = repository.listFiles()
-                val listedPaths = listed.mapTo(hashSetOf()) { it.path }
+                val volumes = repository.listVolumes()
+                val currentSelection = _uiState.value.selectedVolume
+                val targetVolume = when {
+                    currentSelection != null && currentSelection in volumes -> currentSelection
+                    cachedVolume != null && cachedVolume in volumes -> cachedVolume
+                    else -> volumes.maxOrNull()
+                }
                 _uiState.update { state ->
+                    val keepCurrent = targetVolume != null && state.files.all { it.volume == targetVolume }
                     state.copy(
-                        files = listed,
-                        progressByPath = state.progressByPath.filterKeys { it in listedPaths },
-                        refreshing = false,
+                        availableVolumes = volumes,
+                        selectedVolume = targetVolume,
+                        files = if (keepCurrent) state.files else emptyList(),
+                        progressByPath = if (keepCurrent) state.progressByPath else emptyMap(),
+                        refreshing = targetVolume != null,
                     )
                 }
-                scheduleCacheSave(settings)
-
-                listed.forEach { file ->
-                    launch {
-                        val loaded = progressConcurrency.withPermit {
-                            runCatching { repository.loadBaseProgress(file) }.getOrNull()
-                        } ?: return@launch
-
-                        _uiState.update { state ->
-                            state.copy(progressByPath = state.progressByPath + (file.path to loaded.progress))
-                        }
-                        scheduleCacheSave(settings)
-
-                        val qaCounts = progressConcurrency.withPermit {
-                            runCatching {
-                                repository.loadQaCounts(file, loaded.editorContentSha256)
-                            }.getOrNull()
-                        } ?: return@launch
-
-                        _uiState.update { state ->
-                            val current = state.progressByPath[file.path] ?: loaded.progress
-                            state.copy(
-                                progressByPath = state.progressByPath + (
-                                    file.path to current.copy(
-                                        qaActive = qaCounts.active,
-                                        qaTotal = qaCounts.total,
-                                    )
-                                ),
-                            )
-                        }
-                        scheduleCacheSave(settings)
-                    }
+                if (targetVolume == null) {
+                    _uiState.update { it.copy(refreshing = false, notice = "No intake volumes were found.") }
+                    return@launch
                 }
+                loadVolume(repository, settings, targetVolume)
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 _uiState.update {
                     it.copy(
                         refreshing = false,
                         notice = t.message ?: "Could not refresh chapter list.",
                     )
                 }
+            }
+        }
+    }
+
+    fun selectVolume(volume: Int, settings: RepoSettings, token: String) {
+        if (token.isBlank() || volume == _uiState.value.selectedVolume) return
+        if (_uiState.value.availableVolumes.isNotEmpty() && volume !in _uiState.value.availableVolumes) return
+        refreshJob?.cancel()
+        cacheSaveJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            _uiState.update { state ->
+                val retainedFiles = state.files.filter { it.volume == volume }
+                val retainedPaths = retainedFiles.mapTo(hashSetOf()) { it.path }
+                state.copy(
+                    selectedVolume = volume,
+                    files = retainedFiles,
+                    progressByPath = state.progressByPath.filterKeys { it in retainedPaths },
+                    refreshing = true,
+                    notice = null,
+                )
+            }
+            try {
+                loadVolume(repositoryFactory.create(settings, token), settings, volume)
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                _uiState.update {
+                    it.copy(
+                        refreshing = false,
+                        notice = t.message ?: "Could not load Volume $volume.",
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun loadVolume(
+        repository: ChapterRepository,
+        settings: RepoSettings,
+        volume: Int,
+    ) {
+        val listed = repository.listFiles(volume)
+        val listedPaths = listed.mapTo(hashSetOf()) { it.path }
+        _uiState.update { state ->
+            state.copy(
+                files = listed,
+                progressByPath = state.progressByPath.filterKeys { it in listedPaths },
+                selectedVolume = volume,
+                refreshing = false,
+            )
+        }
+        scheduleCacheSave(settings)
+
+        listed.forEach { file ->
+            viewModelScope.launch {
+                val loaded = progressConcurrency.withPermit {
+                    try {
+                        repository.loadBaseProgress(file)
+                    } catch (t: Throwable) {
+                        if (t is CancellationException) throw t
+                        null
+                    }
+                } ?: return@launch
+
+                if (_uiState.value.selectedVolume != volume) return@launch
+                _uiState.update { state ->
+                    state.copy(progressByPath = state.progressByPath + (file.path to loaded.progress))
+                }
+                scheduleCacheSave(settings)
+
+                val qaCounts = progressConcurrency.withPermit {
+                    try {
+                        repository.loadQaCounts(file, loaded.editorContentSha256)
+                    } catch (t: Throwable) {
+                        if (t is CancellationException) throw t
+                        null
+                    }
+                } ?: return@launch
+
+                if (_uiState.value.selectedVolume != volume) return@launch
+                _uiState.update { state ->
+                    val current = state.progressByPath[file.path] ?: loaded.progress
+                    state.copy(
+                        progressByPath = state.progressByPath + (
+                            file.path to current.copy(
+                                qaActive = qaCounts.active,
+                                qaTotal = qaCounts.total,
+                            )
+                        ),
+                    )
+                }
+                scheduleCacheSave(settings)
             }
         }
     }
