@@ -11,6 +11,15 @@ internal interface ChapterRepository {
     suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter
 }
 
+internal fun interface ChapterRepositoryFactory {
+    fun create(settings: RepoSettings, token: String): ChapterRepository
+}
+
+internal object DefaultChapterRepositoryFactory : ChapterRepositoryFactory {
+    override fun create(settings: RepoSettings, token: String): ChapterRepository =
+        GitHubChapterRepository(settings, token)
+}
+
 internal class GitHubChapterRepository(
     settings: RepoSettings,
     token: String,
