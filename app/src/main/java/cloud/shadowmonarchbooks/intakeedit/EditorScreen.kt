@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,6 +51,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class EntryFilter(val label: String) {
     ALL("All"), NEEDS_ATTENTION("Attention"), SUPPLIED("Supplied"), UNSUPPLIED("Unsupplied")
@@ -67,11 +71,13 @@ internal fun EditorScreen(
     onOverride: (OpenChapter, String, String) -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val importStore = remember { TranslationImportStore(context) }
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
     var imported by remember(initial.file.path, initial.document.sourceSha256) {
-        mutableStateOf(importStore.load(initial.file.path, initial.document.sourceSha256))
+        mutableStateOf<ImportedTranslationOverlay?>(null)
     }
+    var importBusy by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf(true) }
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
@@ -81,6 +87,14 @@ internal fun EditorScreen(
     var jumpLocator by remember { mutableStateOf<String?>(null) }
     var jumpRequestId by remember { mutableStateOf(0) }
     val listState = rememberLazyListState()
+
+    LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
+        importBusy = true
+        imported = withContext(Dispatchers.IO) {
+            importStore.load(initial.file.path, initial.document.sourceSha256)
+        }
+        importBusy = false
+    }
 
     LaunchedEffect(initial.qa?.sha) {
         if (
@@ -94,22 +108,31 @@ internal fun EditorScreen(
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            runCatching {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: error("Could not read the selected file.")
-                require(bytes.size <= 20 * 1024 * 1024) { "Translation file is too large to import safely (20 MB limit)." }
-                val fileName = selectedFileName(context, uri) ?: "Imported XLIFF"
-                val overlay = XliffTranslationImporter.parse(
-                    raw = String(bytes, Charsets.UTF_8),
-                    fileName = fileName,
-                    chapterPath = current.file.path,
-                    document = current.document,
-                )
-                require(importStore.save(overlay)) { "Could not persist the imported translation locally." }
-                imported = overlay
-                editorNotice = "Imported: ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}"
-            }.onFailure {
-                editorNotice = it.message ?: "Could not import this translation file."
+            val chapter = current
+            scope.launch {
+                importBusy = true
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: error("Could not read the selected file.")
+                        require(bytes.size <= 20 * 1024 * 1024) { "Translation file is too large to import safely (20 MB limit)." }
+                        val fileName = selectedFileName(context, uri) ?: "Imported XLIFF"
+                        val overlay = XliffTranslationImporter.parse(
+                            raw = String(bytes, Charsets.UTF_8),
+                            fileName = fileName,
+                            chapterPath = chapter.file.path,
+                            document = chapter.document,
+                        )
+                        require(importStore.save(overlay)) { "Could not persist the imported translation locally." }
+                        overlay
+                    }
+                }.onSuccess { overlay ->
+                    imported = overlay
+                    editorNotice = "Imported: ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}"
+                }.onFailure {
+                    editorNotice = it.message ?: "Could not import this translation file."
+                }
+                importBusy = false
             }
         }
     }
@@ -222,7 +245,7 @@ internal fun EditorScreen(
                     imported?.let { overlay ->
                         Button(
                             onClick = { fillBlanksFromImport(overlay) },
-                            enabled = !busy && fillableImportCount > 0,
+                            enabled = !busy && !importBusy && fillableImportCount > 0,
                         ) { Text("Fill blanks ($fillableImportCount)") }
                     }
                 }
@@ -283,34 +306,45 @@ internal fun EditorScreen(
                 if (imported == null) {
                     TextButton(
                         onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },
-                        enabled = !busy,
-                    ) { Text("Import") }
+                        enabled = !busy && !importBusy,
+                    ) { Text(if (importBusy) "Loading…" else "Import") }
                 } else {
-                    TextButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy) { Text("Remove") }
+                    TextButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy && !importBusy) { Text("Remove") }
                 }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { showCommit = true }, enabled = !busy) { Text("Review & commit") }
+                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Review & commit") }
             }
         }
     }
 
     if (showRemoveImportConfirm) {
         AlertDialog(
-            onDismissRequest = { showRemoveImportConfirm = false },
+            onDismissRequest = { if (!importBusy) showRemoveImportConfirm = false },
             title = { Text("Remove imported translation?") },
             text = { Text("Remove the local imported translation? English already copied into fields will not be changed.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        importStore.delete(current.file.path)
-                        imported = null
+                        val path = current.file.path
                         showRemoveImportConfirm = false
-                        editorNotice = "Imported translation removed."
+                        scope.launch {
+                            importBusy = true
+                            val removed = withContext(Dispatchers.IO) { importStore.delete(path) }
+                            if (removed) {
+                                imported = null
+                                editorNotice = "Imported translation removed."
+                            } else {
+                                editorNotice = "Could not remove the imported translation."
+                            }
+                            importBusy = false
+                        }
                     },
-                    enabled = !busy,
+                    enabled = !busy && !importBusy,
                 ) { Text("Remove") }
             },
-            dismissButton = { TextButton(onClick = { showRemoveImportConfirm = false }, enabled = !busy) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(onClick = { showRemoveImportConfirm = false }, enabled = !busy && !importBusy) { Text("Cancel") }
+            },
         )
     }
 
@@ -319,8 +353,8 @@ internal fun EditorScreen(
             onDismissRequest = { showCommit = false },
             title = { Text("Commit chapter changes?") },
             text = { Text("Mark reviewed only after checking the full chapter. Every English field must be supplied first. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.") },
-            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy) { Text("Mark reviewed & commit") } },
-            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy) { Text("Commit without review") } },
+            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy) { Text("Mark reviewed & commit") } },
+            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit without review") } },
         )
     }
 }
