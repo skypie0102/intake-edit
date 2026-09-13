@@ -40,48 +40,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.time.Instant
-
-private const val DRAFT_SAVE_DEBOUNCE_MS = 650L
+import kotlinx.coroutines.flow.collect
 
 private enum class AppDestination { HOME, CHAPTERS, GLOSSARY }
-
-private class EditorSession {
-    var latest: OpenChapter? = null
-    var touched: Boolean = false
-
-    fun open(chapter: OpenChapter) {
-        latest = chapter
-        touched = false
-    }
-
-    fun update(chapter: OpenChapter) {
-        latest = chapter
-        touched = true
-    }
-
-    fun clear() {
-        latest = null
-        touched = false
-    }
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -138,94 +108,28 @@ internal data class OpenChapter(
 
 @Composable
 private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val chapterListViewModel: ChapterListViewModel = viewModel()
     val chapterListState by chapterListViewModel.uiState.collectAsStateWithLifecycle()
     val repoSettingsViewModel: RepoSettingsViewModel = viewModel()
     val repoSettingsState by repoSettingsViewModel.uiState.collectAsStateWithLifecycle()
-    val draftStore = remember { DraftStore(context) }
-    val editorSession = remember { EditorSession() }
+    val editorViewModel: EditorViewModel = viewModel()
+    val editorState by editorViewModel.uiState.collectAsStateWithLifecycle()
     val settings = repoSettingsState.settings
     val token = repoSettingsState.token
     val showSettings = repoSettingsState.showSettings
-    var busy by remember { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
-    var open by remember { mutableStateOf<OpenChapter?>(null) }
-    var draftSaveJob by remember { mutableStateOf<Job?>(null) }
-    val api = remember(settings, token) { token.takeIf { it.isNotBlank() }?.let { GitHubApi(settings, it) } }
-
-    suspend fun loadQa(client: GitHubApi, file: ChapterFile): QaFindingsSnapshot? {
-        val path = QaFindingsParser.path(file.volume, file.chapter)
-        val snapshot = client.getFileOrNull(path) ?: return null
-        return QaFindingsSnapshot(path, snapshot.sha, snapshot.content, QaFindingsParser.parse(snapshot.content))
-    }
-
-    suspend fun persistDraft(chapter: OpenChapter) {
-        withContext(Dispatchers.IO) {
-            if (chapter.raw == chapter.remote.content) {
-                draftStore.delete(chapter.file.path)
-            } else {
-                draftStore.save(chapter.file.path, chapter.remote.sha, chapter.raw)
-            }
-        }
-    }
-
-    fun scheduleDraftSave(next: OpenChapter) {
-        editorSession.update(next)
-        draftSaveJob?.cancel()
-        draftSaveJob = scope.launch {
-            delay(DRAFT_SAVE_DEBOUNCE_MS)
-            persistDraft(next)
-        }
-    }
-
-    fun closeEditor() {
-        val current = editorSession.latest ?: open
-        val touched = editorSession.touched
-        val pending = draftSaveJob
-        draftSaveJob = null
-        editorSession.clear()
-        open = null
-        if (current != null && touched) {
-            scope.launch {
-                pending?.cancelAndJoin()
-                persistDraft(current)
-            }
-        } else {
-            pending?.cancel()
-        }
-    }
 
     fun refresh() {
         chapterListViewModel.refresh(settings, token)
     }
 
-    fun openFile(file: ChapterFile) {
-        val client = api ?: return
-        scope.launch {
-            busy = true
-            try {
-                val remote = client.getFile(file.path)
-                val draft = withContext(Dispatchers.IO) { draftStore.load(file.path) }
-                val raw = if (draft?.baseSha == remote.sha) draft.raw else remote.content
-                val document = IntakeParser.parse(raw)
-                val qa = runCatching { loadQa(client, file) }.getOrNull()
-                val opened = OpenChapter(file, remote, raw, document, qa)
-                editorSession.open(opened)
-                open = opened
-                if (draft != null && draft.baseSha != remote.sha) {
-                    notice = "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
-                }
-            } catch (t: Throwable) {
-                notice = t.message ?: "Could not open ${file.path}."
-            } finally {
-                busy = false
-            }
+    LaunchedEffect(settings, token, showSettings) {
+        if (token.isNotBlank() && !showSettings) refresh()
+    }
+    LaunchedEffect(editorViewModel) {
+        editorViewModel.events.collect { event ->
+            if (event == EditorEvent.ReturnHome) onExitToHome()
         }
     }
-
-    LaunchedEffect(api, showSettings) { if (api != null && !showSettings) refresh() }
 
     if (showSettings) {
         val settingsBusy = repoSettingsState.saving
@@ -244,85 +148,35 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
         return
     }
 
-    val chapter = open
+    val chapter = editorViewModel.chapterForDisplay()
     if (chapter != null) {
-        BackHandler(enabled = !busy) { closeEditor() }
+        val editorBusy = editorState.actionInProgress
+        BackHandler(enabled = !editorBusy) { editorViewModel.closeEditor() }
         EditorScreen(
             initial = chapter,
-            busy = busy,
-            notice = notice,
-            onBack = ::closeEditor,
-            onDraft = ::scheduleDraftSave,
+            busy = editorBusy,
+            notice = editorState.notice,
+            onBack = editorViewModel::closeEditor,
+            onDraft = editorViewModel::onDraft,
             onCommit = { next, markReviewed ->
-                val client = api ?: return@EditorScreen
-                scope.launch {
-                    busy = true
-                    try {
-                        draftSaveJob?.cancelAndJoin()
-                        draftSaveJob = null
-                        withContext(Dispatchers.IO) {
-                            draftStore.save(next.file.path, next.remote.sha, next.raw)
-                        }
-                        val document = if (markReviewed) {
-                            require(next.document.englishSupplied == next.document.englishTotal) {
-                                "Supply English for every paragraph before marking editor review complete."
-                            }
-                            next.document.copy(editorReviewComplete = true)
-                        } else next.document
-                        val raw = IntakeParser.patchDocument(next.raw, document)
-                        IntakeParser.validate(raw).getOrThrow()
-                        client.updateFile(
-                            next.file.path,
-                            next.remote.sha,
-                            raw,
-                            "edit: revise ch_${next.file.chapter.toString().padStart(4, '0')} English",
-                        )
-                        withContext(Dispatchers.IO) { draftStore.delete(next.file.path) }
-                        editorSession.clear()
-                        notice = "Committed to ${settings.owner}/${settings.repo}."
-                        open = null
-                        onExitToHome()
-                    } catch (t: Throwable) {
-                        notice = t.message ?: "Commit failed."
-                    } finally {
-                        busy = false
-                    }
-                }
+                editorViewModel.commit(next, markReviewed, settings, token)
             },
             onOverride = { next, findingId, reason ->
-                val client = api ?: return@EditorScreen
-                val snapshot = next.qa ?: return@EditorScreen
-                scope.launch {
-                    busy = true
-                    try {
-                        val override = QaOverride(reason, Instant.now().toString(), client.verifyUser(), QaFindingsParser.sha256(next.raw))
-                        val document = snapshot.document.withOverride(findingId, override)
-                        val raw = QaFindingsParser.serialize(document)
-                        val sha = client.updateFile(snapshot.path, snapshot.sha, raw, "qa: override $findingId")
-                        val updated = next.copy(qa = snapshot.copy(sha = sha.ifBlank { snapshot.sha }, raw = raw, document = document))
-                        editorSession.latest = updated
-                        open = updated
-                        notice = "QA override committed."
-                    } catch (t: Throwable) {
-                        notice = t.message ?: "Could not commit QA override."
-                    } finally {
-                        busy = false
-                    }
-                }
+                editorViewModel.overrideQa(next, findingId, reason, settings, token)
             },
         )
     } else {
-        val listBusy = busy || chapterListState.refreshing
+        val listBusy = chapterListState.refreshing || editorState.loadingPath != null
         BackHandler(enabled = !listBusy) { onExitToHome() }
         ChapterListScreen(
             files = chapterListState.files,
             progressByPath = chapterListState.progressByPath,
             busy = listBusy,
-            notice = notice ?: repoSettingsState.notice ?: chapterListState.notice,
+            notice = editorState.notice ?: repoSettingsState.notice ?: chapterListState.notice,
             onBack = onExitToHome,
             onRefresh = ::refresh,
             onSettings = repoSettingsViewModel::openSettings,
-            onOpen = ::openFile,
+            onOpen = { file -> editorViewModel.open(file, settings, token) },
         )
     }
 }
