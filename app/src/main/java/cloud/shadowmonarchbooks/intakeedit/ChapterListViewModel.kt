@@ -29,10 +29,10 @@ internal class ChapterListViewModel : ViewModel() {
         if (token.isBlank()) return
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
-            val client = GitHubApi(settings, token)
+            val repository: ChapterRepository = GitHubChapterRepository(settings, token)
             _uiState.update { it.copy(refreshing = true, notice = null) }
             try {
-                val listed = client.listIntakeFiles()
+                val listed = repository.listFiles()
                 val listedPaths = listed.mapTo(hashSetOf()) { it.path }
                 _uiState.update { state ->
                     state.copy(
@@ -43,7 +43,7 @@ internal class ChapterListViewModel : ViewModel() {
                 listed.forEach { file ->
                     launch {
                         progressConcurrency.withPermit {
-                            runCatching { loadChapterProgress(client, file) }
+                            runCatching { repository.loadProgress(file) }
                                 .onSuccess { progress ->
                                     _uiState.update { state ->
                                         state.copy(progressByPath = state.progressByPath + (file.path to progress))
@@ -60,25 +60,5 @@ internal class ChapterListViewModel : ViewModel() {
                 _uiState.update { it.copy(refreshing = false) }
             }
         }
-    }
-
-    private suspend fun loadChapterProgress(client: GitHubApi, file: ChapterFile): ChapterProgress {
-        val remote = client.getFile(file.path)
-        val document = IntakeParser.parse(remote.content)
-        val qa = runCatching { loadQa(client, file) }.getOrNull()
-        val editorSha = QaFindingsParser.sha256(remote.content)
-        return ChapterProgress(
-            englishSupplied = document.englishSupplied,
-            englishTotal = document.englishTotal,
-            editorReviewComplete = document.editorReviewComplete,
-            qaActive = qa?.document?.active(editorSha)?.size ?: 0,
-            qaTotal = qa?.document?.findings?.size ?: 0,
-        )
-    }
-
-    private suspend fun loadQa(client: GitHubApi, file: ChapterFile): QaFindingsSnapshot? {
-        val path = QaFindingsParser.path(file.volume, file.chapter)
-        val snapshot = client.getFileOrNull(path) ?: return null
-        return QaFindingsSnapshot(path, snapshot.sha, snapshot.content, QaFindingsParser.parse(snapshot.content))
     }
 }
