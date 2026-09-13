@@ -70,4 +70,52 @@ class GlossaryActionsTest {
         val approved = GlossaryActions.approveAllPending(documents)
         assertEquals(listOf("森下重義", "森下"), approved.governance.getValue(base.id).sourceAliases)
     }
+
+    @Test
+    fun approvePendingOnlyAppliesPooledDrafts() {
+        val yukino = GlossaryEntry(
+            id = "characters:雪乃",
+            section = "characters",
+            sourceAliases = listOf("雪乃"),
+            translatedName = "Yukino",
+        )
+        val kenji = GlossaryEntry(
+            id = "characters:ケンジ",
+            section = "characters",
+            sourceAliases = listOf("ケンジ"),
+            translatedName = "Kenji",
+        )
+        val documents = GlossaryDocuments(
+            baseEntries = listOf(yukino, kenji),
+            additions = emptyList(),
+            governance = emptyMap(),
+            proposals = listOf(
+                GlossaryProposal(
+                    id = "lock-yukino",
+                    action = "lock_recommendation",
+                    reason = "Keep Yukino stable.",
+                    targetId = yukino.id,
+                    recommendQaLock = true,
+                ),
+                GlossaryProposal(
+                    id = "lock-kenji",
+                    action = "lock_recommendation",
+                    reason = "Keep Kenji stable.",
+                    targetId = kenji.id,
+                    recommendQaLock = true,
+                ),
+            ),
+        )
+
+        val approved = GlossaryActions.approvePending(
+            documents,
+            approvalDrafts = mapOf("lock-yukino" to yukino.copy(qaLock = true)),
+            approveAll = false,
+        )
+
+        assertTrue(approved.governance.getValue(yukino.id).qaLock == true)
+        assertTrue(kenji.id !in approved.governance)
+        assertEquals("approved", approved.proposals.first { it.id == "lock-yukino" }.status)
+        assertEquals("pending", approved.proposals.first { it.id == "lock-kenji" }.status)
+    }
 }
