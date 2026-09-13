@@ -41,3 +41,4 @@ jobs:
                   app/build.gradle.kts
           git commit -m "glossary: pool suggestion rejections"
           git push origin HEAD:feature/pool-glossary-rejections
+      # rerun after aligning legacy approval-pool test with mixed decision commit path
