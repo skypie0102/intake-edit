@@ -13,7 +13,8 @@ internal data class QaProgressCounts(
 )
 
 internal interface ChapterRepository {
-    suspend fun listFiles(): List<ChapterFile>
+    suspend fun listVolumes(): List<Int>
+    suspend fun listFiles(volume: Int): List<ChapterFile>
     suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress
     suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts
     suspend fun loadChapter(file: ChapterFile): OpenChapter
@@ -37,7 +38,9 @@ internal class GitHubChapterRepository(
 ) : ChapterRepository {
     private val client = GitHubApi(settings, token)
 
-    override suspend fun listFiles(): List<ChapterFile> = client.listIntakeFiles()
+    override suspend fun listVolumes(): List<Int> = client.listIntakeVolumes()
+
+    override suspend fun listFiles(volume: Int): List<ChapterFile> = client.listIntakeFiles(volume)
 
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress {
         val remote = client.getFile(file.path)
