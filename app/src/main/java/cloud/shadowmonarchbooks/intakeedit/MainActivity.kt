@@ -45,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -109,7 +110,9 @@ internal data class OpenChapter(
 
 @Composable
 private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
-    val chapterListViewModel: ChapterListViewModel = viewModel()
+    val context = LocalContext.current
+    val chapterListFactory = remember(context) { ChapterListViewModelFactory(context) }
+    val chapterListViewModel: ChapterListViewModel = viewModel(factory = chapterListFactory)
     val chapterListState by chapterListViewModel.uiState.collectAsStateWithLifecycle()
     val repoSettingsViewModel: RepoSettingsViewModel = viewModel()
     val repoSettingsState by repoSettingsViewModel.uiState.collectAsStateWithLifecycle()
