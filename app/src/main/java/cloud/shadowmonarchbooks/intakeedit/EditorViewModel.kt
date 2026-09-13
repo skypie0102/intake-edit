@@ -1,9 +1,9 @@
 package cloud.shadowmonarchbooks.intakeedit
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private const val EDITOR_DRAFT_SAVE_DEBOUNCE_MS = 650L
 
@@ -29,9 +28,10 @@ internal sealed interface EditorEvent {
     data object ReturnHome : EditorEvent
 }
 
-internal class EditorViewModel(application: Application) : AndroidViewModel(application) {
-    private val draftStore = DraftStore(application)
-    private var repositoryFactory: ChapterRepositoryFactory = DefaultChapterRepositoryFactory
+internal class EditorViewModel(
+    private val draftRepository: DraftRepository,
+    private val repositoryFactory: ChapterRepositoryFactory = DefaultChapterRepositoryFactory,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
 
@@ -43,13 +43,6 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
     private var draftSaveJob: Job? = null
     private var draftFlushJob: Job? = null
 
-    internal constructor(
-        application: Application,
-        repositoryFactory: ChapterRepositoryFactory,
-    ) : this(application) {
-        this.repositoryFactory = repositoryFactory
-    }
-
     fun chapterForDisplay(): OpenChapter? = latest ?: _uiState.value.open
 
     fun open(file: ChapterFile, settings: RepoSettings, token: String) {
@@ -60,7 +53,7 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
                 draftFlushJob?.join()
                 val repository = repositoryFactory.create(settings, token)
                 val remoteChapter = repository.loadChapter(file)
-                val draft = withContext(Dispatchers.IO) { draftStore.load(file.path) }
+                val draft = draftRepository.load(file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
                     repository.restoreRaw(remoteChapter, draft.raw)
                 } else {
@@ -94,7 +87,7 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
         draftSaveJob?.cancel()
         draftSaveJob = viewModelScope.launch {
             delay(EDITOR_DRAFT_SAVE_DEBOUNCE_MS)
-            persistDraft(next)
+            draftRepository.persist(next)
         }
     }
 
@@ -109,7 +102,7 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
         if (current != null && shouldPersist) {
             draftFlushJob = viewModelScope.launch {
                 pending?.cancelAndJoin()
-                persistDraft(current)
+                draftRepository.persist(current)
             }
         } else {
             pending?.cancel()
@@ -124,10 +117,10 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
                 draftSaveJob?.cancelAndJoin()
                 draftSaveJob = null
                 draftFlushJob?.join()
-                persistDraft(next)
+                draftRepository.persist(next)
                 val repository = repositoryFactory.create(settings, token)
                 repository.commitChapter(next, markReviewed)
-                withContext(Dispatchers.IO) { draftStore.delete(next.file.path) }
+                draftRepository.delete(next.file.path)
                 latest = null
                 touched = false
                 _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
@@ -168,14 +161,17 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
             }
         }
     }
+}
 
-    private suspend fun persistDraft(chapter: OpenChapter) {
-        withContext(Dispatchers.IO) {
-            if (chapter.raw == chapter.remote.content) {
-                draftStore.delete(chapter.file.path)
-            } else {
-                draftStore.save(chapter.file.path, chapter.remote.sha, chapter.raw)
-            }
-        }
+internal class EditorViewModelFactory(context: Context) : ViewModelProvider.Factory {
+    private val applicationContext = context.applicationContext
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        require(modelClass.isAssignableFrom(EditorViewModel::class.java))
+        return EditorViewModel(
+            draftRepository = LocalDraftRepository(applicationContext),
+            repositoryFactory = DefaultChapterRepositoryFactory,
+        ) as T
     }
 }
