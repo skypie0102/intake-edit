@@ -52,7 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 private enum class EntryFilter(val label: String) {
-    NEEDS_ATTENTION("Need Attention"), ALL("All"), RESTRICTED("Restricted"), REVISED("Revised"), UNREVISED("Unrevised")
+    NEEDS_ATTENTION("Need Attention"), ALL("All"), SUPPLIED("Supplied"), UNSUPPLIED("Unsupplied")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,7 +109,34 @@ internal fun EditorScreen(
         onDraft(current)
     }
 
-    val missingRestricted = current.document.entries.filter { it.isRestricted && !InlineMarkup.hasVisibleText(it.english) }
+    fun useImported(locator: String, text: String) {
+        val updated = current.document.entries.map { entry ->
+            if (entry.locator == locator) entry.copy(english = text) else entry
+        }
+        updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
+    }
+
+    fun fillBlanksFromImport(overlay: ImportedTranslationOverlay) {
+        var changed = 0
+        val updated = current.document.entries.map { entry ->
+            val importedText = overlay.translationFor(entry.locator)
+            if (!entry.isSupplied && importedText != null) {
+                changed += 1
+                entry.copy(english = importedText)
+            } else entry
+        }
+        if (changed > 0) {
+            updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
+            editorNotice = "Filled $changed blank English field${if (changed == 1) "" else "s"} from ${overlay.fileName}. Existing English was not overwritten."
+        } else {
+            editorNotice = "No blank English fields matched this import."
+        }
+    }
+
+    val missingEnglish = current.document.entries.filterNot { it.isSupplied }
+    val fillableImportCount = imported?.let { overlay ->
+        missingEnglish.count { overlay.translationFor(it.locator) != null }
+    } ?: 0
     val filterCounts = EntryFilter.entries.associateWith { item -> filteredEntries(current.document, item).size }
     val entries = filteredEntries(current.document, filter)
 
@@ -137,7 +164,7 @@ internal fun EditorScreen(
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Text(current.document.englishTitle, style = MaterialTheme.typography.titleMedium)
-            Text("Restricted supplied: ${current.document.restrictedSupplied}/${current.document.restrictedTotal} • Safe revisions: ${current.document.safeRevised}")
+            Text("English supplied: ${current.document.englishSupplied}/${current.document.englishTotal} • Review: ${if (current.document.editorReviewComplete) "complete" else "pending"}")
 
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -149,6 +176,10 @@ internal fun EditorScreen(
                     enabled = !busy,
                 ) { Text(if (imported == null) "Import translation" else "Replace import") }
                 imported?.let { overlay ->
+                    Button(
+                        onClick = { fillBlanksFromImport(overlay) },
+                        enabled = !busy && fillableImportCount > 0,
+                    ) { Text("Fill blanks ($fillableImportCount)") }
                     Text("Imported ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}", style = MaterialTheme.typography.bodySmall)
                     TextButton(
                         onClick = {
@@ -219,12 +250,17 @@ internal fun EditorScreen(
                     }
                     LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(entries, key = { it.locator }) { entry ->
-                            EntryCard(entry, imported?.translationFor(entry.locator)) { english ->
-                                val updated = current.document.entries.map {
-                                    if (it.locator == entry.locator) it.copy(english = english) else it
-                                }
-                                updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
-                            }
+                            EntryCard(
+                                entry = entry,
+                                importedTranslation = imported?.translationFor(entry.locator),
+                                onUseImport = { text -> useImported(entry.locator, text) },
+                                onEnglishChange = { english ->
+                                    val updated = current.document.entries.map {
+                                        if (it.locator == entry.locator) it.copy(english = english) else it
+                                    }
+                                    updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
+                                },
+                            )
                         }
                         if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(16.dp)) }
                     }
@@ -234,15 +270,15 @@ internal fun EditorScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(
                     onClick = {
-                        val target = missingRestricted.firstOrNull() ?: return@TextButton
+                        val target = missingEnglish.firstOrNull() ?: return@TextButton
                         showQa = false
                         showWholeFile = false
                         filter = EntryFilter.ALL
                         jumpLocator = target.locator
                         jumpRequestId += 1
                     },
-                    enabled = !busy && missingRestricted.isNotEmpty(),
-                ) { Text("Next (${missingRestricted.size.toString().padStart(2, '0')})") }
+                    enabled = !busy && missingEnglish.isNotEmpty(),
+                ) { Text("Next (${missingEnglish.size.toString().padStart(2, '0')})") }
                 Spacer(Modifier.weight(1f))
                 Button(onClick = { showCommit = true }, enabled = !busy) { Text("Review & commit") }
             }
@@ -253,7 +289,7 @@ internal fun EditorScreen(
         AlertDialog(
             onDismissRequest = { showCommit = false },
             title = { Text("Commit chapter changes?") },
-            text = { Text("Mark reviewed only after checking the full chapter. All restricted English must be supplied first. Imported translations are local references and are never committed automatically.") },
+            text = { Text("Mark reviewed only after checking the full chapter. Every English field must be supplied first. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.") },
             confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy) { Text("Mark reviewed & commit") } },
             dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy) { Text("Commit without review") } },
         )
@@ -270,17 +306,21 @@ private fun selectedFileName(context: Context, uri: android.net.Uri): String? = 
 
 private fun filteredEntries(document: EditorDocument, filter: EntryFilter): List<EditorEntry> = when (filter) {
     EntryFilter.NEEDS_ATTENTION -> {
-        val missing = document.entries.filter { it.isRestricted && !InlineMarkup.hasVisibleText(it.english) }
+        val missing = document.entries.filterNot { it.isSupplied }
         if (missing.isNotEmpty()) missing else if (!document.editorReviewComplete) document.entries else emptyList()
     }
     EntryFilter.ALL -> document.entries
-    EntryFilter.RESTRICTED -> document.entries.filter { it.isRestricted }
-    EntryFilter.REVISED -> document.entries.filter { it.isSafeRevised }
-    EntryFilter.UNREVISED -> document.entries.filter { !it.isRestricted && !it.isSafeRevised }
+    EntryFilter.SUPPLIED -> document.entries.filter { it.isSupplied }
+    EntryFilter.UNSUPPLIED -> document.entries.filterNot { it.isSupplied }
 }
 
 @Composable
-private fun EntryCard(entry: EditorEntry, importedTranslation: String?, onEnglishChange: (String) -> Unit) {
+private fun EntryCard(
+    entry: EditorEntry,
+    importedTranslation: String?,
+    onUseImport: (String) -> Unit,
+    onEnglishChange: (String) -> Unit,
+) {
     val context = LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val focusRequester = remember(entry.locator) { FocusRequester() }
@@ -297,52 +337,37 @@ private fun EntryCard(entry: EditorEntry, importedTranslation: String?, onEnglis
         }
     }
 
-    val referenceTitle = when {
-        importedTranslation != null -> "IMPORTED TRANSLATION"
-        entry.isRestricted -> "SANITIZED TRANSLATION"
-        else -> "DRAFT TRANSLATION"
-    }
-    val referenceDisplayTitle = when {
-        importedTranslation != null -> "Imported Translation"
-        entry.isRestricted -> "Sanitized Translation"
-        else -> "Draft Translation"
-    }
-    val referenceText = importedTranslation ?: entry.referenceTranslation
-
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(entry.locator, fontWeight = FontWeight.Bold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (entry.isRestricted) "RESTRICTED" else "SAFE", style = MaterialTheme.typography.labelSmall)
-                        if (importedTranslation != null) Text("IMPORTED", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                    }
+                    Text(if (entry.isSupplied) "SUPPLIED" else "UNSUPPLIED", style = MaterialTheme.typography.labelSmall)
                 }
                 TextButton(onClick = {
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            "raw + reference ${entry.locator}",
-                            "RAW:\n${entry.sourceJapanese}\n\n$referenceTitle:\n$referenceText",
-                        ),
-                    )
+                    val reference = importedTranslation?.let { "\n\nIMPORTED TRANSLATION:\n$it" }.orEmpty()
+                    clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
                     rich = rich.moveCaretToEnd()
                     focusRequester.requestFocus()
-                }) { Icon(Icons.Default.ContentCopy, null); Text("Copy both") }
+                }) { Icon(Icons.Default.ContentCopy, null); Text("Copy") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
-            DisplayBlock(referenceDisplayTitle, referenceText)
+            importedTranslation?.let { DisplayBlock("Imported Translation", it) }
             OutlinedTextField(
                 value = rich.asTextFieldValue(),
                 onValueChange = { next ->
                     rich = rich.edited(next)
                     onEnglishChange(rich.toMarkup())
                 },
-                label = { Text(if (entry.isRestricted) "English Supplied" else "English Revision") },
+                label = { Text("English") },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 TextButton(
                     onClick = {
                         rich = rich.toggle(InlineStyle.BOLD)
@@ -360,6 +385,13 @@ private fun EntryCard(entry: EditorEntry, importedTranslation: String?, onEnglis
                     enabled = rich.hasSelection(),
                 ) { Text("I", fontStyle = FontStyle.Italic) }
                 Spacer(Modifier.weight(1f))
+                importedTranslation?.let { importedText ->
+                    TextButton(onClick = {
+                        rich = RichInlineState.plain(importedText)
+                        onUseImport(importedText)
+                        focusRequester.requestFocus()
+                    }) { Text("Use Import") }
+                }
                 TextButton(onClick = {
                     val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
                     if (text.isNotEmpty()) {
@@ -377,7 +409,7 @@ private fun EntryCard(entry: EditorEntry, importedTranslation: String?, onEnglis
 private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Direct JSON-compatible YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+            Text("Direct schema-v5 YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
             TextButton(onClick = onValidate) { Text("Validate") }
         }
         Text("Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)

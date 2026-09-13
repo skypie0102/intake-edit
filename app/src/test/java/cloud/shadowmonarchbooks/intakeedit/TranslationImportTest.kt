@@ -6,7 +6,7 @@ import org.junit.Test
 
 class TranslationImportTest {
     private fun document(vararg source: String) = EditorDocument(
-        schemaVersion = 4,
+        schemaVersion = 5,
         volume = 1,
         chapter = 1,
         sourceHref = "canonical/vol-01/ch_0001.xhtml",
@@ -16,7 +16,7 @@ class TranslationImportTest {
         instructions = "",
         editorReviewComplete = false,
         entries = source.mapIndexed { index, text ->
-            EditorEntry("P${index + 1}", "safe", text, "draft", "", "draft")
+            EditorEntry("P${index + 1}", text, "")
         },
     )
 

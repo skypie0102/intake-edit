@@ -3,7 +3,9 @@ package cloud.shadowmonarchbooks.intakeedit
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,6 +60,7 @@ private val glossaryBasePaths = listOf(
 private const val additionsPath = "glossary/approved_additions.json"
 private const val governancePath = "glossary/governance.json"
 private const val proposalsPath = "glossary/proposals.json"
+private const val glossaryExportName = "Pure_Love_x_Violation_glossary_updated-v5.csv"
 
 private enum class GlossaryTab(val label: String) { SUGGESTIONS("Suggestions"), APPROVED("Approved") }
 private enum class ApprovedGlossaryFilter(val label: String) { ALL("All"), LOCKED_QA("Locked QA") }
@@ -98,14 +101,14 @@ private fun AppHome(onOpenChapters: () -> Unit) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Chapter Intake", fontWeight = FontWeight.Bold)
-                    Text("Edit chapter English, review QA findings, and commit authoritative intake files.")
+                    Text("Import rough translations, edit authoritative English, review QA findings, and commit schema-v5 chapter files.")
                     Button(onClick = onOpenChapters) { Text("Open Chapter Intake") }
                 }
             }
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Glossary", fontWeight = FontWeight.Bold)
-                    Text("Review translation-time suggestions, manage approved terminology, and approve QA locks.")
+                    Text("Review whole-volume suggestions, manage approved terminology and QA locks, and export the running glossary in the original file format.")
                     Button(onClick = { showGlossary = true }) { Text("Open Glossary") }
                 }
             }
@@ -132,6 +135,22 @@ private fun GlossaryScreen(onBack: () -> Unit) {
     var editingProposal by remember { mutableStateOf<GlossaryProposal?>(null) }
     var editingEntry by remember { mutableStateOf<GlossaryEntry?>(null) }
     var addingEntry by remember { mutableStateOf(false) }
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) {
+            runCatching {
+                val state = remote ?: error("Glossary is not loaded.")
+                val raw = GlossaryExport.serialize(state.documents.effectiveEntries)
+                context.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
+                    stream.write(raw.toByteArray(Charsets.UTF_8))
+                } ?: error("Could not open the selected export destination.")
+            }.onSuccess {
+                notice = "Glossary exported in the original supplied format."
+            }.onFailure {
+                notice = it.message ?: "Glossary export failed."
+            }
+        }
+    }
 
     suspend fun loadState(client: GitHubApi): GlossaryRemoteState {
         val base = glossaryBasePaths.map { client.getFile(it) }
@@ -176,7 +195,7 @@ private fun GlossaryScreen(onBack: () -> Unit) {
                 client.updateFile(governancePath, state.governance.sha, GlossaryParser.serializeGovernance(next), "glossary: govern ${entry.id}")
             }
             allowNew -> {
-                require(state.documents.effectiveEntries.none { it.id == entry.id }) { "Glossary entry already exists: ${entry.id}" }
+                GlossaryParser.ensureNewEntryAbsent(entry, state.documents.effectiveEntries)
                 val next = state.documents.additions + entry.copy(origin = "editor-approved")
                 client.updateFile(additionsPath, state.additions.sha, GlossaryParser.serializeAdditions(next), "glossary: add ${entry.id}")
             }
@@ -325,6 +344,7 @@ private fun GlossaryScreen(onBack: () -> Unit) {
                                 singleLine = true,
                             )
                             TextButton(onClick = { addingEntry = true }, enabled = !busy) { Text("Add") }
+                            TextButton(onClick = { exportLauncher.launch(glossaryExportName) }, enabled = !busy) { Text("Export") }
                         }
                         val approvedEntries = state.documents.effectiveEntries
                         val lockedCount = approvedEntries.count { it.qaLock }
@@ -444,11 +464,24 @@ private fun ProposalCard(
             proposal.translatedName?.takeIf { it.isNotBlank() }?.let { Text("English: $it") }
             if (proposal.sourceAliases.isNotEmpty()) Text("Japanese: ${proposal.sourceAliases.joinToString(" / ")}")
             proposal.targetId?.let { Text("Target: $it", style = MaterialTheme.typography.bodySmall) }
-            val source = buildString {
-                proposal.sourceVolume?.let { append("V$it ") }
-                proposal.sourceChapter?.let { append("Ch $it ") }
-                proposal.sourceLocator?.let { append(it) }
-            }.trim()
+            val source = if (proposal.sourceVolume != null && proposal.occurrenceCount != null) {
+                buildString {
+                    append("Volume ${proposal.sourceVolume}")
+                    if (proposal.sourceChapters.isNotEmpty()) append(" • ${proposal.sourceChapters.size} chapters")
+                    append(" • ${proposal.occurrenceCount} occurrences")
+                    if (proposal.sourceChapter != null || proposal.sourceLocator != null) {
+                        append(" • first ")
+                        proposal.sourceChapter?.let { append("Ch $it ") }
+                        proposal.sourceLocator?.let { append(it) }
+                    }
+                }
+            } else {
+                buildString {
+                    proposal.sourceVolume?.let { append("V$it ") }
+                    proposal.sourceChapter?.let { append("Ch $it ") }
+                    proposal.sourceLocator?.let { append(it) }
+                }.trim()
+            }
             if (source.isNotBlank()) Text("Source: $source", style = MaterialTheme.typography.bodySmall)
             Text(proposal.reason)
             if (proposal.recommendQaLock) Text("Agent recommends QA lock", fontWeight = FontWeight.SemiBold)

@@ -16,15 +16,10 @@ data class FileSnapshot(val path: String, val sha: String, val content: String)
 
 data class EditorEntry(
     val locator: String,
-    val kind: String,
     val sourceJapanese: String,
-    val safeTranslation: String,
-    val sanitizedTranslation: String,
     val english: String,
 ) {
-    val isRestricted: Boolean get() = kind == "restricted"
-    val referenceTranslation: String get() = if (isRestricted) sanitizedTranslation else safeTranslation
-    val isSafeRevised: Boolean get() = !isRestricted && english != safeTranslation
+    val isSupplied: Boolean get() = InlineMarkup.hasVisibleText(english)
 }
 
 data class EditorDocument(
@@ -39,11 +34,9 @@ data class EditorDocument(
     val editorReviewComplete: Boolean,
     val entries: List<EditorEntry>,
 ) {
-    val restrictedEntries get() = entries.filter { it.isRestricted }
-    val restrictedSupplied get() = restrictedEntries.count { InlineMarkup.hasVisibleText(it.english) }
-    val restrictedTotal get() = restrictedEntries.size
-    val safeRevised get() = entries.count { it.isSafeRevised }
-    val complete get() = editorReviewComplete && restrictedSupplied == restrictedTotal
+    val englishSupplied get() = entries.count { it.isSupplied }
+    val englishTotal get() = entries.size
+    val complete get() = editorReviewComplete && englishSupplied == englishTotal
 }
 
 object IntakeParser {
@@ -59,20 +52,15 @@ object IntakeParser {
 
     private fun parseJson(raw: String): EditorDocument {
         val root = JSONObject(raw)
-        require(root.optInt("schema_version", -1) == 4) { "This app version edits schema-v4 chapter documents only." }
+        require(root.optInt("schema_version", -1) == 5) { "This app version edits schema-v5 chapter documents only." }
         val array = root.optJSONArray("entries") ?: error("Missing top-level entries array.")
         val entries = buildList {
             for (i in 0 until array.length()) {
                 val item = array.getJSONObject(i)
-                val kind = item.optString("kind")
-                require(kind == "safe" || kind == "restricted") { "Entry $i has invalid kind '$kind'." }
                 add(
                     EditorEntry(
                         locator = item.getString("locator"),
-                        kind = kind,
                         sourceJapanese = item.getString("source_japanese"),
-                        safeTranslation = item.optString("safe_translation"),
-                        sanitizedTranslation = item.optString("sanitized_translation"),
                         english = item.getString("english"),
                     ),
                 )
@@ -114,19 +102,16 @@ object IntakeParser {
                     map[key] = decodeYamlScalar(value, index + 1)
                     current = map
                 }
-
                 line.startsWith("  ") && current != null -> {
                     val (key, value) = yamlPair(line.substring(2), index + 1)
                     current!![key] = decodeYamlScalar(value, index + 1)
                 }
-
                 !line.startsWith(" ") -> {
                     flushEntry()
                     val (key, value) = yamlPair(line, index + 1)
                     if (key != "entries") top[key] = decodeYamlScalar(value, index + 1)
                 }
-
-                else -> error("Line ${index + 1}: unsupported YAML indentation in schema-v4 chapter document.")
+                else -> error("Line ${index + 1}: unsupported YAML indentation in schema-v5 chapter document.")
             }
         }
         flushEntry()
@@ -140,19 +125,16 @@ object IntakeParser {
         }
 
         val schemaVersion = requiredInt("schema_version")
-        require(schemaVersion == 4) { "This app version edits schema-v4 chapter documents only." }
+        require(schemaVersion == 5) { "This app version edits schema-v5 chapter documents only." }
         require(entryMaps.isNotEmpty()) { "Missing or empty top-level entries array." }
 
         val entries = entryMaps.mapIndexed { index, item ->
             fun entryRequired(key: String): String = item[key] ?: error("Entry $index is missing $key.")
-            val kind = entryRequired("kind")
-            require(kind == "safe" || kind == "restricted") { "Entry $index has invalid kind '$kind'." }
+            val unexpected = item.keys - setOf("locator", "source_japanese", "english")
+            require(unexpected.isEmpty()) { "Entry $index has unsupported field(s): ${unexpected.joinToString()}" }
             EditorEntry(
                 locator = entryRequired("locator"),
-                kind = kind,
                 sourceJapanese = entryRequired("source_japanese"),
-                safeTranslation = item["safe_translation"].orEmpty(),
-                sanitizedTranslation = item["sanitized_translation"].orEmpty(),
                 english = entryRequired("english"),
             )
         }
@@ -248,9 +230,7 @@ object IntakeParser {
                 '\n' -> append("\\n")
                 '\r' -> append("\\r")
                 '\t' -> append("\\t")
-                else -> {
-                    if (ch.code < 0x20) append("\\u%04x".format(ch.code)) else append(ch)
-                }
+                else -> if (ch.code < 0x20) append("\\u%04x".format(ch.code)) else append(ch)
             }
         }
         append('\"')
@@ -299,17 +279,14 @@ object IntakeParser {
         }
 
         val document = parse(raw)
+        val seen = mutableSetOf<String>()
         document.entries.forEach { entry ->
+            require(Regex("^P[0-9]+$").matches(entry.locator)) { "${entry.locator}: invalid locator." }
+            require(seen.add(entry.locator)) { "${entry.locator}: duplicate locator." }
             require(entry.sourceJapanese.isNotBlank()) { "${entry.locator}: raw source is blank." }
             if (entry.english.isNotBlank()) {
                 InlineMarkup.validationError(entry.english)?.let { throw IllegalArgumentException("${entry.locator}: $it") }
                 require(InlineMarkup.visibleText(entry.english).isNotBlank()) { "${entry.locator}: English formatting contains no visible text." }
-            }
-            if (entry.isRestricted) {
-                require(entry.sanitizedTranslation.isNotBlank()) { "${entry.locator}: restricted entry is missing sanitized_translation." }
-            } else {
-                require(entry.safeTranslation.isNotBlank()) { "${entry.locator}: safe entry is missing safe_translation." }
-                require(InlineMarkup.hasVisibleText(entry.english)) { "${entry.locator}: safe English must remain non-blank and have valid inline formatting." }
             }
         }
     }

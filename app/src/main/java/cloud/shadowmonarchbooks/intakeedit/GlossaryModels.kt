@@ -2,8 +2,10 @@ package cloud.shadowmonarchbooks.intakeedit
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.Normalizer
 
 private val glossaryTranslatedRegex = Regex("^(.*?)(?: \\[([^]]+)])?$")
+private val glossaryWhitespaceRegex = Regex("\\s+")
 
 data class GlossaryEntry(
     val id: String,
@@ -41,6 +43,8 @@ data class GlossaryProposal(
     val sourceVolume: Int? = null,
     val sourceChapter: Int? = null,
     val sourceLocator: String? = null,
+    val occurrenceCount: Int? = null,
+    val sourceChapters: List<Int> = emptyList(),
 )
 
 data class GlossaryDocuments(
@@ -50,11 +54,48 @@ data class GlossaryDocuments(
     val proposals: List<GlossaryProposal>,
 ) {
     val effectiveEntries: List<GlossaryEntry> get() = GlossaryParser.merge(baseEntries, additions, governance)
-    val pendingProposals: List<GlossaryProposal> get() = proposals.filter { it.status == "pending" }
+    val pendingProposals: List<GlossaryProposal> get() {
+        val effective = effectiveEntries
+        return proposals.filter { proposal ->
+            proposal.status == "pending" && !(proposal.action == "new_entry" && GlossaryParser.duplicatesApprovedEntry(proposal, effective))
+        }
+    }
 }
 
 object GlossaryParser {
     fun entryId(section: String, aliases: List<String>): String = "${section.trim().lowercase()}:${aliases.joinToString(" / ").trim()}"
+
+    private fun normalizeSource(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
+        .replace(glossaryWhitespaceRegex, "")
+        .lowercase()
+
+    private fun normalizeEnglish(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
+        .trim()
+        .replace(glossaryWhitespaceRegex, " ")
+        .lowercase()
+
+    fun duplicatesApprovedEntry(proposal: GlossaryProposal, effectiveEntries: List<GlossaryEntry>): Boolean {
+        if (proposal.action != "new_entry") return false
+        val existingSources = effectiveEntries.flatMap { it.sourceAliases }.map(::normalizeSource).toSet()
+        if (proposal.sourceAliases.any { normalizeSource(it) in existingSources }) return true
+        val translated = proposal.translatedName?.takeIf { it.isNotBlank() } ?: return false
+        val existingEnglish = effectiveEntries.map { normalizeEnglish(it.translatedName) }.toSet()
+        return normalizeEnglish(translated) in existingEnglish
+    }
+
+    fun ensureNewEntryAbsent(entry: GlossaryEntry, effectiveEntries: List<GlossaryEntry>) {
+        val proposal = GlossaryProposal(
+            id = "validation",
+            action = "new_entry",
+            reason = "validation",
+            section = entry.section,
+            sourceAliases = entry.sourceAliases,
+            translatedName = entry.translatedName,
+        )
+        require(!duplicatesApprovedEntry(proposal, effectiveEntries)) {
+            "A glossary entry with this Japanese alias or canonical English already exists."
+        }
+    }
 
     fun parseBaseFile(raw: String): List<GlossaryEntry> {
         var section = ""
@@ -164,6 +205,8 @@ object GlossaryParser {
                         sourceVolume = item.optIntOrNull("source_volume"),
                         sourceChapter = item.optIntOrNull("source_chapter"),
                         sourceLocator = item.optStringOrNull("source_locator"),
+                        occurrenceCount = item.optIntOrNull("occurrence_count"),
+                        sourceChapters = item.optJSONArray("source_chapters")?.toIntList().orEmpty(),
                     ),
                 )
             }
@@ -188,7 +231,9 @@ object GlossaryParser {
                     .put("recommend_qa_lock", p.recommendQaLock)
                     .put("source_volume", p.sourceVolume ?: JSONObject.NULL)
                     .put("source_chapter", p.sourceChapter ?: JSONObject.NULL)
-                    .put("source_locator", p.sourceLocator ?: JSONObject.NULL),
+                    .put("source_locator", p.sourceLocator ?: JSONObject.NULL)
+                    .put("occurrence_count", p.occurrenceCount ?: JSONObject.NULL)
+                    .put("source_chapters", JSONArray(p.sourceChapters)),
             )
         }
         return JSONObject().put("schema_version", 1).put("proposals", array).toString(2) + "\n"
@@ -250,7 +295,35 @@ object GlossaryParser {
         for (i in 0 until length()) getString(i).trim().takeIf { it.isNotBlank() }?.let(::add)
     }
 
+    private fun JSONArray.toIntList(): List<Int> = buildList {
+        for (i in 0 until length()) add(getInt(i))
+    }
+
     private fun JSONObject.optStringOrNull(key: String): String? = if (!has(key) || isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
     private fun JSONObject.optBooleanOrNull(key: String): Boolean? = if (!has(key) || isNull(key)) null else getBoolean(key)
     private fun JSONObject.optIntOrNull(key: String): Int? = if (!has(key) || isNull(key)) null else getInt(key)
+}
+
+object GlossaryExport {
+    private const val header = "Glossary Columns: raw_name, translated_name, gender, description, description"
+    private val sectionOrder = listOf("characters", "locations", "nicknames", "terms", "honorifics")
+
+    fun serialize(entries: List<GlossaryEntry>): String {
+        val bySection = entries.groupBy { it.section.lowercase() }
+        val lines = mutableListOf(header, "")
+        sectionOrder.forEachIndexed { index, section ->
+            lines += "=== ${section.uppercase()} ==="
+            bySection[section].orEmpty().forEach { entry ->
+                val rawName = entry.sourceAliases.joinToString(" / ")
+                val translated = buildString {
+                    append(entry.translatedName)
+                    entry.gender?.takeIf { it.isNotBlank() }?.let { append(" [$it]") }
+                }
+                val description = entry.description.trim()
+                lines += "* $rawName = $translated" + if (description.isBlank()) "" else ": $description"
+            }
+            if (index != sectionOrder.lastIndex) lines += ""
+        }
+        return lines.joinToString("\n") + "\n"
+    }
 }

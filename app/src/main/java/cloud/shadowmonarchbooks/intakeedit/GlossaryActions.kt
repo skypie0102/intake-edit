@@ -36,7 +36,7 @@ object GlossaryActions {
         var additions = documents.additions
         var governance = documents.governance
         var proposals = documents.proposals
-        val pending = proposals.filter { it.status == "pending" }
+        val pending = documents.pendingProposals
 
         pending.forEach { proposal ->
             val currentDocuments = GlossaryDocuments(
@@ -54,9 +54,7 @@ object GlossaryActions {
                 }
                 baseExists -> additions
                 proposal.action == "new_entry" -> {
-                    require(currentDocuments.effectiveEntries.none { it.id == entry.id }) {
-                        "Glossary entry already exists: ${entry.id}"
-                    }
+                    GlossaryParser.ensureNewEntryAbsent(entry, currentDocuments.effectiveEntries)
                     additions + entry.copy(origin = "editor-approved")
                 }
                 else -> error("Glossary entry no longer exists: ${entry.id}")

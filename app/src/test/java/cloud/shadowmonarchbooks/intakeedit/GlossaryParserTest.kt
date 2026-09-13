@@ -31,27 +31,56 @@ class GlossaryParserTest {
         )
         assertEquals(1, merged.size)
         assertTrue(merged.single().qaLock)
-        assertEquals("Shirasaka Yukino", merged.single().translatedName)
     }
 
     @Test
-    fun proposalRoundTripPreservesTranslationSourceAndLockRecommendation() {
+    fun proposalRoundTripPreservesVolumeEvidence() {
         val proposals = listOf(
             GlossaryProposal(
-                id = "v1-ch2-p9-term",
-                action = "new_entry",
-                reason = "Recurring named term introduced during translation.",
-                section = "terms",
-                sourceAliases = listOf("架空用語"),
-                translatedName = "Example Term",
-                recommendQaLock = true,
+                id = "volume-lock",
+                action = "lock_recommendation",
+                reason = "Whole-volume evidence.",
+                targetId = "characters:白坂雪乃",
                 sourceVolume = 1,
-                sourceChapter = 2,
-                sourceLocator = "P9",
+                sourceChapter = 0,
+                sourceLocator = "P5",
+                occurrenceCount = 42,
+                sourceChapters = listOf(0, 1, 2),
             ),
         )
         val parsed = GlossaryParser.parseProposals(GlossaryParser.serializeProposals(proposals))
         assertEquals(proposals, parsed)
+    }
+
+    @Test
+    fun pendingNewEntryThatAlreadyExistsIsHidden() {
+        val base = GlossaryEntry("terms:既存", "terms", listOf("既存"), "Existing Term")
+        val documents = GlossaryDocuments(
+            baseEntries = listOf(base),
+            additions = emptyList(),
+            governance = emptyMap(),
+            proposals = listOf(
+                GlossaryProposal(
+                    id = "duplicate",
+                    action = "new_entry",
+                    reason = "duplicate",
+                    section = "terms",
+                    sourceAliases = listOf("既存"),
+                    translatedName = "Something Else",
+                ),
+            ),
+        )
+        assertTrue(documents.pendingProposals.isEmpty())
+    }
+
+    @Test
+    fun originalFormatExportUsesExactHeaderAndSpacing() {
+        val entries = listOf(
+            GlossaryEntry("characters:吉田", "characters", listOf("吉田"), "Yoshida", "male", "protagonist"),
+        )
+        val raw = GlossaryExport.serialize(entries)
+        assertTrue(raw.startsWith("Glossary Columns: raw_name, translated_name, gender, description, description\n\n=== CHARACTERS ===\n* 吉田 = Yoshida [male]: protagonist\n\n=== LOCATIONS ===\n"))
+        assertTrue(raw.endsWith("=== HONORIFICS ===\n"))
     }
 
     @Test

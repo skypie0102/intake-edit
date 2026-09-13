@@ -67,14 +67,13 @@ private fun IntakeEditTheme(content: @Composable () -> Unit) {
 private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), COMPLETED("Completed"), ALL("All") }
 
 internal data class ChapterProgress(
-    val restrictedSupplied: Int,
-    val restrictedTotal: Int,
-    val safeRevised: Int,
+    val englishSupplied: Int,
+    val englishTotal: Int,
     val editorReviewComplete: Boolean,
     val qaActive: Int = 0,
     val qaTotal: Int = 0,
 ) {
-    val complete: Boolean get() = editorReviewComplete && restrictedSupplied == restrictedTotal
+    val complete: Boolean get() = editorReviewComplete && englishSupplied == englishTotal
 }
 
 internal data class OpenChapter(
@@ -114,9 +113,8 @@ private fun IntakeApp() {
         val qa = runCatching { loadQa(client, file) }.getOrNull()
         val editorSha = QaFindingsParser.sha256(remote.content)
         return ChapterProgress(
-            restrictedSupplied = document.restrictedSupplied,
-            restrictedTotal = document.restrictedTotal,
-            safeRevised = document.safeRevised,
+            englishSupplied = document.englishSupplied,
+            englishTotal = document.englishTotal,
             editorReviewComplete = document.editorReviewComplete,
             qaActive = qa?.document?.active(editorSha)?.size ?: 0,
             qaTotal = qa?.document?.findings?.size ?: 0,
@@ -218,8 +216,8 @@ private fun IntakeApp() {
                     busy = true
                     try {
                         val document = if (markReviewed) {
-                            require(next.document.restrictedSupplied == next.document.restrictedTotal) {
-                                "Supply every restricted English field before marking editor review complete."
+                            require(next.document.englishSupplied == next.document.englishTotal) {
+                                "Supply English for every paragraph before marking editor review complete."
                             }
                             next.document.copy(editorReviewComplete = true)
                         } else next.document
@@ -318,8 +316,8 @@ private fun ChapterListScreen(
                                 if (progress == null) {
                                     Text("English supplied: loading", style = MaterialTheme.typography.bodySmall)
                                 } else {
-                                    Text("English supplied: ${progress.restrictedSupplied}/${progress.restrictedTotal}", style = MaterialTheme.typography.bodySmall)
-                                    Text("Safe revisions: ${progress.safeRevised} • Review: ${if (progress.editorReviewComplete) "complete" else "pending"}", style = MaterialTheme.typography.bodySmall)
+                                    Text("English supplied: ${progress.englishSupplied}/${progress.englishTotal}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Review: ${if (progress.editorReviewComplete) "complete" else "pending"}", style = MaterialTheme.typography.bodySmall)
                                     if (progress.qaTotal > 0) Text("QA: ${progress.qaActive} active / ${progress.qaTotal} total", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
