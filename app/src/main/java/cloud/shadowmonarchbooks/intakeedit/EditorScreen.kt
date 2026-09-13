@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
@@ -83,6 +84,7 @@ internal fun EditorScreen(
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
+    var showRemoveAllConfirm by remember { mutableStateOf(false) }
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
     var jumpRequestId by remember { mutableStateOf(0) }
@@ -177,7 +179,14 @@ internal fun EditorScreen(
         }
     }
 
+    fun removeAllEnglish() {
+        val cleared = current.document.entries.map { it.copy(english = "") }
+        updateDocument(current.document.copy(entries = cleared, editorReviewComplete = false))
+        editorNotice = "All English entries were cleared."
+    }
+
     val missingEnglish = current.document.entries.filterNot { it.isSupplied }
+    val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
     val fillableImportCount = imported?.let { overlay ->
         missingEnglish.count { overlay.translationFor(it.locator) != null }
     } ?: 0
@@ -243,10 +252,17 @@ internal fun EditorScreen(
                     FilterChip(selected = showQa, onClick = { showQa = true }, label = { Text("QA Findings") })
                     Spacer(Modifier.weight(1f))
                     imported?.let { overlay ->
-                        Button(
-                            onClick = { fillBlanksFromImport(overlay) },
-                            enabled = !busy && !importBusy && fillableImportCount > 0,
-                        ) { Text("Fill blanks ($fillableImportCount)") }
+                        if (fillableImportCount > 0) {
+                            Button(
+                                onClick = { fillBlanksFromImport(overlay) },
+                                enabled = !busy && !importBusy,
+                            ) { Text("Fill blanks ($fillableImportCount)") }
+                        } else {
+                            Button(
+                                onClick = { showRemoveAllConfirm = true },
+                                enabled = !busy && !importBusy && suppliedEnglishCount > 0,
+                            ) { Text("Remove all") }
+                        }
                     }
                 }
                 if (showQa) {
@@ -315,6 +331,33 @@ internal fun EditorScreen(
                 Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Review & commit") }
             }
         }
+    }
+
+    if (showRemoveAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRemoveAllConfirm = false },
+            title = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("⚠️", style = MaterialTheme.typography.displayLarge)
+                    Text("Remove all English entries?")
+                }
+            },
+            text = {
+                Text("This will clear every English entry in this chapter and mark editor review as pending. The cleared chapter will be saved as your local draft.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRemoveAllConfirm = false
+                        removeAllEnglish()
+                    },
+                    enabled = !busy && !importBusy,
+                ) { Text("Remove all") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveAllConfirm = false }, enabled = !busy && !importBusy) { Text("Cancel") }
+            },
+        )
     }
 
     if (showRemoveImportConfirm) {
@@ -410,6 +453,7 @@ private fun EntryCard(
                 TextButton(onClick = {
                     val reference = importedTranslation?.let { "\n\nIMPORTED TRANSLATION:\n$it" }.orEmpty()
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
+                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
                     rich = rich.moveCaretToEnd()
                     focusRequester.requestFocus()
                 }) { Icon(Icons.Default.ContentCopy, null); Text("Copy") }
