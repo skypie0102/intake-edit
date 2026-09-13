@@ -7,7 +7,7 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 - ✅ Milestone 1 — editor responsiveness and draft persistence: complete.
 - ✅ Milestone 2 — single-activity navigation shell: complete.
 - ✅ Milestone 3 — ViewModel/state extraction: complete for Chapter Intake, editor, repository settings, and glossary.
-- 🟡 Milestone 4 — repository boundaries: chapter and glossary GitHub/parser workflows are behind injectable repositories; draft/settings stores remain intentionally small lower-level dependencies.
+- ✅ Milestone 4 — repository boundaries: chapter, glossary, and local-draft workflows are behind injectable data boundaries with fake-backed ViewModel tests; the small settings/token store remains intentionally cohesive rather than wrapped for symmetry.
 - ✅ Milestone 5 — chapter-list loading/cache: repository paths and cached progress render before network progress completes; base English/review progress is published before QA counts; progress/QA work is bounded to four concurrent requests; cache writes are debounced; cached rows stay interactive during background refresh.
 - 🟡 Milestone 6 — glossary decomposition: the old `HomeActivity` controller has been removed; glossary load/mutation logic is behind `GlossaryViewModel`/`GlossaryRepository`, and UI cards/dialogs are split. Export file I/O remains UI-owned.
 - ⬜ Milestone 7 — UI polish and performance verification: structural work is largely complete; device-oriented profiling and final interaction polish remain.
@@ -58,12 +58,14 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 
 **Goal:** give UI state a stable data layer.
 
-- Introduce repositories for chapters, drafts, glossary, and settings/auth concerns.
-- Keep `GitHubApi`, parsers, and stores as lower-level implementations.
-- Centralize error mapping and conflict handling.
+- Keep chapter GitHub/parser workflows behind `ChapterRepository`.
+- Keep glossary GitHub/parser workflows behind `GlossaryRepository`.
+- Keep local editor-draft persistence behind `DraftRepository` so editor state does not own Android file-store mechanics.
+- Keep `GitHubApi`, parsers, and concrete stores as lower-level implementations.
 - Make repository APIs easy to fake in unit tests.
+- Leave settings/token persistence as a small cohesive settings concern rather than adding a wrapper that provides no additional isolation.
 
-**Acceptance:** ViewModels do not directly coordinate raw GitHub calls, parser calls, and disk stores in the same action.
+**Acceptance:** chapter/editor/glossary ViewModels do not directly coordinate raw GitHub/parser/disk implementations in the same action; their data dependencies can be replaced with fakes in unit tests.
 
 ## Milestone 5 — Chapter-list loading and cache
 
@@ -101,4 +103,4 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 
 ## Delivery order
 
-Milestones 1–3 and 5 are complete. Finish the remaining Milestone 4/6 edges where they provide concrete value, then use Milestone 7 for device-oriented verification and polish rather than another broad rewrite.
+Milestones 1–5 are complete. Finish the small remaining Milestone 6 export/I/O edge where it provides concrete value, then use Milestone 7 for device-oriented verification and polish rather than another broad rewrite.
