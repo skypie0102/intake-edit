@@ -172,12 +172,13 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
             )
         }
     } else {
-        val listBusy = chapterListState.refreshing || editorState.loadingPath != null
-        BackHandler(enabled = !listBusy) { onExitToHome() }
+        val openingPath = editorState.loadingPath
+        BackHandler(enabled = openingPath == null) { onExitToHome() }
         ChapterListScreen(
             files = chapterListState.files,
             progressByPath = chapterListState.progressByPath,
-            busy = listBusy,
+            refreshing = chapterListState.refreshing,
+            openingPath = openingPath,
             notice = editorState.notice ?: repoSettingsState.notice ?: chapterListState.notice,
             onBack = onExitToHome,
             onRefresh = ::refresh,
@@ -192,7 +193,8 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
 private fun ChapterListScreen(
     files: List<ChapterFile>,
     progressByPath: Map<String, ChapterProgress>,
-    busy: Boolean,
+    refreshing: Boolean,
+    openingPath: String?,
     notice: String?,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -216,10 +218,18 @@ private fun ChapterListScreen(
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("Chapter Intake") },
-            navigationIcon = { IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") } },
+            navigationIcon = {
+                IconButton(onClick = onBack, enabled = openingPath == null) {
+                    Icon(Icons.Default.ArrowBack, "Back")
+                }
+            },
             actions = {
-                IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Default.Refresh, "Refresh") }
-                IconButton(onClick = onSettings, enabled = !busy) { Icon(Icons.Default.Settings, "Settings") }
+                IconButton(onClick = onRefresh, enabled = !refreshing && openingPath == null) {
+                    Icon(Icons.Default.Refresh, "Refresh")
+                }
+                IconButton(onClick = onSettings, enabled = openingPath == null) {
+                    Icon(Icons.Default.Settings, "Settings")
+                }
             },
         )
     }) { padding ->
@@ -231,7 +241,7 @@ private fun ChapterListScreen(
                     FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) })
                 }
             }
-            if (busy && files.isEmpty()) CircularProgressIndicator()
+            if (refreshing && files.isEmpty()) CircularProgressIndicator()
             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(visible, key = { it.path }) { file ->
                     Card(Modifier.fillMaxWidth()) {
@@ -248,7 +258,12 @@ private fun ChapterListScreen(
                                     if (progress.qaTotal > 0) Text("QA: ${progress.qaActive} active / ${progress.qaTotal} total", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
-                            TextButton(onClick = { onOpen(file) }, enabled = !busy) { Text("Open") }
+                            TextButton(
+                                onClick = { onOpen(file) },
+                                enabled = openingPath == null,
+                            ) {
+                                Text(if (openingPath == file.path) "Opening…" else "Open")
+                            }
                         }
                     }
                 }
