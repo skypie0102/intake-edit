@@ -89,7 +89,7 @@ class HomeActivity : ComponentActivity() {
 private fun AppHome(onOpenChapters: () -> Unit) {
     var showGlossary by rememberSaveable { mutableStateOf(false) }
     if (showGlossary) {
-        GlossaryScreen(onBack = { showGlossary = false })
+        GlossaryScreen(onBack = { showGlossary = false }, onOpenSettings = onOpenChapters)
         return
     }
     Scaffold(topBar = { TopAppBar(title = { Text("Intake Edit") }) }) { padding ->
@@ -118,7 +118,7 @@ private fun AppHome(onOpenChapters: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GlossaryScreen(onBack: () -> Unit) {
+internal fun GlossaryScreen(onBack: () -> Unit, onOpenSettings: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val settingsStore = remember { SettingsStore(context) }
@@ -285,7 +285,7 @@ private fun GlossaryScreen(onBack: () -> Unit) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             if (api == null) {
                 Text("GitHub is not configured yet. Open Chapter Intake and save repository settings/token first.")
-                Button(onClick = { context.startActivity(Intent(context, MainActivity::class.java)) }) { Text("Open Chapter Intake Settings") }
+                Button(onClick = onOpenSettings) { Text("Open Chapter Intake Settings") }
                 return@Column
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
