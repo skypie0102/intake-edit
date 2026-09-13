@@ -1,0 +1,36 @@
+name: UI density pass
+
+on:
+  push:
+    branches: [feature/ui-density-pass]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/ui-density-pass
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+          cache-read-only: true
+      - name: Apply UI density pass
+        run: python tools/apply_ui_density_pass.py
+      - name: Unit tests and debug build
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Commit generated app changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/build.gradle.kts app/src/main/java app/src/test/java
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: compact app UI and contextual controls"
+          git push origin HEAD:feature/ui-density-pass
