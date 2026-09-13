@@ -116,7 +116,8 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     val chapterListState by chapterListViewModel.uiState.collectAsStateWithLifecycle()
     val repoSettingsViewModel: RepoSettingsViewModel = viewModel()
     val repoSettingsState by repoSettingsViewModel.uiState.collectAsStateWithLifecycle()
-    val editorViewModel: EditorViewModel = viewModel()
+    val editorFactory = remember(context) { EditorViewModelFactory(context) }
+    val editorViewModel: EditorViewModel = viewModel(factory = editorFactory)
     val editorState by editorViewModel.uiState.collectAsStateWithLifecycle()
     val settings = repoSettingsState.settings
     val token = repoSettingsState.token
