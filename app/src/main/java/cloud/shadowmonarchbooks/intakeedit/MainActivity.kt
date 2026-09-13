@@ -59,6 +59,8 @@ import java.time.Instant
 
 private const val DRAFT_SAVE_DEBOUNCE_MS = 650L
 
+private enum class AppDestination { HOME, CHAPTERS, GLOSSARY }
+
 private class EditorSession {
     var latest: OpenChapter? = null
     var touched: Boolean = false
@@ -82,13 +84,34 @@ private class EditorSession {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { IntakeEditTheme { IntakeApp() } }
+        setContent { IntakeEditTheme { IntakeAppShell() } }
     }
 }
 
 @Composable
 private fun IntakeEditTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(), content = content)
+}
+
+@Composable
+private fun IntakeAppShell() {
+    var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
+    when (destination) {
+        AppDestination.HOME -> WorkspaceHomeScreen(
+            onOpenChapters = { destination = AppDestination.CHAPTERS },
+            onOpenGlossary = { destination = AppDestination.GLOSSARY },
+        )
+        AppDestination.CHAPTERS -> ChapterIntakeApp(
+            onExitToHome = { destination = AppDestination.HOME },
+        )
+        AppDestination.GLOSSARY -> {
+            BackHandler { destination = AppDestination.HOME }
+            GlossaryScreen(
+                onBack = { destination = AppDestination.HOME },
+                onOpenSettings = { destination = AppDestination.CHAPTERS },
+            )
+        }
+    }
 }
 
 private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), COMPLETED("Completed"), ALL("All") }
@@ -112,7 +135,7 @@ internal data class OpenChapter(
 )
 
 @Composable
-private fun IntakeApp() {
+private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settingsStore = remember { SettingsStore(context) }
@@ -236,6 +259,9 @@ private fun IntakeApp() {
     LaunchedEffect(api, showSettings) { if (api != null && !showSettings) refresh() }
 
     if (showSettings) {
+        BackHandler(enabled = !busy) {
+            if (token.isNotBlank()) showSettings = false else onExitToHome()
+        }
         SettingsScreen(
             currentSettings = settings,
             currentToken = token,
@@ -302,7 +328,7 @@ private fun IntakeApp() {
                         editorSession.clear()
                         notice = "Committed to ${settings.owner}/${settings.repo}."
                         open = null
-                        refresh()
+                        onExitToHome()
                     } catch (t: Throwable) {
                         notice = t.message ?: "Commit failed."
                     } finally {
@@ -333,7 +359,17 @@ private fun IntakeApp() {
             },
         )
     } else {
-        ChapterListScreen(files, progressByPath, busy, notice, ::refresh, { showSettings = true }, ::openFile)
+        BackHandler(enabled = !busy) { onExitToHome() }
+        ChapterListScreen(
+            files = files,
+            progressByPath = progressByPath,
+            busy = busy,
+            notice = notice,
+            onBack = onExitToHome,
+            onRefresh = ::refresh,
+            onSettings = { showSettings = true },
+            onOpen = ::openFile,
+        )
     }
 }
 
@@ -344,6 +380,7 @@ private fun ChapterListScreen(
     progressByPath: Map<String, ChapterProgress>,
     busy: Boolean,
     notice: String?,
+    onBack: () -> Unit,
     onRefresh: () -> Unit,
     onSettings: () -> Unit,
     onOpen: (ChapterFile) -> Unit,
@@ -363,10 +400,14 @@ private fun ChapterListScreen(
         }
     }
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Intake Edit") }, actions = {
-            IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Default.Refresh, "Refresh") }
-            IconButton(onClick = onSettings, enabled = !busy) { Icon(Icons.Default.Settings, "Settings") }
-        })
+        TopAppBar(
+            title = { Text("Chapter Intake") },
+            navigationIcon = { IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") } },
+            actions = {
+                IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Default.Refresh, "Refresh") }
+                IconButton(onClick = onSettings, enabled = !busy) { Icon(Icons.Default.Settings, "Settings") }
+            },
+        )
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
