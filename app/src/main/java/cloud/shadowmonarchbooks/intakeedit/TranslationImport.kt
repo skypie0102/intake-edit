@@ -62,6 +62,7 @@ class TranslationImportStore(context: Context) {
             stream?.let { atomic.failWrite(it) }
             throw t
         }
+        true
     }.getOrDefault(false)
 
     fun load(path: String, sourceSha256: String): ImportedTranslationOverlay? {
