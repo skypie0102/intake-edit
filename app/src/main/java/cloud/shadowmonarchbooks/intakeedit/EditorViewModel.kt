@@ -3,7 +3,6 @@ package cloud.shadowmonarchbooks.intakeedit
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -51,20 +50,21 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
             _uiState.update { it.copy(loadingPath = file.path, notice = null) }
             try {
                 draftFlushJob?.join()
-                val client = GitHubApi(settings, token)
-                val remote = client.getFile(file.path)
+                val repository: ChapterRepository = GitHubChapterRepository(settings, token)
+                val remoteChapter = repository.loadChapter(file)
                 val draft = withContext(Dispatchers.IO) { draftStore.load(file.path) }
-                val raw = if (draft?.baseSha == remote.sha) draft.raw else remote.content
-                val document = IntakeParser.parse(raw)
-                val qa = runCatching { loadQa(client, file) }.getOrNull()
-                val opened = OpenChapter(file, remote, raw, document, qa)
+                val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
+                    repository.restoreRaw(remoteChapter, draft.raw)
+                } else {
+                    remoteChapter
+                }
                 latest = opened
                 touched = false
                 _uiState.update {
                     it.copy(
                         open = opened,
                         loadingPath = null,
-                        notice = if (draft != null && draft.baseSha != remote.sha) {
+                        notice = if (draft != null && draft.baseSha != remoteChapter.remote.sha) {
                             "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
                         } else null,
                     )
@@ -117,21 +117,8 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
                 draftSaveJob = null
                 draftFlushJob?.join()
                 persistDraft(next)
-                val document = if (markReviewed) {
-                    require(next.document.englishSupplied == next.document.englishTotal) {
-                        "Supply English for every paragraph before marking editor review complete."
-                    }
-                    next.document.copy(editorReviewComplete = true)
-                } else next.document
-                val raw = IntakeParser.patchDocument(next.raw, document)
-                IntakeParser.validate(raw).getOrThrow()
-                val client = GitHubApi(settings, token)
-                client.updateFile(
-                    next.file.path,
-                    next.remote.sha,
-                    raw,
-                    "edit: revise ch_${next.file.chapter.toString().padStart(4, '0')} English",
-                )
+                val repository: ChapterRepository = GitHubChapterRepository(settings, token)
+                repository.commitChapter(next, markReviewed)
                 withContext(Dispatchers.IO) { draftStore.delete(next.file.path) }
                 latest = null
                 touched = false
@@ -149,28 +136,12 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun overrideQa(next: OpenChapter, findingId: String, reason: String, settings: RepoSettings, token: String) {
-        val snapshot = next.qa ?: return
-        if (token.isBlank() || _uiState.value.actionInProgress) return
+        if (next.qa == null || token.isBlank() || _uiState.value.actionInProgress) return
         viewModelScope.launch {
             _uiState.update { it.copy(actionInProgress = true, notice = null) }
             try {
-                val client = GitHubApi(settings, token)
-                val override = QaOverride(
-                    reason,
-                    Instant.now().toString(),
-                    client.verifyUser(),
-                    QaFindingsParser.sha256(next.raw),
-                )
-                val document = snapshot.document.withOverride(findingId, override)
-                val raw = QaFindingsParser.serialize(document)
-                val sha = client.updateFile(snapshot.path, snapshot.sha, raw, "qa: override $findingId")
-                val updated = next.copy(
-                    qa = snapshot.copy(
-                        sha = sha.ifBlank { snapshot.sha },
-                        raw = raw,
-                        document = document,
-                    ),
-                )
+                val repository: ChapterRepository = GitHubChapterRepository(settings, token)
+                val updated = repository.overrideQa(next, findingId, reason)
                 latest = updated
                 _uiState.update {
                     it.copy(
@@ -198,11 +169,5 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
                 draftStore.save(chapter.file.path, chapter.remote.sha, chapter.raw)
             }
         }
-    }
-
-    private suspend fun loadQa(client: GitHubApi, file: ChapterFile): QaFindingsSnapshot? {
-        val path = QaFindingsParser.path(file.volume, file.chapter)
-        val snapshot = client.getFileOrNull(path) ?: return null
-        return QaFindingsSnapshot(path, snapshot.sha, snapshot.content, QaFindingsParser.parse(snapshot.content))
     }
 }
