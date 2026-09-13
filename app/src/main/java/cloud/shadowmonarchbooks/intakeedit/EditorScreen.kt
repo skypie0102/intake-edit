@@ -52,7 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 private enum class EntryFilter(val label: String) {
-    NEEDS_ATTENTION("Need Attention"), ALL("All"), SUPPLIED("Supplied"), UNSUPPLIED("Unsupplied")
+    ALL("All"), NEEDS_ATTENTION("Attention"), SUPPLIED("Supplied"), UNSUPPLIED("Unsupplied")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,6 +76,7 @@ internal fun EditorScreen(
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
+    var showRemoveImportConfirm by remember { mutableStateOf(false) }
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
     var jumpRequestId by remember { mutableStateOf(0) }
@@ -166,32 +167,6 @@ internal fun EditorScreen(
             Text(current.document.englishTitle, style = MaterialTheme.typography.titleMedium)
             Text("English supplied: ${current.document.englishSupplied}/${current.document.englishTotal} • Review: ${if (current.document.editorReviewComplete) "complete" else "pending"}")
 
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },
-                    enabled = !busy,
-                ) { Text(if (imported == null) "Import translation" else "Replace import") }
-                imported?.let { overlay ->
-                    Button(
-                        onClick = { fillBlanksFromImport(overlay) },
-                        enabled = !busy && fillableImportCount > 0,
-                    ) { Text("Fill blanks ($fillableImportCount)") }
-                    Text("Imported ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}", style = MaterialTheme.typography.bodySmall)
-                    TextButton(
-                        onClick = {
-                            importStore.delete(current.file.path)
-                            imported = null
-                            editorNotice = "Imported translation removed."
-                        },
-                        enabled = !busy,
-                    ) { Text("Remove import") }
-                }
-            }
-
             if (showWholeFile) {
                 WholeFileEditor(
                     raw = current.raw,
@@ -216,9 +191,20 @@ internal fun EditorScreen(
                     modifier = Modifier.weight(1f),
                 )
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     FilterChip(selected = !showQa, onClick = { showQa = false }, label = { Text("Entries") })
                     FilterChip(selected = showQa, onClick = { showQa = true }, label = { Text("QA Findings") })
+                    Spacer(Modifier.weight(1f))
+                    imported?.let { overlay ->
+                        Button(
+                            onClick = { fillBlanksFromImport(overlay) },
+                            enabled = !busy && fillableImportCount > 0,
+                        ) { Text("Fill blanks ($fillableImportCount)") }
+                    }
                 }
                 if (showQa) {
                     QaFindingsView(
@@ -279,10 +265,38 @@ internal fun EditorScreen(
                     },
                     enabled = !busy && missingEnglish.isNotEmpty(),
                 ) { Text("Next (${missingEnglish.size.toString().padStart(2, '0')})") }
+                if (imported == null) {
+                    TextButton(
+                        onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },
+                        enabled = !busy,
+                    ) { Text("Import") }
+                } else {
+                    TextButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy) { Text("Remove") }
+                }
                 Spacer(Modifier.weight(1f))
                 Button(onClick = { showCommit = true }, enabled = !busy) { Text("Review & commit") }
             }
         }
+    }
+
+    if (showRemoveImportConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRemoveImportConfirm = false },
+            title = { Text("Remove imported translation?") },
+            text = { Text("Remove the local imported translation? English already copied into fields will not be changed.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        importStore.delete(current.file.path)
+                        imported = null
+                        showRemoveImportConfirm = false
+                        editorNotice = "Imported translation removed."
+                    },
+                    enabled = !busy,
+                ) { Text("Remove") }
+            },
+            dismissButton = { TextButton(onClick = { showRemoveImportConfirm = false }, enabled = !busy) { Text("Cancel") } },
+        )
     }
 
     if (showCommit) {
