@@ -79,7 +79,7 @@ private fun IntakeAppShell() {
         )
         AppDestination.GLOSSARY -> {
             BackHandler { destination = AppDestination.HOME }
-            GlossaryScreen(
+            GlossaryWorkspaceScreen(
                 onBack = { destination = AppDestination.HOME },
                 onOpenSettings = { destination = AppDestination.CHAPTERS },
             )
