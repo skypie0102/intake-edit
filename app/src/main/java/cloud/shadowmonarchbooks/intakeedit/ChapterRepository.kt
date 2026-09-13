@@ -2,9 +2,20 @@ package cloud.shadowmonarchbooks.intakeedit
 
 import java.time.Instant
 
+internal data class LoadedChapterProgress(
+    val progress: ChapterProgress,
+    val editorContentSha256: String,
+)
+
+internal data class QaProgressCounts(
+    val active: Int,
+    val total: Int,
+)
+
 internal interface ChapterRepository {
     suspend fun listFiles(): List<ChapterFile>
-    suspend fun loadProgress(file: ChapterFile): ChapterProgress
+    suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress
+    suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts
     suspend fun loadChapter(file: ChapterFile): OpenChapter
     fun restoreRaw(base: OpenChapter, raw: String): OpenChapter
     suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean)
@@ -28,17 +39,24 @@ internal class GitHubChapterRepository(
 
     override suspend fun listFiles(): List<ChapterFile> = client.listIntakeFiles()
 
-    override suspend fun loadProgress(file: ChapterFile): ChapterProgress {
+    override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress {
         val remote = client.getFile(file.path)
         val document = IntakeParser.parse(remote.content)
-        val qa = runCatching { loadQa(file) }.getOrNull()
-        val editorSha = QaFindingsParser.sha256(remote.content)
-        return ChapterProgress(
-            englishSupplied = document.englishSupplied,
-            englishTotal = document.englishTotal,
-            editorReviewComplete = document.editorReviewComplete,
-            qaActive = qa?.document?.active(editorSha)?.size ?: 0,
-            qaTotal = qa?.document?.findings?.size ?: 0,
+        return LoadedChapterProgress(
+            progress = ChapterProgress(
+                englishSupplied = document.englishSupplied,
+                englishTotal = document.englishTotal,
+                editorReviewComplete = document.editorReviewComplete,
+            ),
+            editorContentSha256 = QaFindingsParser.sha256(remote.content),
+        )
+    }
+
+    override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts {
+        val qa = loadQa(file) ?: return QaProgressCounts(active = 0, total = 0)
+        return QaProgressCounts(
+            active = qa.document.active(editorContentSha256).size,
+            total = qa.document.findings.size,
         )
     }
 
