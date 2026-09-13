@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -40,7 +43,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,19 +51,43 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
-import java.time.Instant
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.collect
+
+private enum class AppDestination { HOME, CHAPTERS, GLOSSARY }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { IntakeEditTheme { IntakeApp() } }
+        setContent { IntakeEditTheme { IntakeAppShell() } }
     }
 }
 
 @Composable
 private fun IntakeEditTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(), content = content)
+}
+
+@Composable
+private fun IntakeAppShell() {
+    var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
+    when (destination) {
+        AppDestination.HOME -> WorkspaceHomeScreen(
+            onOpenChapters = { destination = AppDestination.CHAPTERS },
+            onOpenGlossary = { destination = AppDestination.GLOSSARY },
+        )
+        AppDestination.CHAPTERS -> ChapterIntakeApp(
+            onExitToHome = { destination = AppDestination.HOME },
+        )
+        AppDestination.GLOSSARY -> {
+            BackHandler { destination = AppDestination.HOME }
+            GlossaryWorkspaceScreen(
+                onBack = { destination = AppDestination.HOME },
+                onOpenSettings = { destination = AppDestination.CHAPTERS },
+            )
+        }
+    }
 }
 
 private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), COMPLETED("Completed"), ALL("All") }
@@ -85,183 +111,84 @@ internal data class OpenChapter(
 )
 
 @Composable
-private fun IntakeApp() {
+private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val settingsStore = remember { SettingsStore(context) }
-    val tokenStore = remember { SecureTokenStore(context) }
-    val draftStore = remember { DraftStore(context) }
-    var settings by remember { mutableStateOf(settingsStore.load()) }
-    var token by remember { mutableStateOf(tokenStore.load()) }
-    var showSettings by remember { mutableStateOf(token.isBlank()) }
-    var files by remember { mutableStateOf<List<ChapterFile>>(emptyList()) }
-    var progressByPath by remember { mutableStateOf<Map<String, ChapterProgress>>(emptyMap()) }
-    var busy by remember { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
-    var open by remember { mutableStateOf<OpenChapter?>(null) }
-    val api = remember(settings, token) { token.takeIf { it.isNotBlank() }?.let { GitHubApi(settings, it) } }
-
-    suspend fun loadQa(client: GitHubApi, file: ChapterFile): QaFindingsSnapshot? {
-        val path = QaFindingsParser.path(file.volume, file.chapter)
-        val snapshot = client.getFileOrNull(path) ?: return null
-        return QaFindingsSnapshot(path, snapshot.sha, snapshot.content, QaFindingsParser.parse(snapshot.content))
-    }
-
-    suspend fun loadChapterProgress(client: GitHubApi, file: ChapterFile): ChapterProgress {
-        val remote = client.getFile(file.path)
-        val document = IntakeParser.parse(remote.content)
-        val qa = runCatching { loadQa(client, file) }.getOrNull()
-        val editorSha = QaFindingsParser.sha256(remote.content)
-        return ChapterProgress(
-            englishSupplied = document.englishSupplied,
-            englishTotal = document.englishTotal,
-            editorReviewComplete = document.editorReviewComplete,
-            qaActive = qa?.document?.active(editorSha)?.size ?: 0,
-            qaTotal = qa?.document?.findings?.size ?: 0,
-        )
-    }
+    val chapterListFactory = remember(context) { ChapterListViewModelFactory(context) }
+    val chapterListViewModel: ChapterListViewModel = viewModel(factory = chapterListFactory)
+    val chapterListState by chapterListViewModel.uiState.collectAsStateWithLifecycle()
+    val repoSettingsViewModel: RepoSettingsViewModel = viewModel()
+    val repoSettingsState by repoSettingsViewModel.uiState.collectAsStateWithLifecycle()
+    val editorFactory = remember(context) { EditorViewModelFactory(context) }
+    val editorViewModel: EditorViewModel = viewModel(factory = editorFactory)
+    val editorState by editorViewModel.uiState.collectAsStateWithLifecycle()
+    val settings = repoSettingsState.settings
+    val token = repoSettingsState.token
+    val showSettings = repoSettingsState.showSettings
 
     fun refresh() {
-        val client = api ?: return
-        scope.launch {
-            busy = true
-            try {
-                val listed = client.listIntakeFiles()
-                files = listed
-                progressByPath = emptyMap()
-                listed.forEach { file ->
-                    launch {
-                        runCatching { loadChapterProgress(client, file) }
-                            .onSuccess { progress -> progressByPath = progressByPath + (file.path to progress) }
-                    }
-                }
-                notice = null
-            } catch (t: Throwable) {
-                notice = t.message ?: "Could not refresh chapter list."
-            } finally {
-                busy = false
-            }
-        }
+        chapterListViewModel.refresh(settings, token)
     }
 
-    fun openFile(file: ChapterFile) {
-        val client = api ?: return
-        scope.launch {
-            busy = true
-            try {
-                val remote = client.getFile(file.path)
-                val draft = draftStore.load(file.path)
-                val raw = if (draft?.baseSha == remote.sha) draft.raw else remote.content
-                val document = IntakeParser.parse(raw)
-                val qa = runCatching { loadQa(client, file) }.getOrNull()
-                open = OpenChapter(file, remote, raw, document, qa)
-                if (draft != null && draft.baseSha != remote.sha) {
-                    notice = "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
-                }
-            } catch (t: Throwable) {
-                notice = t.message ?: "Could not open ${file.path}."
-            } finally {
-                busy = false
-            }
+    LaunchedEffect(settings, token, showSettings) {
+        if (token.isNotBlank() && !showSettings) refresh()
+    }
+    LaunchedEffect(editorViewModel) {
+        editorViewModel.events.collect { event ->
+            if (event == EditorEvent.ReturnHome) onExitToHome()
         }
     }
-
-    LaunchedEffect(api, showSettings) { if (api != null && !showSettings) refresh() }
 
     if (showSettings) {
+        val settingsBusy = repoSettingsState.saving
+        BackHandler(enabled = !settingsBusy) {
+            if (token.isNotBlank()) repoSettingsViewModel.closeSettings() else onExitToHome()
+        }
         SettingsScreen(
             currentSettings = settings,
             currentToken = token,
-            busy = busy,
+            busy = settingsBusy,
+            notice = repoSettingsState.notice,
             canCancel = token.isNotBlank(),
-            onCancel = { showSettings = false },
-            onSave = { next, nextToken ->
-                scope.launch {
-                    busy = true
-                    try {
-                        val candidate = GitHubApi(next, nextToken)
-                        val login = candidate.verifyUser()
-                        settingsStore.save(next)
-                        tokenStore.save(nextToken)
-                        settings = next
-                        token = nextToken
-                        showSettings = false
-                        notice = "Connected as $login."
-                    } catch (t: Throwable) {
-                        notice = t.message ?: "Could not verify GitHub connection."
-                    } finally {
-                        busy = false
-                    }
-                }
-            },
+            onCancel = repoSettingsViewModel::closeSettings,
+            onSave = repoSettingsViewModel::save,
         )
         return
     }
 
-    val chapter = open
+    val chapter = editorViewModel.chapterForDisplay()
     if (chapter != null) {
-        BackHandler(enabled = !busy) { open = null }
+        val editorBusy = editorState.actionInProgress
+        BackHandler(enabled = !editorBusy) { editorViewModel.closeEditor() }
         EditorScreen(
             initial = chapter,
-            busy = busy,
-            notice = notice,
-            onBack = { open = null },
-            onDraft = { next ->
-                open = next
-                draftStore.save(next.file.path, next.remote.sha, next.raw)
-            },
+            busy = editorBusy,
+            notice = editorState.notice,
+            onBack = editorViewModel::closeEditor,
+            onDraft = editorViewModel::onDraft,
             onCommit = { next, markReviewed ->
-                val client = api ?: return@EditorScreen
-                scope.launch {
-                    busy = true
-                    try {
-                        val document = if (markReviewed) {
-                            require(next.document.englishSupplied == next.document.englishTotal) {
-                                "Supply English for every paragraph before marking editor review complete."
-                            }
-                            next.document.copy(editorReviewComplete = true)
-                        } else next.document
-                        val raw = IntakeParser.patchDocument(next.raw, document)
-                        IntakeParser.validate(raw).getOrThrow()
-                        client.updateFile(
-                            next.file.path,
-                            next.remote.sha,
-                            raw,
-                            "edit: revise ch_${next.file.chapter.toString().padStart(4, '0')} English",
-                        )
-                        draftStore.delete(next.file.path)
-                        notice = "Committed to ${settings.owner}/${settings.repo}."
-                        open = null
-                        refresh()
-                    } catch (t: Throwable) {
-                        notice = t.message ?: "Commit failed."
-                    } finally {
-                        busy = false
-                    }
-                }
+                editorViewModel.commit(next, markReviewed, settings, token)
             },
             onOverride = { next, findingId, reason ->
-                val client = api ?: return@EditorScreen
-                val snapshot = next.qa ?: return@EditorScreen
-                scope.launch {
-                    busy = true
-                    try {
-                        val override = QaOverride(reason, Instant.now().toString(), client.verifyUser(), QaFindingsParser.sha256(next.raw))
-                        val document = snapshot.document.withOverride(findingId, override)
-                        val raw = QaFindingsParser.serialize(document)
-                        val sha = client.updateFile(snapshot.path, snapshot.sha, raw, "qa: override $findingId")
-                        open = next.copy(qa = snapshot.copy(sha = sha.ifBlank { snapshot.sha }, raw = raw, document = document))
-                        notice = "QA override committed."
-                    } catch (t: Throwable) {
-                        notice = t.message ?: "Could not commit QA override."
-                    } finally {
-                        busy = false
-                    }
-                }
+                editorViewModel.overrideQa(next, findingId, reason, settings, token)
             },
         )
     } else {
-        ChapterListScreen(files, progressByPath, busy, notice, ::refresh, { showSettings = true }, ::openFile)
+        val openingPath = editorState.loadingPath
+        BackHandler(enabled = openingPath == null) { onExitToHome() }
+        ChapterListScreen(
+            files = chapterListState.files,
+            progressByPath = chapterListState.progressByPath,
+            availableVolumes = chapterListState.availableVolumes,
+            selectedVolume = chapterListState.selectedVolume,
+            refreshing = chapterListState.refreshing,
+            openingPath = openingPath,
+            notice = editorState.notice ?: repoSettingsState.notice ?: chapterListState.notice,
+            onBack = onExitToHome,
+            onRefresh = ::refresh,
+            onSettings = repoSettingsViewModel::openSettings,
+            onSelectVolume = { volume -> chapterListViewModel.selectVolume(volume, settings, token) },
+            onOpen = { file -> editorViewModel.open(file, settings, token) },
+        )
     }
 }
 
@@ -270,14 +197,20 @@ private fun IntakeApp() {
 private fun ChapterListScreen(
     files: List<ChapterFile>,
     progressByPath: Map<String, ChapterProgress>,
-    busy: Boolean,
+    availableVolumes: List<Int>,
+    selectedVolume: Int?,
+    refreshing: Boolean,
+    openingPath: String?,
     notice: String?,
+    onBack: () -> Unit,
     onRefresh: () -> Unit,
     onSettings: () -> Unit,
+    onSelectVolume: (Int) -> Unit,
     onOpen: (ChapterFile) -> Unit,
 ) {
     var search by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(ChapterListFilter.ACTIVE) }
+    var volumeMenuExpanded by remember { mutableStateOf(false) }
     val searched = files.filter {
         val q = search.trim()
         q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q)
@@ -291,20 +224,63 @@ private fun ChapterListScreen(
         }
     }
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Intake Edit") }, actions = {
-            IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Default.Refresh, "Refresh") }
-            IconButton(onClick = onSettings, enabled = !busy) { Icon(Icons.Default.Settings, "Settings") }
-        })
+        TopAppBar(
+            title = { Text("Chapter Intake") },
+            navigationIcon = {
+                IconButton(onClick = onBack, enabled = openingPath == null) {
+                    Icon(Icons.Default.ArrowBack, "Back")
+                }
+            },
+            actions = {
+                IconButton(onClick = onRefresh, enabled = !refreshing && openingPath == null) {
+                    Icon(Icons.Default.Refresh, "Refresh")
+                }
+                IconButton(onClick = onSettings, enabled = openingPath == null) {
+                    Icon(Icons.Default.Settings, "Settings")
+                }
+            },
+        )
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             OutlinedTextField(search, { search = it }, label = { Text("Chapter, path, or filename") }, modifier = Modifier.fillMaxWidth())
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ChapterListFilter.entries.forEach { item ->
-                    FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) })
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(
+                    Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ChapterListFilter.entries.forEach { item ->
+                        FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) })
+                    }
+                }
+                Box {
+                    TextButton(
+                        onClick = { volumeMenuExpanded = true },
+                        enabled = availableVolumes.isNotEmpty() && openingPath == null,
+                    ) {
+                        Text(selectedVolume?.let { "Volume $it ▾" } ?: "Volume —")
+                    }
+                    DropdownMenu(
+                        expanded = volumeMenuExpanded,
+                        onDismissRequest = { volumeMenuExpanded = false },
+                    ) {
+                        availableVolumes.forEach { volume ->
+                            DropdownMenuItem(
+                                text = { Text("Volume $volume") },
+                                onClick = {
+                                    volumeMenuExpanded = false
+                                    onSelectVolume(volume)
+                                },
+                            )
+                        }
+                    }
                 }
             }
-            if (busy && files.isEmpty()) CircularProgressIndicator()
+            if (refreshing && files.isEmpty()) CircularProgressIndicator()
             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(visible, key = { it.path }) { file ->
                     Card(Modifier.fillMaxWidth()) {
@@ -321,7 +297,12 @@ private fun ChapterListScreen(
                                     if (progress.qaTotal > 0) Text("QA: ${progress.qaActive} active / ${progress.qaTotal} total", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
-                            TextButton(onClick = { onOpen(file) }, enabled = !busy) { Text("Open") }
+                            TextButton(
+                                onClick = { onOpen(file) },
+                                enabled = openingPath == null,
+                            ) {
+                                Text(if (openingPath == file.path) "Opening…" else "Open")
+                            }
                         }
                     }
                 }
@@ -336,6 +317,7 @@ private fun SettingsScreen(
     currentSettings: RepoSettings,
     currentToken: String,
     busy: Boolean,
+    notice: String?,
     canCancel: Boolean,
     onCancel: () -> Unit,
     onSave: (RepoSettings, String) -> Unit,
@@ -355,6 +337,7 @@ private fun SettingsScreen(
             Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Text("Connect directly to GitHub. The token is encrypted with a key held by Android Keystore.")
             OutlinedTextField(owner, { owner = it }, label = { Text("Owner") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(repo, { repo = it }, label = { Text("Repository") }, modifier = Modifier.fillMaxWidth(), singleLine = true)

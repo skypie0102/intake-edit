@@ -1,0 +1,162 @@
+package cloud.shadowmonarchbooks.intakeedit
+
+private val GLOSSARY_BASE_PATHS = listOf(
+    "glossary/full/characters.txt",
+    "glossary/full/locations.txt",
+    "glossary/full/nicknames.txt",
+    "glossary/full/terms.txt",
+    "glossary/full/honorifics.txt",
+)
+private const val GLOSSARY_ADDITIONS_PATH = "glossary/approved_additions.json"
+private const val GLOSSARY_GOVERNANCE_PATH = "glossary/governance.json"
+private const val GLOSSARY_PROPOSALS_PATH = "glossary/proposals.json"
+
+internal data class GlossarySnapshot(
+    val base: List<FileSnapshot>,
+    val additions: FileSnapshot,
+    val governance: FileSnapshot,
+    val proposals: FileSnapshot,
+    val documents: GlossaryDocuments,
+)
+
+internal interface GlossaryRepository {
+    suspend fun load(): GlossarySnapshot
+    fun proposalEntry(proposal: GlossaryProposal, documents: GlossaryDocuments): GlossaryEntry
+    suspend fun saveApprovedEntry(state: GlossarySnapshot, entry: GlossaryEntry, allowNew: Boolean)
+    suspend fun saveProposal(state: GlossarySnapshot, proposal: GlossaryProposal)
+    suspend fun approveAllSuggestions(state: GlossarySnapshot)
+}
+
+internal fun interface GlossaryRepositoryFactory {
+    fun create(settings: RepoSettings, token: String): GlossaryRepository
+}
+
+internal object DefaultGlossaryRepositoryFactory : GlossaryRepositoryFactory {
+    override fun create(settings: RepoSettings, token: String): GlossaryRepository =
+        GitHubGlossaryRepository(settings, token)
+}
+
+internal class GitHubGlossaryRepository(
+    settings: RepoSettings,
+    token: String,
+) : GlossaryRepository {
+    private val client = GitHubApi(settings, token)
+
+    override suspend fun load(): GlossarySnapshot {
+        val base = GLOSSARY_BASE_PATHS.map { client.getFile(it) }
+        val additions = client.getFile(GLOSSARY_ADDITIONS_PATH)
+        val governance = client.getFile(GLOSSARY_GOVERNANCE_PATH)
+        val proposals = client.getFile(GLOSSARY_PROPOSALS_PATH)
+        val baseEntries = base.flatMap { GlossaryParser.parseBaseFile(it.content) }
+        val documents = GlossaryDocuments(
+            baseEntries = baseEntries,
+            additions = GlossaryParser.parseAdditions(additions.content),
+            governance = GlossaryParser.parseGovernance(governance.content),
+            proposals = GlossaryParser.parseProposals(proposals.content),
+        )
+        return GlossarySnapshot(base, additions, governance, proposals, documents)
+    }
+
+    override suspend fun saveApprovedEntry(state: GlossarySnapshot, entry: GlossaryEntry, allowNew: Boolean) {
+        val additionIndex = state.documents.additions.indexOfFirst { it.id == entry.id }
+        val baseExists = state.documents.baseEntries.any { it.id == entry.id }
+        when {
+            additionIndex >= 0 -> {
+                val next = state.documents.additions.toMutableList().also {
+                    it[additionIndex] = entry.copy(origin = "editor-approved")
+                }
+                client.updateFile(
+                    GLOSSARY_ADDITIONS_PATH,
+                    state.additions.sha,
+                    GlossaryParser.serializeAdditions(next),
+                    "glossary: edit ${entry.id}",
+                )
+            }
+            baseExists -> {
+                val next = state.documents.governance + (entry.id to GlossaryParser.fullOverride(entry))
+                client.updateFile(
+                    GLOSSARY_GOVERNANCE_PATH,
+                    state.governance.sha,
+                    GlossaryParser.serializeGovernance(next),
+                    "glossary: govern ${entry.id}",
+                )
+            }
+            allowNew -> {
+                GlossaryParser.ensureNewEntryAbsent(entry, state.documents.effectiveEntries)
+                val next = state.documents.additions + entry.copy(origin = "editor-approved")
+                client.updateFile(
+                    GLOSSARY_ADDITIONS_PATH,
+                    state.additions.sha,
+                    GlossaryParser.serializeAdditions(next),
+                    "glossary: add ${entry.id}",
+                )
+            }
+            else -> error("Glossary entry no longer exists: ${entry.id}")
+        }
+    }
+
+    override suspend fun saveProposal(state: GlossarySnapshot, proposal: GlossaryProposal) {
+        val next = state.documents.proposals.map { if (it.id == proposal.id) proposal else it }
+        client.updateFile(
+            GLOSSARY_PROPOSALS_PATH,
+            state.proposals.sha,
+            GlossaryParser.serializeProposals(next),
+            "glossary: update proposal ${proposal.id}",
+        )
+    }
+
+    override suspend fun approveAllSuggestions(state: GlossarySnapshot) {
+        val pendingCount = state.documents.pendingProposals.size
+        require(pendingCount > 0) { "There are no pending glossary suggestions." }
+        val approved = GlossaryActions.approveAllPending(state.documents)
+        val additions = GlossaryParser.serializeAdditions(approved.additions)
+        val governance = GlossaryParser.serializeGovernance(approved.governance)
+        val proposals = GlossaryParser.serializeProposals(approved.proposals)
+        val updates = buildList {
+            if (additions != state.additions.content) {
+                add(GitHubFileUpdate(GLOSSARY_ADDITIONS_PATH, state.additions.sha, additions))
+            }
+            if (governance != state.governance.content) {
+                add(GitHubFileUpdate(GLOSSARY_GOVERNANCE_PATH, state.governance.sha, governance))
+            }
+            if (proposals != state.proposals.content) {
+                add(GitHubFileUpdate(GLOSSARY_PROPOSALS_PATH, state.proposals.sha, proposals))
+            }
+        }
+        require(updates.isNotEmpty()) { "No glossary files changed." }
+        client.updateFilesAtomically(updates, "glossary: approve $pendingCount suggestions")
+    }
+
+    override fun proposalEntry(proposal: GlossaryProposal, documents: GlossaryDocuments): GlossaryEntry {
+        val target = proposal.targetId?.let { id -> documents.effectiveEntries.firstOrNull { it.id == id } }
+        return when (proposal.action) {
+            "new_entry" -> {
+                val section = proposal.section.orEmpty().ifBlank { "terms" }
+                val aliases = proposal.sourceAliases
+                GlossaryEntry(
+                    id = GlossaryParser.entryId(section, aliases),
+                    section = section,
+                    sourceAliases = aliases,
+                    translatedName = proposal.translatedName.orEmpty(),
+                    gender = proposal.gender,
+                    description = proposal.description,
+                    qaLock = proposal.recommendQaLock,
+                    origin = "editor-approved",
+                )
+            }
+            "lock_recommendation" -> requireNotNull(target) {
+                "Proposal target not found: ${proposal.targetId}"
+            }.copy(qaLock = true)
+            else -> {
+                val current = requireNotNull(target) { "Proposal target not found: ${proposal.targetId}" }
+                current.copy(
+                    sourceAliases = proposal.sourceAliases.takeIf { it.isNotEmpty() } ?: current.sourceAliases,
+                    translatedName = proposal.translatedName?.takeIf { it.isNotBlank() } ?: current.translatedName,
+                    gender = proposal.gender ?: current.gender,
+                    description = proposal.description.takeIf { it.isNotBlank() } ?: current.description,
+                    qaLock = current.qaLock || proposal.recommendQaLock,
+                )
+            }
+        }
+    }
+}

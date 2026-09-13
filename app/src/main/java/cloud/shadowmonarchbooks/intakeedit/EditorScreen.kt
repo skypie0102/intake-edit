@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
@@ -40,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,6 +52,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class EntryFilter(val label: String) {
     ALL("All"), NEEDS_ATTENTION("Attention"), SUPPLIED("Supplied"), UNSUPPLIED("Unsupplied")
@@ -67,39 +72,69 @@ internal fun EditorScreen(
     onOverride: (OpenChapter, String, String) -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val importStore = remember { TranslationImportStore(context) }
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
     var imported by remember(initial.file.path, initial.document.sourceSha256) {
-        mutableStateOf(importStore.load(initial.file.path, initial.document.sourceSha256))
+        mutableStateOf<ImportedTranslationOverlay?>(null)
     }
+    var importBusy by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf(true) }
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
+    var showRemoveAllConfirm by remember { mutableStateOf(false) }
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
     var jumpRequestId by remember { mutableStateOf(0) }
     val listState = rememberLazyListState()
 
+    LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
+        importBusy = true
+        imported = withContext(Dispatchers.IO) {
+            importStore.load(initial.file.path, initial.document.sourceSha256)
+        }
+        importBusy = false
+    }
+
+    LaunchedEffect(initial.qa?.sha) {
+        if (
+            initial.file.path == current.file.path &&
+            initial.remote.sha == current.remote.sha &&
+            initial.qa?.sha != current.qa?.sha
+        ) {
+            current = current.copy(qa = initial.qa)
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            runCatching {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: error("Could not read the selected file.")
-                require(bytes.size <= 20 * 1024 * 1024) { "Translation file is too large to import safely (20 MB limit)." }
-                val fileName = selectedFileName(context, uri) ?: "Imported XLIFF"
-                val overlay = XliffTranslationImporter.parse(
-                    raw = String(bytes, Charsets.UTF_8),
-                    fileName = fileName,
-                    chapterPath = current.file.path,
-                    document = current.document,
-                )
-                require(importStore.save(overlay)) { "Could not persist the imported translation locally." }
-                imported = overlay
-                editorNotice = "Imported: ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}"
-            }.onFailure {
-                editorNotice = it.message ?: "Could not import this translation file."
+            val chapter = current
+            scope.launch {
+                importBusy = true
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: error("Could not read the selected file.")
+                        require(bytes.size <= 20 * 1024 * 1024) { "Translation file is too large to import safely (20 MB limit)." }
+                        val fileName = selectedFileName(context, uri) ?: "Imported XLIFF"
+                        val overlay = XliffTranslationImporter.parse(
+                            raw = String(bytes, Charsets.UTF_8),
+                            fileName = fileName,
+                            chapterPath = chapter.file.path,
+                            document = chapter.document,
+                        )
+                        require(importStore.save(overlay)) { "Could not persist the imported translation locally." }
+                        overlay
+                    }
+                }.onSuccess { overlay ->
+                    imported = overlay
+                    editorNotice = "Imported: ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}"
+                }.onFailure {
+                    editorNotice = it.message ?: "Could not import this translation file."
+                }
+                importBusy = false
             }
         }
     }
@@ -110,11 +145,21 @@ internal fun EditorScreen(
         onDraft(current)
     }
 
+    fun updateEnglish(locator: String, english: String) {
+        val index = current.document.entries.indexOfFirst { it.locator == locator }
+        require(index >= 0) { "Editor entry not found: $locator" }
+        val entries = current.document.entries.toMutableList()
+        entries[index] = entries[index].copy(english = english)
+        val wasReviewed = current.document.editorReviewComplete
+        val document = current.document.copy(entries = entries, editorReviewComplete = false)
+        var raw = IntakeParser.patchEnglishAt(current.raw, index, english)
+        if (wasReviewed) raw = IntakeParser.patchReviewComplete(raw, false)
+        current = current.copy(raw = raw, document = document)
+        onDraft(current)
+    }
+
     fun useImported(locator: String, text: String) {
-        val updated = current.document.entries.map { entry ->
-            if (entry.locator == locator) entry.copy(english = text) else entry
-        }
-        updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
+        updateEnglish(locator, text)
     }
 
     fun fillBlanksFromImport(overlay: ImportedTranslationOverlay) {
@@ -134,7 +179,14 @@ internal fun EditorScreen(
         }
     }
 
+    fun removeAllEnglish() {
+        val cleared = current.document.entries.map { it.copy(english = "") }
+        updateDocument(current.document.copy(entries = cleared, editorReviewComplete = false))
+        editorNotice = "All English entries were cleared."
+    }
+
     val missingEnglish = current.document.entries.filterNot { it.isSupplied }
+    val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
     val fillableImportCount = imported?.let { overlay ->
         missingEnglish.count { overlay.translationFor(it.locator) != null }
     } ?: 0
@@ -200,10 +252,17 @@ internal fun EditorScreen(
                     FilterChip(selected = showQa, onClick = { showQa = true }, label = { Text("QA Findings") })
                     Spacer(Modifier.weight(1f))
                     imported?.let { overlay ->
-                        Button(
-                            onClick = { fillBlanksFromImport(overlay) },
-                            enabled = !busy && fillableImportCount > 0,
-                        ) { Text("Fill blanks ($fillableImportCount)") }
+                        if (fillableImportCount > 0) {
+                            Button(
+                                onClick = { fillBlanksFromImport(overlay) },
+                                enabled = !busy && !importBusy,
+                            ) { Text("Fill blanks ($fillableImportCount)") }
+                        } else {
+                            Button(
+                                onClick = { showRemoveAllConfirm = true },
+                                enabled = !busy && !importBusy && suppliedEnglishCount > 0,
+                            ) { Text("Remove all") }
+                        }
                     }
                 }
                 if (showQa) {
@@ -240,12 +299,7 @@ internal fun EditorScreen(
                                 entry = entry,
                                 importedTranslation = imported?.translationFor(entry.locator),
                                 onUseImport = { text -> useImported(entry.locator, text) },
-                                onEnglishChange = { english ->
-                                    val updated = current.document.entries.map {
-                                        if (it.locator == entry.locator) it.copy(english = english) else it
-                                    }
-                                    updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
-                                },
+                                onEnglishChange = { english -> updateEnglish(entry.locator, english) },
                             )
                         }
                         if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(16.dp)) }
@@ -268,34 +322,72 @@ internal fun EditorScreen(
                 if (imported == null) {
                     TextButton(
                         onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },
-                        enabled = !busy,
-                    ) { Text("Import") }
+                        enabled = !busy && !importBusy,
+                    ) { Text(if (importBusy) "Loading…" else "Import") }
                 } else {
-                    TextButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy) { Text("Remove") }
+                    TextButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy && !importBusy) { Text("Remove") }
                 }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { showCommit = true }, enabled = !busy) { Text("Review & commit") }
+                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Review & commit") }
             }
         }
     }
 
+    if (showRemoveAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRemoveAllConfirm = false },
+            title = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("⚠️", style = MaterialTheme.typography.displayLarge)
+                    Text("Remove all English entries?")
+                }
+            },
+            text = {
+                Text("This will clear every English entry in this chapter and mark editor review as pending. The cleared chapter will be saved as your local draft.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRemoveAllConfirm = false
+                        removeAllEnglish()
+                    },
+                    enabled = !busy && !importBusy,
+                ) { Text("Remove all") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveAllConfirm = false }, enabled = !busy && !importBusy) { Text("Cancel") }
+            },
+        )
+    }
+
     if (showRemoveImportConfirm) {
         AlertDialog(
-            onDismissRequest = { showRemoveImportConfirm = false },
+            onDismissRequest = { if (!importBusy) showRemoveImportConfirm = false },
             title = { Text("Remove imported translation?") },
             text = { Text("Remove the local imported translation? English already copied into fields will not be changed.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        importStore.delete(current.file.path)
-                        imported = null
+                        val path = current.file.path
                         showRemoveImportConfirm = false
-                        editorNotice = "Imported translation removed."
+                        scope.launch {
+                            importBusy = true
+                            val removed = withContext(Dispatchers.IO) { importStore.delete(path) }
+                            if (removed) {
+                                imported = null
+                                editorNotice = "Imported translation removed."
+                            } else {
+                                editorNotice = "Could not remove the imported translation."
+                            }
+                            importBusy = false
+                        }
                     },
-                    enabled = !busy,
+                    enabled = !busy && !importBusy,
                 ) { Text("Remove") }
             },
-            dismissButton = { TextButton(onClick = { showRemoveImportConfirm = false }, enabled = !busy) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(onClick = { showRemoveImportConfirm = false }, enabled = !busy && !importBusy) { Text("Cancel") }
+            },
         )
     }
 
@@ -304,8 +396,8 @@ internal fun EditorScreen(
             onDismissRequest = { showCommit = false },
             title = { Text("Commit chapter changes?") },
             text = { Text("Mark reviewed only after checking the full chapter. Every English field must be supplied first. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.") },
-            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy) { Text("Mark reviewed & commit") } },
-            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy) { Text("Commit without review") } },
+            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy) { Text("Mark reviewed & commit") } },
+            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit without review") } },
         )
     }
 }
@@ -361,6 +453,7 @@ private fun EntryCard(
                 TextButton(onClick = {
                     val reference = importedTranslation?.let { "\n\nIMPORTED TRANSLATION:\n$it" }.orEmpty()
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
+                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
                     rich = rich.moveCaretToEnd()
                     focusRequester.requestFocus()
                 }) { Icon(Icons.Default.ContentCopy, null); Text("Copy") }

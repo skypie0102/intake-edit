@@ -265,17 +265,32 @@ object IntakeParser {
         return out.toString()
     }
 
-    fun patchDocument(raw: String, document: EditorDocument): String {
-        val patched = patchEnglish(raw, document.entries)
-        val regex = if (isJson(patched)) jsonReviewFieldRegex else yamlReviewFieldRegex
-        val match = regex.find(patched) ?: error("Could not locate top-level editor_review_complete boolean. Use Whole File mode for this file.")
-        val group = match.groups[2] ?: error("Could not locate editor_review_complete value.")
-        return buildString(patched.length) {
-            append(patched, 0, group.range.first)
-            append(if (document.editorReviewComplete) "true" else "false")
-            append(patched, group.range.last + 1, patched.length)
+    fun patchEnglishAt(raw: String, entryIndex: Int, english: String): String {
+        require(entryIndex >= 0) { "Entry index must not be negative." }
+        val regex = if (isJson(raw)) jsonEnglishFieldRegex else yamlEnglishFieldRegex
+        val match = regex.findAll(raw).drop(entryIndex).firstOrNull()
+            ?: error("Could not locate English value at entry $entryIndex. Use Whole File mode for this file.")
+        val group = match.groups[2] ?: error("Could not locate English value at entry $entryIndex.")
+        return buildString(raw.length + english.length + 2) {
+            append(raw, 0, group.range.first)
+            append(quoteString(english))
+            append(raw, group.range.last + 1, raw.length)
         }
     }
+
+    fun patchReviewComplete(raw: String, editorReviewComplete: Boolean): String {
+        val regex = if (isJson(raw)) jsonReviewFieldRegex else yamlReviewFieldRegex
+        val match = regex.find(raw) ?: error("Could not locate top-level editor_review_complete boolean. Use Whole File mode for this file.")
+        val group = match.groups[2] ?: error("Could not locate editor_review_complete value.")
+        return buildString(raw.length) {
+            append(raw, 0, group.range.first)
+            append(if (editorReviewComplete) "true" else "false")
+            append(raw, group.range.last + 1, raw.length)
+        }
+    }
+
+    fun patchDocument(raw: String, document: EditorDocument): String =
+        patchReviewComplete(patchEnglish(raw, document.entries), document.editorReviewComplete)
 
     fun validate(raw: String): Result<Unit> = runCatching {
         if (isJson(raw)) {
