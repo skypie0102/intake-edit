@@ -2,6 +2,16 @@
 
 The goal is to make Intake Edit feel immediate on-device while preserving the existing schema-v5 workflow, draft safety, QA semantics, glossary governance, and GitHub commit behavior.
 
+## Current status
+
+- ✅ Milestone 1 — editor responsiveness and draft persistence: complete.
+- ✅ Milestone 2 — single-activity navigation shell: complete.
+- ✅ Milestone 3 — ViewModel/state extraction: complete for Chapter Intake, editor, repository settings, and glossary.
+- 🟡 Milestone 4 — repository boundaries: chapter and glossary GitHub/parser workflows are behind injectable repositories; draft/settings stores remain intentionally small lower-level dependencies.
+- 🟡 Milestone 5 — chapter-list loading/cache: chapter paths render before progress completes, existing in-memory progress is retained during refresh, and progress requests are bounded to four concurrent loads. Persistent progress cache and staged/lazy QA counts remain.
+- 🟡 Milestone 6 — glossary decomposition: the old `HomeActivity` controller has been removed; glossary load/mutation logic is behind `GlossaryViewModel`/`GlossaryRepository`, and UI cards/dialogs are split. Export file I/O remains UI-owned.
+- ⬜ Milestone 7 — UI polish and performance verification: pending after the remaining loading/cache work.
+
 ## Principles
 
 - Refactor incrementally; no full rewrite.
@@ -90,4 +100,4 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 
 ## Delivery order
 
-Milestones 1–3 are the immediate priority. Milestones 4–6 can then be done screen-by-screen without another disruptive rewrite. Milestone 7 is the verification/polish pass rather than a place to hide architectural fixes.
+Milestones 1–3 are complete. Finish the remaining Milestone 4–6 edges next, then use Milestone 7 as the verification/polish pass rather than a place to hide architectural fixes.
