@@ -59,6 +59,26 @@ import java.time.Instant
 
 private const val DRAFT_SAVE_DEBOUNCE_MS = 650L
 
+private class EditorSession {
+    var latest: OpenChapter? = null
+    var touched: Boolean = false
+
+    fun open(chapter: OpenChapter) {
+        latest = chapter
+        touched = false
+    }
+
+    fun update(chapter: OpenChapter) {
+        latest = chapter
+        touched = true
+    }
+
+    fun clear() {
+        latest = null
+        touched = false
+    }
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,6 +118,7 @@ private fun IntakeApp() {
     val settingsStore = remember { SettingsStore(context) }
     val tokenStore = remember { SecureTokenStore(context) }
     val draftStore = remember { DraftStore(context) }
+    val editorSession = remember { EditorSession() }
     var settings by remember { mutableStateOf(settingsStore.load()) }
     var token by remember { mutableStateOf(tokenStore.load()) }
     var showSettings by remember { mutableStateOf(token.isBlank()) }
@@ -129,28 +150,36 @@ private fun IntakeApp() {
         )
     }
 
-    fun scheduleDraftSave(next: OpenChapter) {
-        open = next
-        draftSaveJob?.cancel()
-        draftSaveJob = scope.launch {
-            delay(DRAFT_SAVE_DEBOUNCE_MS)
-            withContext(Dispatchers.IO) {
-                draftStore.save(next.file.path, next.remote.sha, next.raw)
+    suspend fun persistDraft(chapter: OpenChapter) {
+        withContext(Dispatchers.IO) {
+            if (chapter.raw == chapter.remote.content) {
+                draftStore.delete(chapter.file.path)
+            } else {
+                draftStore.save(chapter.file.path, chapter.remote.sha, chapter.raw)
             }
         }
     }
 
+    fun scheduleDraftSave(next: OpenChapter) {
+        editorSession.update(next)
+        draftSaveJob?.cancel()
+        draftSaveJob = scope.launch {
+            delay(DRAFT_SAVE_DEBOUNCE_MS)
+            persistDraft(next)
+        }
+    }
+
     fun closeEditor() {
-        val current = open
+        val current = editorSession.latest ?: open
+        val touched = editorSession.touched
         val pending = draftSaveJob
         draftSaveJob = null
+        editorSession.clear()
         open = null
-        if (current != null && current.raw != current.remote.content) {
+        if (current != null && touched) {
             scope.launch {
                 pending?.cancelAndJoin()
-                withContext(Dispatchers.IO) {
-                    draftStore.save(current.file.path, current.remote.sha, current.raw)
-                }
+                persistDraft(current)
             }
         } else {
             pending?.cancel()
@@ -190,7 +219,9 @@ private fun IntakeApp() {
                 val raw = if (draft?.baseSha == remote.sha) draft.raw else remote.content
                 val document = IntakeParser.parse(raw)
                 val qa = runCatching { loadQa(client, file) }.getOrNull()
-                open = OpenChapter(file, remote, raw, document, qa)
+                val opened = OpenChapter(file, remote, raw, document, qa)
+                editorSession.open(opened)
+                open = opened
                 if (draft != null && draft.baseSha != remote.sha) {
                     notice = "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
                 }
@@ -268,6 +299,7 @@ private fun IntakeApp() {
                             "edit: revise ch_${next.file.chapter.toString().padStart(4, '0')} English",
                         )
                         withContext(Dispatchers.IO) { draftStore.delete(next.file.path) }
+                        editorSession.clear()
                         notice = "Committed to ${settings.owner}/${settings.repo}."
                         open = null
                         refresh()
@@ -288,7 +320,9 @@ private fun IntakeApp() {
                         val document = snapshot.document.withOverride(findingId, override)
                         val raw = QaFindingsParser.serialize(document)
                         val sha = client.updateFile(snapshot.path, snapshot.sha, raw, "qa: override $findingId")
-                        open = next.copy(qa = snapshot.copy(sha = sha.ifBlank { snapshot.sha }, raw = raw, document = document))
+                        val updated = next.copy(qa = snapshot.copy(sha = sha.ifBlank { snapshot.sha }, raw = raw, document = document))
+                        editorSession.latest = updated
+                        open = updated
                         notice = "QA override committed."
                     } catch (t: Throwable) {
                         notice = t.message ?: "Could not commit QA override."
