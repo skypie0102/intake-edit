@@ -120,11 +120,21 @@ internal fun EditorScreen(
         onDraft(current)
     }
 
+    fun updateEnglish(locator: String, english: String) {
+        val index = current.document.entries.indexOfFirst { it.locator == locator }
+        require(index >= 0) { "Editor entry not found: $locator" }
+        val entries = current.document.entries.toMutableList()
+        entries[index] = entries[index].copy(english = english)
+        val wasReviewed = current.document.editorReviewComplete
+        val document = current.document.copy(entries = entries, editorReviewComplete = false)
+        var raw = IntakeParser.patchEnglishAt(current.raw, index, english)
+        if (wasReviewed) raw = IntakeParser.patchReviewComplete(raw, false)
+        current = current.copy(raw = raw, document = document)
+        onDraft(current)
+    }
+
     fun useImported(locator: String, text: String) {
-        val updated = current.document.entries.map { entry ->
-            if (entry.locator == locator) entry.copy(english = text) else entry
-        }
-        updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
+        updateEnglish(locator, text)
     }
 
     fun fillBlanksFromImport(overlay: ImportedTranslationOverlay) {
@@ -250,12 +260,7 @@ internal fun EditorScreen(
                                 entry = entry,
                                 importedTranslation = imported?.translationFor(entry.locator),
                                 onUseImport = { text -> useImported(entry.locator, text) },
-                                onEnglishChange = { english ->
-                                    val updated = current.document.entries.map {
-                                        if (it.locator == entry.locator) it.copy(english = english) else it
-                                    }
-                                    updateDocument(current.document.copy(entries = updated, editorReviewComplete = false))
-                                },
+                                onEnglishChange = { english -> updateEnglish(entry.locator, english) },
                             )
                         }
                         if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(16.dp)) }
