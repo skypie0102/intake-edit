@@ -142,13 +142,13 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     val scope = rememberCoroutineScope()
     val chapterListViewModel: ChapterListViewModel = viewModel()
     val chapterListState by chapterListViewModel.uiState.collectAsStateWithLifecycle()
-    val settingsStore = remember { SettingsStore(context) }
-    val tokenStore = remember { SecureTokenStore(context) }
+    val repoSettingsViewModel: RepoSettingsViewModel = viewModel()
+    val repoSettingsState by repoSettingsViewModel.uiState.collectAsStateWithLifecycle()
     val draftStore = remember { DraftStore(context) }
     val editorSession = remember { EditorSession() }
-    var settings by remember { mutableStateOf(settingsStore.load()) }
-    var token by remember { mutableStateOf(tokenStore.load()) }
-    var showSettings by remember { mutableStateOf(token.isBlank()) }
+    val settings = repoSettingsState.settings
+    val token = repoSettingsState.token
+    val showSettings = repoSettingsState.showSettings
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var open by remember { mutableStateOf<OpenChapter?>(null) }
@@ -228,34 +228,18 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     LaunchedEffect(api, showSettings) { if (api != null && !showSettings) refresh() }
 
     if (showSettings) {
-        BackHandler(enabled = !busy) {
-            if (token.isNotBlank()) showSettings = false else onExitToHome()
+        val settingsBusy = repoSettingsState.saving
+        BackHandler(enabled = !settingsBusy) {
+            if (token.isNotBlank()) repoSettingsViewModel.closeSettings() else onExitToHome()
         }
         SettingsScreen(
             currentSettings = settings,
             currentToken = token,
-            busy = busy,
+            busy = settingsBusy,
+            notice = repoSettingsState.notice,
             canCancel = token.isNotBlank(),
-            onCancel = { showSettings = false },
-            onSave = { next, nextToken ->
-                scope.launch {
-                    busy = true
-                    try {
-                        val candidate = GitHubApi(next, nextToken)
-                        val login = candidate.verifyUser()
-                        settingsStore.save(next)
-                        tokenStore.save(nextToken)
-                        settings = next
-                        token = nextToken
-                        showSettings = false
-                        notice = "Connected as $login."
-                    } catch (t: Throwable) {
-                        notice = t.message ?: "Could not verify GitHub connection."
-                    } finally {
-                        busy = false
-                    }
-                }
-            },
+            onCancel = repoSettingsViewModel::closeSettings,
+            onSave = repoSettingsViewModel::save,
         )
         return
     }
@@ -334,10 +318,10 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
             files = chapterListState.files,
             progressByPath = chapterListState.progressByPath,
             busy = listBusy,
-            notice = notice ?: chapterListState.notice,
+            notice = notice ?: repoSettingsState.notice ?: chapterListState.notice,
             onBack = onExitToHome,
             onRefresh = ::refresh,
-            onSettings = { showSettings = true },
+            onSettings = repoSettingsViewModel::openSettings,
             onOpen = ::openFile,
         )
     }
@@ -419,6 +403,7 @@ private fun SettingsScreen(
     currentSettings: RepoSettings,
     currentToken: String,
     busy: Boolean,
+    notice: String?,
     canCancel: Boolean,
     onCancel: () -> Unit,
     onSave: (RepoSettings, String) -> Unit,
@@ -438,6 +423,7 @@ private fun SettingsScreen(
             Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Text("Connect directly to GitHub. The token is encrypted with a key held by Android Keystore.")
             OutlinedTextField(owner, { owner = it }, label = { Text("Owner") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(repo, { repo = it }, label = { Text("Repository") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
