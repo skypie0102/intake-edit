@@ -49,6 +49,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -138,6 +140,8 @@ internal data class OpenChapter(
 private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val chapterListViewModel: ChapterListViewModel = viewModel()
+    val chapterListState by chapterListViewModel.uiState.collectAsStateWithLifecycle()
     val settingsStore = remember { SettingsStore(context) }
     val tokenStore = remember { SecureTokenStore(context) }
     val draftStore = remember { DraftStore(context) }
@@ -145,8 +149,6 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     var settings by remember { mutableStateOf(settingsStore.load()) }
     var token by remember { mutableStateOf(tokenStore.load()) }
     var showSettings by remember { mutableStateOf(token.isBlank()) }
-    var files by remember { mutableStateOf<List<ChapterFile>>(emptyList()) }
-    var progressByPath by remember { mutableStateOf<Map<String, ChapterProgress>>(emptyMap()) }
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var open by remember { mutableStateOf<OpenChapter?>(null) }
@@ -157,20 +159,6 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
         val path = QaFindingsParser.path(file.volume, file.chapter)
         val snapshot = client.getFileOrNull(path) ?: return null
         return QaFindingsSnapshot(path, snapshot.sha, snapshot.content, QaFindingsParser.parse(snapshot.content))
-    }
-
-    suspend fun loadChapterProgress(client: GitHubApi, file: ChapterFile): ChapterProgress {
-        val remote = client.getFile(file.path)
-        val document = IntakeParser.parse(remote.content)
-        val qa = runCatching { loadQa(client, file) }.getOrNull()
-        val editorSha = QaFindingsParser.sha256(remote.content)
-        return ChapterProgress(
-            englishSupplied = document.englishSupplied,
-            englishTotal = document.englishTotal,
-            editorReviewComplete = document.editorReviewComplete,
-            qaActive = qa?.document?.active(editorSha)?.size ?: 0,
-            qaTotal = qa?.document?.findings?.size ?: 0,
-        )
     }
 
     suspend fun persistDraft(chapter: OpenChapter) {
@@ -210,26 +198,7 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     }
 
     fun refresh() {
-        val client = api ?: return
-        scope.launch {
-            busy = true
-            try {
-                val listed = client.listIntakeFiles()
-                files = listed
-                progressByPath = emptyMap()
-                listed.forEach { file ->
-                    launch {
-                        runCatching { loadChapterProgress(client, file) }
-                            .onSuccess { progress -> progressByPath = progressByPath + (file.path to progress) }
-                    }
-                }
-                notice = null
-            } catch (t: Throwable) {
-                notice = t.message ?: "Could not refresh chapter list."
-            } finally {
-                busy = false
-            }
-        }
+        chapterListViewModel.refresh(settings, token)
     }
 
     fun openFile(file: ChapterFile) {
@@ -359,12 +328,13 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
             },
         )
     } else {
-        BackHandler(enabled = !busy) { onExitToHome() }
+        val listBusy = busy || chapterListState.refreshing
+        BackHandler(enabled = !listBusy) { onExitToHome() }
         ChapterListScreen(
-            files = files,
-            progressByPath = progressByPath,
-            busy = busy,
-            notice = notice,
+            files = chapterListState.files,
+            progressByPath = chapterListState.progressByPath,
+            busy = listBusy,
+            notice = notice ?: chapterListState.notice,
             onBack = onExitToHome,
             onRefresh = ::refresh,
             onSettings = { showSettings = true },
