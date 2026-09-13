@@ -13,7 +13,10 @@ internal data class GlossaryUiState(
     val snapshot: GlossarySnapshot? = null,
     val busy: Boolean = false,
     val notice: String? = null,
-)
+    val approvalDrafts: Map<String, GlossaryEntry> = emptyMap(),
+) {
+    val pooledApprovalCount: Int get() = approvalDrafts.size
+}
 
 internal class GlossaryViewModel() : ViewModel() {
     private var repositoryFactory: GlossaryRepositoryFactory = DefaultGlossaryRepositoryFactory
@@ -32,7 +35,14 @@ internal class GlossaryViewModel() : ViewModel() {
             _uiState.update { it.copy(busy = true, notice = null) }
             try {
                 val snapshot = repository.load()
-                _uiState.update { it.copy(snapshot = snapshot, busy = false) }
+                val pendingIds = snapshot.documents.pendingProposals.mapTo(mutableSetOf()) { it.id }
+                _uiState.update { current ->
+                    current.copy(
+                        snapshot = snapshot,
+                        busy = false,
+                        approvalDrafts = current.approvalDrafts.filterKeys { it in pendingIds },
+                    )
+                }
             } catch (t: Throwable) {
                 _uiState.update {
                     it.copy(
@@ -49,21 +59,48 @@ internal class GlossaryViewModel() : ViewModel() {
         return repositoryFactory.create(settings, token).proposalEntry(proposal, documents)
     }
 
-    fun approveAll(settings: RepoSettings, token: String) {
-        mutate(settings, token) { repository, snapshot ->
-            repository.approveAllSuggestions(snapshot)
+    fun poolApproval(proposal: GlossaryProposal, entry: GlossaryEntry) {
+        val pending = _uiState.value.snapshot?.documents?.pendingProposals?.any { it.id == proposal.id } == true
+        if (!pending) return
+        _uiState.update {
+            it.copy(
+                approvalDrafts = it.approvalDrafts + (proposal.id to entry),
+                notice = "Approval pooled. Commit when your review batch is ready.",
+            )
         }
     }
 
-    fun approveProposal(
-        proposal: GlossaryProposal,
-        entry: GlossaryEntry,
-        settings: RepoSettings,
-        token: String,
-    ) {
-        mutate(settings, token) { repository, snapshot ->
-            repository.saveApprovedEntry(snapshot, entry, proposal.action == "new_entry")
-            repository.saveProposal(snapshot, proposal.copy(status = "approved"))
+    fun removePooledApproval(proposalId: String) {
+        if (proposalId !in _uiState.value.approvalDrafts) return
+        _uiState.update {
+            it.copy(
+                approvalDrafts = it.approvalDrafts - proposalId,
+                notice = "Approval removed from the commit pool.",
+            )
+        }
+    }
+
+    fun commitPooled(settings: RepoSettings, token: String) {
+        val drafts = _uiState.value.approvalDrafts
+        if (drafts.isEmpty()) return
+        mutate(
+            settings = settings,
+            token = token,
+            clearApprovalDrafts = true,
+            successNotice = "${drafts.size} pooled glossary approval(s) committed.",
+        ) { repository, snapshot ->
+            repository.commitApprovalDrafts(snapshot, drafts)
+        }
+    }
+
+    fun approveAll(settings: RepoSettings, token: String) {
+        val drafts = _uiState.value.approvalDrafts
+        mutate(
+            settings = settings,
+            token = token,
+            clearApprovalDrafts = true,
+        ) { repository, snapshot ->
+            repository.approveAllSuggestions(snapshot, drafts)
         }
     }
 
@@ -80,12 +117,15 @@ internal class GlossaryViewModel() : ViewModel() {
         settings: RepoSettings,
         token: String,
     ) {
+        if (approve) {
+            poolApproval(proposal, edited)
+            return
+        }
+        if (proposal.id in _uiState.value.approvalDrafts) {
+            _uiState.update { it.copy(approvalDrafts = it.approvalDrafts + (proposal.id to edited)) }
+        }
         mutate(settings, token) { repository, snapshot ->
-            if (approve) {
-                repository.saveApprovedEntry(snapshot, edited, proposal.action == "new_entry")
-            }
             val updatedProposal = proposal.copy(
-                status = if (approve) "approved" else proposal.status,
                 section = edited.section,
                 sourceAliases = edited.sourceAliases,
                 translatedName = edited.translatedName,
@@ -106,6 +146,8 @@ internal class GlossaryViewModel() : ViewModel() {
     private fun mutate(
         settings: RepoSettings,
         token: String,
+        clearApprovalDrafts: Boolean = false,
+        successNotice: String = "Glossary changes committed.",
         block: suspend (GlossaryRepository, GlossarySnapshot) -> Unit,
     ) {
         if (token.isBlank() || _uiState.value.busy) return
@@ -116,11 +158,17 @@ internal class GlossaryViewModel() : ViewModel() {
             try {
                 block(repository, snapshot)
                 val refreshed = repository.load()
-                _uiState.update {
-                    it.copy(
+                val pendingIds = refreshed.documents.pendingProposals.mapTo(mutableSetOf()) { it.id }
+                _uiState.update { current ->
+                    current.copy(
                         snapshot = refreshed,
                         busy = false,
-                        notice = "Glossary changes committed.",
+                        notice = successNotice,
+                        approvalDrafts = if (clearApprovalDrafts) {
+                            emptyMap()
+                        } else {
+                            current.approvalDrafts.filterKeys { it in pendingIds }
+                        },
                     )
                 }
             } catch (t: Throwable) {
