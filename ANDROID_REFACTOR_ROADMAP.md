@@ -8,9 +8,9 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 - ✅ Milestone 2 — single-activity navigation shell: complete.
 - ✅ Milestone 3 — ViewModel/state extraction: complete for Chapter Intake, editor, repository settings, and glossary.
 - 🟡 Milestone 4 — repository boundaries: chapter and glossary GitHub/parser workflows are behind injectable repositories; draft/settings stores remain intentionally small lower-level dependencies.
-- 🟡 Milestone 5 — chapter-list loading/cache: chapter paths render before progress completes, existing in-memory progress is retained during refresh, and progress requests are bounded to four concurrent loads. Persistent progress cache and staged/lazy QA counts remain.
+- ✅ Milestone 5 — chapter-list loading/cache: repository paths and cached progress render before network progress completes; base English/review progress is published before QA counts; progress/QA work is bounded to four concurrent requests; cache writes are debounced; cached rows stay interactive during background refresh.
 - 🟡 Milestone 6 — glossary decomposition: the old `HomeActivity` controller has been removed; glossary load/mutation logic is behind `GlossaryViewModel`/`GlossaryRepository`, and UI cards/dialogs are split. Export file I/O remains UI-owned.
-- ⬜ Milestone 7 — UI polish and performance verification: pending after the remaining loading/cache work.
+- ⬜ Milestone 7 — UI polish and performance verification: structural work is largely complete; device-oriented profiling and final interaction polish remain.
 
 ## Principles
 
@@ -69,13 +69,14 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 
 **Goal:** make the homepage useful immediately.
 
-- Render the chapter list as soon as repository paths are known.
-- Cache progress metadata locally.
+- Render the chapter list as soon as repository paths or a local cache are available.
+- Persist chapter progress metadata locally per repository/branch/root.
 - Refresh progress with bounded concurrency rather than launching an unbounded request pair per chapter.
-- Load QA counts lazily or separately from the minimum chapter-list metadata.
+- Publish English/review progress first, then layer QA counts in as a second-stage update.
+- Keep cached rows interactive while background refresh is running.
 - Preserve manual refresh and conflict correctness.
 
-**Acceptance:** opening Chapter Intake does not require every chapter/QA request to finish before the list is useful; refresh work is bounded and visible.
+**Acceptance:** opening Chapter Intake does not require every chapter/QA request to finish before the list is useful; cached rows render before remote refresh completes; refresh work is bounded and visible without locking unrelated list actions.
 
 ## Milestone 6 — Glossary decomposition
 
@@ -100,4 +101,4 @@ The goal is to make Intake Edit feel immediate on-device while preserving the ex
 
 ## Delivery order
 
-Milestones 1–3 are complete. Finish the remaining Milestone 4–6 edges next, then use Milestone 7 as the verification/polish pass rather than a place to hide architectural fixes.
+Milestones 1–3 and 5 are complete. Finish the remaining Milestone 4/6 edges where they provide concrete value, then use Milestone 7 for device-oriented verification and polish rather than another broad rewrite.
