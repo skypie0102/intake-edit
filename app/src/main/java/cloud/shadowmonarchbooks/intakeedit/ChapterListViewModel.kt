@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,6 +27,7 @@ internal data class ChapterListUiState(
 internal class ChapterListViewModel(
     private val repositoryFactory: ChapterRepositoryFactory = DefaultChapterRepositoryFactory,
     private val cacheStore: ChapterProgressCacheStore = NoOpChapterProgressCacheStore,
+    private val cacheDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChapterListUiState())
     val uiState: StateFlow<ChapterListUiState> = _uiState.asStateFlow()
@@ -40,7 +42,7 @@ internal class ChapterListViewModel(
         cacheSaveJob?.cancel()
         refreshJob = viewModelScope.launch {
             _uiState.update { it.copy(refreshing = true, notice = null) }
-            val cached = withContext(Dispatchers.IO) { cacheStore.load(settings) }
+            val cached = withContext(cacheDispatcher) { cacheStore.load(settings) }
             if (cached != null) {
                 _uiState.update {
                     it.copy(
@@ -115,7 +117,7 @@ internal class ChapterListViewModel(
                 files = state.files,
                 progressByPath = state.progressByPath,
             )
-            withContext(Dispatchers.IO) { cacheStore.save(settings, snapshot) }
+            withContext(cacheDispatcher) { cacheStore.save(settings, snapshot) }
         }
     }
 }
