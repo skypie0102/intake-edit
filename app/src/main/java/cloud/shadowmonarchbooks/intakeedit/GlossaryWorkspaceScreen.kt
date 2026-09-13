@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +44,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val GLOSSARY_EXPORT_NAME = "Pure_Love_x_Violation_glossary_updated-v5.csv"
 
@@ -53,6 +57,7 @@ private enum class GlossaryApprovedFilter { ALL, LOCKED_QA }
 @Composable
 internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val glossaryViewModel: GlossaryViewModel = viewModel()
     val state by glossaryViewModel.uiState.collectAsStateWithLifecycle()
     val settingsViewModel: RepoSettingsViewModel = viewModel()
@@ -69,16 +74,21 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
-            runCatching {
-                val snapshot = state.snapshot ?: error("Glossary is not loaded.")
-                val raw = GlossaryExport.serialize(snapshot.documents.effectiveEntries)
-                context.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
-                    stream.write(raw.toByteArray(Charsets.UTF_8))
-                } ?: error("Could not open the selected export destination.")
-            }.onSuccess {
-                localNotice = "Glossary exported in the original supplied format."
-            }.onFailure {
-                localNotice = it.message ?: "Glossary export failed."
+            val snapshot = state.snapshot
+            scope.launch {
+                runCatching {
+                    val current = snapshot ?: error("Glossary is not loaded.")
+                    withContext(Dispatchers.IO) {
+                        val raw = GlossaryExport.serialize(current.documents.effectiveEntries)
+                        context.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
+                            stream.write(raw.toByteArray(Charsets.UTF_8))
+                        } ?: error("Could not open the selected export destination.")
+                    }
+                }.onSuccess {
+                    localNotice = "Glossary exported in the original supplied format."
+                }.onFailure {
+                    localNotice = it.message ?: "Glossary export failed."
+                }
             }
         }
     }
