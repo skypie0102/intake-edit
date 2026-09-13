@@ -43,26 +43,45 @@ internal class ChapterListViewModel() : ViewModel() {
                     state.copy(
                         files = listed,
                         progressByPath = state.progressByPath.filterKeys { it in listedPaths },
+                        refreshing = false,
                     )
                 }
                 listed.forEach { file ->
                     launch {
-                        progressConcurrency.withPermit {
-                            runCatching { repository.loadProgress(file) }
-                                .onSuccess { progress ->
-                                    _uiState.update { state ->
-                                        state.copy(progressByPath = state.progressByPath + (file.path to progress))
-                                    }
-                                }
+                        val loaded = progressConcurrency.withPermit {
+                            runCatching { repository.loadBaseProgress(file) }.getOrNull()
+                        } ?: return@launch
+
+                        _uiState.update { state ->
+                            state.copy(progressByPath = state.progressByPath + (file.path to loaded.progress))
+                        }
+
+                        val qaCounts = progressConcurrency.withPermit {
+                            runCatching {
+                                repository.loadQaCounts(file, loaded.editorContentSha256)
+                            }.getOrNull()
+                        } ?: return@launch
+
+                        _uiState.update { state ->
+                            val current = state.progressByPath[file.path] ?: loaded.progress
+                            state.copy(
+                                progressByPath = state.progressByPath + (
+                                    file.path to current.copy(
+                                        qaActive = qaCounts.active,
+                                        qaTotal = qaCounts.total,
+                                    )
+                                ),
+                            )
                         }
                     }
                 }
             } catch (t: Throwable) {
                 _uiState.update {
-                    it.copy(notice = t.message ?: "Could not refresh chapter list.")
+                    it.copy(
+                        refreshing = false,
+                        notice = t.message ?: "Could not refresh chapter list.",
+                    )
                 }
-            } finally {
-                _uiState.update { it.copy(refreshing = false) }
             }
         }
     }
