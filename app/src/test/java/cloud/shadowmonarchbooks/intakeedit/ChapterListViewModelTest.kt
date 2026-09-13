@@ -13,6 +13,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -43,7 +44,10 @@ class ChapterListViewModelTest {
             second.path to QaProgressCounts(1, 2),
         )
         val repository = FakeChapterRepository(listOf(first, second), baseProgress, qaProgress)
-        val viewModel = ChapterListViewModel(ChapterRepositoryFactory { _, _ -> repository })
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheDispatcher = dispatcher,
+        )
 
         viewModel.refresh(RepoSettings(), "token")
         advanceUntilIdle()
@@ -66,7 +70,10 @@ class ChapterListViewModelTest {
             qaProgress = mapOf(file.path to QaProgressCounts(2, 4)),
             beforeQa = { qaGate.await() },
         )
-        val viewModel = ChapterListViewModel(ChapterRepositoryFactory { _, _ -> repository })
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheDispatcher = dispatcher,
+        )
 
         viewModel.refresh(RepoSettings(), "token")
         runCurrent()
@@ -84,9 +91,52 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun cachedProgressAppearsBeforeRemoteListCompletesAndIsRefreshed() = runTest(dispatcher) {
+        val file = ChapterFile("editor_input/vol-01/chapters/ch_0003.yml", 1, 3)
+        val cachedProgress = ChapterProgress(1, 6, false, qaActive = 3, qaTotal = 3)
+        val freshBase = ChapterProgress(4, 6, false)
+        val remoteGate = CompletableDeferred<Unit>()
+        val cache = FakeChapterProgressCacheStore(
+            ChapterListCacheSnapshot(
+                files = listOf(file),
+                progressByPath = mapOf(file.path to cachedProgress),
+            ),
+        )
+        val repository = FakeChapterRepository(
+            files = listOf(file),
+            progress = mapOf(file.path to freshBase),
+            qaProgress = mapOf(file.path to QaProgressCounts(1, 2)),
+            beforeList = { remoteGate.await() },
+        )
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheStore = cache,
+            cacheDispatcher = dispatcher,
+        )
+
+        viewModel.refresh(RepoSettings(), "token")
+        runCurrent()
+
+        var state = viewModel.uiState.value
+        assertEquals(listOf(file), state.files)
+        assertEquals(cachedProgress, state.progressByPath[file.path])
+        assertTrue(state.refreshing)
+
+        remoteGate.complete(Unit)
+        advanceUntilIdle()
+
+        state = viewModel.uiState.value
+        assertFalse(state.refreshing)
+        assertEquals(ChapterProgress(4, 6, false, qaActive = 1, qaTotal = 2), state.progressByPath[file.path])
+        assertEquals(state.files, cache.saved?.files)
+        assertEquals(state.progressByPath, cache.saved?.progressByPath)
+    }
+
+    @Test
     fun refreshSurfacesRepositoryFailure() = runTest(dispatcher) {
         val viewModel = ChapterListViewModel(
-            ChapterRepositoryFactory { _, _ -> ThrowingChapterRepository("network unavailable") },
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> ThrowingChapterRepository("network unavailable") },
+            cacheDispatcher = dispatcher,
         )
 
         viewModel.refresh(RepoSettings(), "token")
@@ -102,9 +152,13 @@ private class FakeChapterRepository(
     private val files: List<ChapterFile>,
     private val progress: Map<String, ChapterProgress>,
     private val qaProgress: Map<String, QaProgressCounts>,
+    private val beforeList: suspend () -> Unit = {},
     private val beforeQa: suspend () -> Unit = {},
 ) : ChapterRepository {
-    override suspend fun listFiles(): List<ChapterFile> = files
+    override suspend fun listFiles(): List<ChapterFile> {
+        beforeList()
+        return files
+    }
 
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress =
         LoadedChapterProgress(
@@ -131,4 +185,17 @@ private class ThrowingChapterRepository(private val message: String) : ChapterRe
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
+}
+
+private class FakeChapterProgressCacheStore(
+    private val initial: ChapterListCacheSnapshot?,
+) : ChapterProgressCacheStore {
+    var saved: ChapterListCacheSnapshot? = null
+        private set
+
+    override fun load(settings: RepoSettings): ChapterListCacheSnapshot? = initial
+
+    override fun save(settings: RepoSettings, snapshot: ChapterListCacheSnapshot) {
+        saved = snapshot
+    }
 }
