@@ -72,7 +72,7 @@ internal fun EditorScreen(
     var imported by remember(initial.file.path, initial.document.sourceSha256) {
         mutableStateOf(importStore.load(initial.file.path, initial.document.sourceSha256))
     }
-    var filter by rememberSaveable { mutableStateOf(EntryFilter.NEEDS_ATTENTION) }
+    var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
