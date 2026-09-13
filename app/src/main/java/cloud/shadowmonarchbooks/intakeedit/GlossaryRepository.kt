@@ -25,6 +25,14 @@ internal interface GlossaryRepository {
     suspend fun saveApprovedEntry(state: GlossarySnapshot, entry: GlossaryEntry, allowNew: Boolean)
     suspend fun saveProposal(state: GlossarySnapshot, proposal: GlossaryProposal)
     suspend fun commitApprovalDrafts(state: GlossarySnapshot, approvalDrafts: Map<String, GlossaryEntry>)
+    suspend fun commitDecisionDrafts(
+        state: GlossarySnapshot,
+        approvalDrafts: Map<String, GlossaryEntry>,
+        rejectionDraftIds: Set<String>,
+    ) {
+        require(rejectionDraftIds.isEmpty()) { "This repository does not support pooled rejections." }
+        commitApprovalDrafts(state, approvalDrafts)
+    }
     suspend fun approveAllSuggestions(state: GlossarySnapshot, approvalDrafts: Map<String, GlossaryEntry> = emptyMap())
 }
 
@@ -109,12 +117,19 @@ internal class GitHubGlossaryRepository(
     override suspend fun commitApprovalDrafts(
         state: GlossarySnapshot,
         approvalDrafts: Map<String, GlossaryEntry>,
+    ) = commitDecisionDrafts(state, approvalDrafts, emptySet())
+
+    override suspend fun commitDecisionDrafts(
+        state: GlossarySnapshot,
+        approvalDrafts: Map<String, GlossaryEntry>,
+        rejectionDraftIds: Set<String>,
     ) {
-        require(approvalDrafts.isNotEmpty()) { "There are no pooled glossary approvals to commit." }
+        val decisionCount = approvalDrafts.size + rejectionDraftIds.size
+        require(decisionCount > 0) { "There are no pooled glossary decisions to commit." }
         commitApprovals(
             state = state,
-            approved = GlossaryActions.approvePending(state.documents, approvalDrafts, approveAll = false),
-            message = "glossary: approve ${approvalDrafts.size} pooled suggestions",
+            approved = GlossaryActions.applyPendingDecisions(state.documents, approvalDrafts, rejectionDraftIds),
+            message = "glossary: commit $decisionCount pooled suggestion decisions",
         )
     }
 

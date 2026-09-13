@@ -73,11 +73,50 @@ class GlossaryViewModelTest {
         viewModel.commitPooled(RepoSettings(), "token")
         advanceUntilIdle()
 
-        assertTrue(repository.commitDraftsCalled)
+        assertTrue(repository.commitDecisionsCalled)
         assertEquals(setOf(proposal.id), repository.lastApprovalDrafts.keys)
+        assertTrue(repository.lastRejectionDraftIds.isEmpty())
         assertEquals(after, viewModel.uiState.value.snapshot)
-        assertEquals(0, viewModel.uiState.value.pooledApprovalCount)
-        assertEquals("1 pooled glossary approval(s) committed.", viewModel.uiState.value.notice)
+        assertEquals(0, viewModel.uiState.value.pooledDecisionCount)
+        assertEquals("1 pooled glossary decision(s) committed.", viewModel.uiState.value.notice)
+    }
+
+
+    @Test
+    fun singleRejectionIsPooledWithoutRepositoryMutation() = runTest(dispatcher) {
+        val snapshot = glossarySnapshot(proposalStatus = "pending")
+        val repository = FakeGlossaryRepository(snapshot, snapshot)
+        val viewModel = GlossaryViewModel(GlossaryRepositoryFactory { _, _ -> repository })
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        val proposal = snapshot.documents.pendingProposals.single()
+
+        viewModel.poolRejection(proposal)
+
+        assertEquals(1, viewModel.uiState.value.pooledDecisionCount)
+        assertTrue(proposal.id in viewModel.uiState.value.rejectionDraftIds)
+        assertFalse(repository.mutated)
+    }
+
+    @Test
+    fun pooledRejectionCommitsOnlyWhenCommitButtonFlowRuns() = runTest(dispatcher) {
+        val before = glossarySnapshot(proposalStatus = "pending")
+        val after = glossarySnapshot(proposalStatus = "rejected")
+        val repository = FakeGlossaryRepository(before, after)
+        val viewModel = GlossaryViewModel(GlossaryRepositoryFactory { _, _ -> repository })
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        val proposal = before.documents.pendingProposals.single()
+        viewModel.poolRejection(proposal)
+
+        viewModel.commitPooled(RepoSettings(), "token")
+        advanceUntilIdle()
+
+        assertTrue(repository.commitDecisionsCalled)
+        assertEquals(setOf(proposal.id), repository.lastRejectionDraftIds)
+        assertEquals(after, viewModel.uiState.value.snapshot)
+        assertEquals(0, viewModel.uiState.value.pooledDecisionCount)
+        assertEquals("1 pooled glossary decision(s) committed.", viewModel.uiState.value.notice)
     }
 
     @Test
@@ -130,8 +169,10 @@ private class FakeGlossaryRepository(
 ) : GlossaryRepository {
     var approveAllCalled = false
     var commitDraftsCalled = false
+    var commitDecisionsCalled = false
     var mutated = false
     var lastApprovalDrafts: Map<String, GlossaryEntry> = emptyMap()
+    var lastRejectionDraftIds: Set<String> = emptySet()
 
     override suspend fun load(): GlossarySnapshot = if (mutated) afterMutation else initial
 
@@ -157,6 +198,17 @@ private class FakeGlossaryRepository(
     ) {
         commitDraftsCalled = true
         lastApprovalDrafts = approvalDrafts
+        mutated = true
+    }
+
+    override suspend fun commitDecisionDrafts(
+        state: GlossarySnapshot,
+        approvalDrafts: Map<String, GlossaryEntry>,
+        rejectionDraftIds: Set<String>,
+    ) {
+        commitDecisionsCalled = true
+        lastApprovalDrafts = approvalDrafts
+        lastRejectionDraftIds = rejectionDraftIds
         mutated = true
     }
 

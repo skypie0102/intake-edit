@@ -14,8 +14,10 @@ internal data class GlossaryUiState(
     val busy: Boolean = false,
     val notice: String? = null,
     val approvalDrafts: Map<String, GlossaryEntry> = emptyMap(),
+    val rejectionDraftIds: Set<String> = emptySet(),
 ) {
     val pooledApprovalCount: Int get() = approvalDrafts.size
+    val pooledDecisionCount: Int get() = approvalDrafts.size + rejectionDraftIds.size
 }
 
 internal class GlossaryViewModel() : ViewModel() {
@@ -41,6 +43,7 @@ internal class GlossaryViewModel() : ViewModel() {
                         snapshot = snapshot,
                         busy = false,
                         approvalDrafts = current.approvalDrafts.filterKeys { it in pendingIds },
+                        rejectionDraftIds = current.rejectionDraftIds.filterTo(mutableSetOf()) { it in pendingIds },
                     )
                 }
             } catch (t: Throwable) {
@@ -65,31 +68,48 @@ internal class GlossaryViewModel() : ViewModel() {
         _uiState.update {
             it.copy(
                 approvalDrafts = it.approvalDrafts + (proposal.id to entry),
+                rejectionDraftIds = it.rejectionDraftIds - proposal.id,
                 notice = "Approval pooled. Commit when your review batch is ready.",
             )
         }
     }
 
-    fun removePooledApproval(proposalId: String) {
-        if (proposalId !in _uiState.value.approvalDrafts) return
+    fun poolRejection(proposal: GlossaryProposal) {
+        val pending = _uiState.value.snapshot?.documents?.pendingProposals?.any { it.id == proposal.id } == true
+        if (!pending) return
+        _uiState.update {
+            it.copy(
+                approvalDrafts = it.approvalDrafts - proposal.id,
+                rejectionDraftIds = it.rejectionDraftIds + proposal.id,
+                notice = "Rejection pooled. Commit when your review batch is ready.",
+            )
+        }
+    }
+
+    fun removePooledDecision(proposalId: String) {
+        val state = _uiState.value
+        if (proposalId !in state.approvalDrafts && proposalId !in state.rejectionDraftIds) return
         _uiState.update {
             it.copy(
                 approvalDrafts = it.approvalDrafts - proposalId,
-                notice = "Approval removed from the commit pool.",
+                rejectionDraftIds = it.rejectionDraftIds - proposalId,
+                notice = "Decision removed from the commit pool.",
             )
         }
     }
 
     fun commitPooled(settings: RepoSettings, token: String) {
-        val drafts = _uiState.value.approvalDrafts
-        if (drafts.isEmpty()) return
+        val approvals = _uiState.value.approvalDrafts
+        val rejections = _uiState.value.rejectionDraftIds
+        val decisionCount = approvals.size + rejections.size
+        if (decisionCount == 0) return
         mutate(
             settings = settings,
             token = token,
-            clearApprovalDrafts = true,
-            successNotice = "${drafts.size} pooled glossary approval(s) committed.",
+            clearDecisionDrafts = true,
+            successNotice = "$decisionCount pooled glossary decision(s) committed.",
         ) { repository, snapshot ->
-            repository.commitApprovalDrafts(snapshot, drafts)
+            repository.commitDecisionDrafts(snapshot, approvals, rejections)
         }
     }
 
@@ -98,15 +118,9 @@ internal class GlossaryViewModel() : ViewModel() {
         mutate(
             settings = settings,
             token = token,
-            clearApprovalDrafts = true,
+            clearDecisionDrafts = true,
         ) { repository, snapshot ->
             repository.approveAllSuggestions(snapshot, drafts)
-        }
-    }
-
-    fun rejectProposal(proposal: GlossaryProposal, settings: RepoSettings, token: String) {
-        mutate(settings, token) { repository, snapshot ->
-            repository.saveProposal(snapshot, proposal.copy(status = "rejected"))
         }
     }
 
@@ -146,7 +160,7 @@ internal class GlossaryViewModel() : ViewModel() {
     private fun mutate(
         settings: RepoSettings,
         token: String,
-        clearApprovalDrafts: Boolean = false,
+        clearDecisionDrafts: Boolean = false,
         successNotice: String = "Glossary changes committed.",
         block: suspend (GlossaryRepository, GlossarySnapshot) -> Unit,
     ) {
@@ -164,10 +178,15 @@ internal class GlossaryViewModel() : ViewModel() {
                         snapshot = refreshed,
                         busy = false,
                         notice = successNotice,
-                        approvalDrafts = if (clearApprovalDrafts) {
+                        approvalDrafts = if (clearDecisionDrafts) {
                             emptyMap()
                         } else {
                             current.approvalDrafts.filterKeys { it in pendingIds }
+                        },
+                        rejectionDraftIds = if (clearDecisionDrafts) {
+                            emptySet()
+                        } else {
+                            current.rejectionDraftIds.filterTo(mutableSetOf()) { it in pendingIds }
                         },
                     )
                 }
