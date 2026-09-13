@@ -60,7 +60,7 @@ class IntakeParserTest {
 
     @Test
     fun rejectsOldSchemaFields() {
-        val invalid = yaml.replace("          english: 'It''s a test.'", "          kind: safe\n          english: 'It''s a test.'")
+        val invalid = yaml.replace("  english: 'It''s a test.'", "  kind: safe\n  english: 'It''s a test.'")
         assertTrue(IntakeParser.validate(invalid).isFailure)
     }
 }

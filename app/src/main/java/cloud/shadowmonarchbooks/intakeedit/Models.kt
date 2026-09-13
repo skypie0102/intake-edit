@@ -57,6 +57,15 @@ object IntakeParser {
         val entries = buildList {
             for (i in 0 until array.length()) {
                 val item = array.getJSONObject(i)
+                val allowedEntryFields = setOf("locator", "source_japanese", "english")
+                val unexpected = buildList {
+                    val keys = item.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        if (key !in allowedEntryFields) add(key)
+                    }
+                }
+                require(unexpected.isEmpty()) { "Entry $i has unsupported field(s): ${unexpected.joinToString()}" }
                 add(
                     EditorEntry(
                         locator = item.getString("locator"),
@@ -230,7 +239,9 @@ object IntakeParser {
                 '\n' -> append("\\n")
                 '\r' -> append("\\r")
                 '\t' -> append("\\t")
-                else -> if (ch.code < 0x20) append("\\u%04x".format(ch.code)) else append(ch)
+                else -> {
+                    if (ch.code < 0x20) append("\\u%04x".format(ch.code)) else append(ch)
+                }
             }
         }
         append('\"')
@@ -279,10 +290,7 @@ object IntakeParser {
         }
 
         val document = parse(raw)
-        val seen = mutableSetOf<String>()
         document.entries.forEach { entry ->
-            require(Regex("^P[0-9]+$").matches(entry.locator)) { "${entry.locator}: invalid locator." }
-            require(seen.add(entry.locator)) { "${entry.locator}: duplicate locator." }
             require(entry.sourceJapanese.isNotBlank()) { "${entry.locator}: raw source is blank." }
             if (entry.english.isNotBlank()) {
                 InlineMarkup.validationError(entry.english)?.let { throw IllegalArgumentException("${entry.locator}: $it") }
