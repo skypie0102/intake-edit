@@ -156,10 +156,10 @@ internal class EditorViewModel(application: Application) : AndroidViewModel(appl
             try {
                 val client = GitHubApi(settings, token)
                 val override = QaOverride(
-                    reason = reason,
-                    at = Instant.now().toString(),
-                    by = client.verifyUser(),
-                    editorContentSha256 = QaFindingsParser.sha256(next.raw),
+                    reason,
+                    Instant.now().toString(),
+                    client.verifyUser(),
+                    QaFindingsParser.sha256(next.raw),
                 )
                 val document = snapshot.document.withOverride(findingId, override)
                 val raw = QaFindingsParser.serialize(document)
