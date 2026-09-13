@@ -1,0 +1,57 @@
+name: Trim glossary suggestion card
+
+on:
+  push:
+    branches:
+      - ui/trim-glossary-suggestion-card
+    paths:
+      - '.github/workflows/trim-glossary-suggestion-card.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ui/trim-glossary-suggestion-card
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Apply requested UI trim
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          screen = Path('app/src/main/java/cloud/shadowmonarchbooks/intakeedit/GlossaryWorkspaceScreen.kt')
+          text = screen.read_text()
+          old1 = '            if (proposal.recommendQaLock) Text("Agent recommends QA lock", fontWeight = FontWeight.SemiBold)\n'
+          old2 = '            if (pooled) Text("Pooled for batch commit", fontWeight = FontWeight.SemiBold)\n'
+          assert old1 in text, 'QA lock label not found'
+          assert old2 in text, 'pooled label not found'
+          text = text.replace(old1, '').replace(old2, '')
+          screen.write_text(text)
+
+          build = Path('app/build.gradle.kts')
+          gradle = build.read_text()
+          assert 'versionCode = 20' in gradle
+          assert 'versionName = "0.7.1"' in gradle
+          gradle = gradle.replace('versionCode = 20', 'versionCode = 21')
+          gradle = gradle.replace('versionName = "0.7.1"', 'versionName = "0.7.2"')
+          build.write_text(gradle)
+          PY
+      - name: Test and build
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/cloud/shadowmonarchbooks/intakeedit/GlossaryWorkspaceScreen.kt app/build.gradle.kts
+          git commit -m "ui: trim glossary suggestion card labels"
+          git push origin HEAD:ui/trim-glossary-suggestion-card
