@@ -18,18 +18,23 @@ internal data class ChapterListUiState(
     val notice: String? = null,
 )
 
-internal class ChapterListViewModel : ViewModel() {
+internal class ChapterListViewModel() : ViewModel() {
+    private var repositoryFactory: ChapterRepositoryFactory = DefaultChapterRepositoryFactory
     private val _uiState = MutableStateFlow(ChapterListUiState())
     val uiState: StateFlow<ChapterListUiState> = _uiState.asStateFlow()
 
     private var refreshJob: Job? = null
     private val progressConcurrency = Semaphore(4)
 
+    internal constructor(repositoryFactory: ChapterRepositoryFactory) : this() {
+        this.repositoryFactory = repositoryFactory
+    }
+
     fun refresh(settings: RepoSettings, token: String) {
         if (token.isBlank()) return
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
-            val repository: ChapterRepository = GitHubChapterRepository(settings, token)
+            val repository = repositoryFactory.create(settings, token)
             _uiState.update { it.copy(refreshing = true, notice = null) }
             try {
                 val listed = repository.listFiles()
