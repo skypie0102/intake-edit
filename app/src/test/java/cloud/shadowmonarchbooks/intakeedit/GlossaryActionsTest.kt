@@ -118,4 +118,46 @@ class GlossaryActionsTest {
         assertEquals("approved", approved.proposals.first { it.id == "lock-yukino" }.status)
         assertEquals("pending", approved.proposals.first { it.id == "lock-kenji" }.status)
     }
+    @Test
+    fun mixedApprovalAndRejectionAreAppliedTogether() {
+        val base = GlossaryEntry(
+            id = "terms:既存",
+            section = "terms",
+            sourceAliases = listOf("既存"),
+            translatedName = "Existing",
+        )
+        val approve = GlossaryProposal(
+            id = "approve-lock",
+            action = "lock_recommendation",
+            reason = "lock",
+            targetId = base.id,
+            recommendQaLock = true,
+        )
+        val reject = GlossaryProposal(
+            id = "reject-new",
+            action = "new_entry",
+            reason = "reject",
+            section = "terms",
+            sourceAliases = listOf("不要"),
+            translatedName = "Unneeded",
+        )
+        val documents = GlossaryDocuments(
+            baseEntries = listOf(base),
+            additions = emptyList(),
+            governance = emptyMap(),
+            proposals = listOf(approve, reject),
+        )
+        val approvedEntry = GlossaryActions.proposalEntry(approve, documents)
+
+        val result = GlossaryActions.applyPendingDecisions(
+            documents,
+            approvalDrafts = mapOf(approve.id to approvedEntry),
+            rejectionDraftIds = setOf(reject.id),
+        )
+
+        assertTrue(result.governance.getValue(base.id).qaLock == true)
+        assertEquals("approved", result.proposals.first { it.id == approve.id }.status)
+        assertEquals("rejected", result.proposals.first { it.id == reject.id }.status)
+    }
+
 }

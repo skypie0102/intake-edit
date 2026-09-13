@@ -80,6 +80,36 @@ object GlossaryActions {
         )
     }
 
+    fun applyPendingDecisions(
+        documents: GlossaryDocuments,
+        approvalDrafts: Map<String, GlossaryEntry>,
+        rejectionDraftIds: Set<String>,
+    ): GlossaryDocuments {
+        require(approvalDrafts.keys.intersect(rejectionDraftIds).isEmpty()) {
+            "A glossary suggestion cannot be both approved and rejected in the same batch."
+        }
+        val pendingIds = documents.pendingProposals.mapTo(mutableSetOf()) { it.id }
+        val decisionIds = approvalDrafts.keys + rejectionDraftIds
+        require(decisionIds.isNotEmpty()) { "There are no pooled glossary decisions to commit." }
+        require(decisionIds.all { it in pendingIds }) {
+            "One or more pooled glossary decisions are no longer pending."
+        }
+
+        var result = if (approvalDrafts.isNotEmpty()) {
+            approvePending(documents, approvalDrafts, approveAll = false)
+        } else {
+            documents
+        }
+        if (rejectionDraftIds.isNotEmpty()) {
+            result = result.copy(
+                proposals = result.proposals.map { proposal ->
+                    if (proposal.id in rejectionDraftIds) proposal.copy(status = "rejected") else proposal
+                },
+            )
+        }
+        return result
+    }
+
     fun approveAllPending(documents: GlossaryDocuments): GlossaryDocuments =
         approvePending(documents, approvalDrafts = emptyMap(), approveAll = true)
 }
