@@ -33,6 +33,7 @@ data class EditorDocument(
     val instructions: String,
     val editorReviewComplete: Boolean,
     val entries: List<EditorEntry>,
+    val endnotes: List<EndnoteDefinition> = emptyList(),
 ) {
     val englishSupplied get() = entries.count { it.isSupplied }
     val englishTotal get() = entries.size
@@ -44,7 +45,9 @@ object IntakeParser {
     private val jsonReviewFieldRegex = Regex("""("editor_review_complete"\s*:\s*)(true|false)""")
     private val yamlEnglishFieldRegex = Regex("""(?m)^(\s{2}english:\s*)(.*)$""")
     private val yamlReviewFieldRegex = Regex("""(?m)^(editor_review_complete:\s*)(true|false)\s*$""")
+    private val yamlSchemaFieldRegex = Regex("""(?m)^(schema_version:\s*)(\d+)\s*$""")
     private val yamlEntriesFieldRegex = Regex("""(?m)^entries:\s*$""")
+    private val yamlEndnotesFieldRegex = Regex("""(?m)^endnotes:(?:\s*\[\])?\s*$""")
 
     fun parse(raw: String): EditorDocument = if (isJson(raw)) parseJson(raw) else parseYaml(raw)
 
@@ -52,7 +55,34 @@ object IntakeParser {
 
     private fun parseJson(raw: String): EditorDocument {
         val root = JSONObject(raw)
-        require(root.optInt("schema_version", -1) == 5) { "This app version edits schema-v5 chapter documents only." }
+        val schemaVersion = root.optInt("schema_version", -1)
+        require(schemaVersion == 6) {
+            "This app version edits schema-v6 chapter documents only."
+        }
+        val endnoteArray = root.optJSONArray("endnotes")
+            ?: error("Schema-v6 document is missing top-level endnotes array.")
+        val endnotes = buildList {
+            for (i in 0 until endnoteArray.length()) {
+                val item = endnoteArray.getJSONObject(i)
+                val allowed = setOf("id", "locator", "content")
+                val unexpected = buildList {
+                    val keys = item.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        if (key !in allowed) add(key)
+                    }
+                }
+                require(unexpected.isEmpty()) { "Endnote $i has unsupported field(s): ${unexpected.joinToString()}" }
+                add(
+                    EndnoteDefinition(
+                        id = item.getString("id"),
+                        locator = item.getString("locator"),
+                        content = item.getString("content"),
+                    ),
+                )
+            }
+        }
+
         val array = root.optJSONArray("entries") ?: error("Missing top-level entries array.")
         val entries = buildList {
             for (i in 0 until array.length()) {
@@ -76,7 +106,7 @@ object IntakeParser {
             }
         }
         return EditorDocument(
-            schemaVersion = root.getInt("schema_version"),
+            schemaVersion = schemaVersion,
             volume = root.getInt("volume"),
             chapter = root.getInt("chapter"),
             sourceHref = root.getString("source_href"),
@@ -86,16 +116,27 @@ object IntakeParser {
             instructions = root.optString("instructions"),
             editorReviewComplete = root.optBoolean("editor_review_complete", false),
             entries = entries,
-        )
+            endnotes = endnotes,
+        ).also(EndnoteIntegrity::validate)
     }
 
     private fun parseYaml(raw: String): EditorDocument {
         val top = linkedMapOf<String, String>()
         val entryMaps = mutableListOf<Map<String, String>>()
+        val endnoteMaps = mutableListOf<Map<String, String>>()
         var current: LinkedHashMap<String, String>? = null
+        var section: String? = null
+        var sawEntries = false
+        var sawEndnotes = false
 
-        fun flushEntry() {
-            current?.let { entryMaps += LinkedHashMap(it) }
+        fun flushItem() {
+            current?.let { item ->
+                when (section) {
+                    "entries" -> entryMaps += LinkedHashMap(item)
+                    "endnotes" -> endnoteMaps += LinkedHashMap(item)
+                    else -> error("List item found outside a supported schema section.")
+                }
+            }
             current = null
         }
 
@@ -105,7 +146,10 @@ object IntakeParser {
 
             when {
                 line.startsWith("- ") -> {
-                    flushEntry()
+                    flushItem()
+                    require(section == "entries" || section == "endnotes") {
+                        "Line ${index + 1}: list item outside entries/endnotes."
+                    }
                     val map = linkedMapOf<String, String>()
                     val (key, value) = yamlPair(line.removePrefix("- "), index + 1)
                     map[key] = decodeYamlScalar(value, index + 1)
@@ -116,14 +160,33 @@ object IntakeParser {
                     current!![key] = decodeYamlScalar(value, index + 1)
                 }
                 !line.startsWith(" ") -> {
-                    flushEntry()
+                    flushItem()
                     val (key, value) = yamlPair(line, index + 1)
-                    if (key != "entries") top[key] = decodeYamlScalar(value, index + 1)
+                    when (key) {
+                        "entries" -> {
+                            require(value.isBlank()) { "Line ${index + 1}: entries must be a block list." }
+                            sawEntries = true
+                            section = "entries"
+                        }
+                        "endnotes" -> {
+                            sawEndnotes = true
+                            if (value == "[]") {
+                                section = null
+                            } else {
+                                require(value.isBlank()) { "Line ${index + 1}: endnotes must be a block list or []." }
+                                section = "endnotes"
+                            }
+                        }
+                        else -> {
+                            section = null
+                            top[key] = decodeYamlScalar(value, index + 1)
+                        }
+                    }
                 }
-                else -> error("Line ${index + 1}: unsupported YAML indentation in schema-v5 chapter document.")
+                else -> error("Line ${index + 1}: unsupported YAML indentation in chapter document.")
             }
         }
-        flushEntry()
+        flushItem()
 
         fun required(key: String): String = top[key] ?: error("Missing top-level $key field.")
         fun requiredInt(key: String): Int = required(key).toIntOrNull() ?: error("Top-level $key must be an integer.")
@@ -134,8 +197,22 @@ object IntakeParser {
         }
 
         val schemaVersion = requiredInt("schema_version")
-        require(schemaVersion == 5) { "This app version edits schema-v5 chapter documents only." }
-        require(entryMaps.isNotEmpty()) { "Missing or empty top-level entries array." }
+        require(schemaVersion == 6) {
+            "This app version edits schema-v6 chapter documents only."
+        }
+        require(sawEntries && entryMaps.isNotEmpty()) { "Missing or empty top-level entries array." }
+        require(sawEndnotes) { "Schema-v6 document is missing top-level endnotes list." }
+
+        val endnotes = endnoteMaps.mapIndexed { index, item ->
+            fun noteRequired(key: String): String = item[key] ?: error("Endnote $index is missing $key.")
+            val unexpected = item.keys - setOf("id", "locator", "content")
+            require(unexpected.isEmpty()) { "Endnote $index has unsupported field(s): ${unexpected.joinToString()}" }
+            EndnoteDefinition(
+                id = noteRequired("id"),
+                locator = noteRequired("locator"),
+                content = noteRequired("content"),
+            )
+        }
 
         val entries = entryMaps.mapIndexed { index, item ->
             fun entryRequired(key: String): String = item[key] ?: error("Entry $index is missing $key.")
@@ -159,7 +236,8 @@ object IntakeParser {
             instructions = top["instructions"].orEmpty(),
             editorReviewComplete = requiredBoolean("editor_review_complete"),
             entries = entries,
-        )
+            endnotes = endnotes,
+        ).also(EndnoteIntegrity::validate)
     }
 
     private fun yamlPair(text: String, lineNumber: Int): Pair<String, String> {
@@ -289,8 +367,81 @@ object IntakeParser {
         }
     }
 
-    fun patchDocument(raw: String, document: EditorDocument): String =
-        patchReviewComplete(patchEnglish(raw, document.entries), document.editorReviewComplete)
+    private fun patchSchemaVersion(raw: String, schemaVersion: Int): String {
+        if (isJson(raw)) return raw
+        val match = yamlSchemaFieldRegex.find(raw) ?: error("Could not locate top-level schema_version.")
+        val group = match.groups[2] ?: error("Could not locate schema_version value.")
+        return buildString(raw.length) {
+            append(raw, 0, group.range.first)
+            append(schemaVersion)
+            append(raw, group.range.last + 1, raw.length)
+        }
+    }
+
+    private fun renderEndnotesYaml(endnotes: List<EndnoteDefinition>): String {
+        if (endnotes.isEmpty()) return "endnotes: []\n"
+        return buildString {
+            append("endnotes:\n")
+            endnotes.forEach { note ->
+                append("- id: ").append(note.id).append('\n')
+                append("  locator: ").append(note.locator).append('\n')
+                append("  content: ").append(quoteString(note.content)).append('\n')
+            }
+        }
+    }
+
+    private fun patchEndnotesYaml(raw: String, endnotes: List<EndnoteDefinition>): String {
+        val rendered = renderEndnotesYaml(endnotes)
+        val lines = raw.lines().toMutableList()
+        val startIndex = lines.indexOfFirst { it.startsWith("endnotes:") }
+        require(startIndex >= 0) { "Schema-v6 document is missing top-level endnotes." }
+        var endIndex = startIndex + 1
+        while (endIndex < lines.size) {
+            val line = lines[endIndex]
+            if (line.isNotBlank() && !line.startsWith(" ") && !line.startsWith("- ")) break
+            if (line.startsWith("- ")) {
+                endIndex++
+                while (endIndex < lines.size && lines[endIndex].startsWith("  ")) endIndex++
+                continue
+            }
+            endIndex++
+        }
+        val renderedLines = rendered.trimEnd('\n').lines()
+        lines.subList(startIndex, endIndex).clear()
+        lines.addAll(startIndex, renderedLines)
+        return lines.joinToString("\n").let { if (raw.endsWith("\n")) "$it\n" else it }
+    }
+
+    private fun patchJsonEndnotes(raw: String, document: EditorDocument): String {
+        val root = JSONObject(raw)
+        root.put("schema_version", document.schemaVersion)
+        root.put("editor_review_complete", document.editorReviewComplete)
+        val entries = root.getJSONArray("entries")
+        require(entries.length() == document.entries.size) { "JSON entry count changed unexpectedly." }
+        document.entries.forEachIndexed { index, entry -> entries.getJSONObject(index).put("english", entry.english) }
+        require(document.schemaVersion == 6) { "Only schema-v6 documents can be written." }
+        val notes = JSONArray()
+        document.endnotes.forEach { note ->
+            notes.put(
+                JSONObject()
+                    .put("id", note.id)
+                    .put("locator", note.locator)
+                    .put("content", note.content),
+            )
+        }
+        root.put("endnotes", notes)
+        return root.toString(2) + "\n"
+    }
+
+    fun patchDocument(raw: String, document: EditorDocument): String {
+        require(document.schemaVersion == 6) { "Only schema-v6 documents can be written." }
+        EndnoteIntegrity.validate(document)
+        if (isJson(raw)) return patchJsonEndnotes(raw, document)
+        var patched = patchReviewComplete(patchEnglish(raw, document.entries), document.editorReviewComplete)
+        patched = patchSchemaVersion(patched, 6)
+        patched = patchEndnotesYaml(patched, document.endnotes)
+        return patched
+    }
 
     fun validate(raw: String): Result<Unit> = runCatching {
         if (isJson(raw)) {
@@ -312,6 +463,7 @@ object IntakeParser {
                 require(InlineMarkup.visibleText(entry.english).isNotBlank()) { "${entry.locator}: English formatting contains no visible text." }
             }
         }
+        EndnoteIntegrity.validate(document)
     }
 }
 

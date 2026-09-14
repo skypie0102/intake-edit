@@ -3,6 +3,7 @@ package cloud.shadowmonarchbooks.intakeedit
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RichInlineStateTest {
@@ -47,5 +48,44 @@ class RichInlineStateTest {
         state = state.edited(TextFieldValue("aXbc", selection = TextRange(2)))
 
         assertEquals("[b]aXbc[/b]", state.toMarkup())
+    }
+
+    @Test
+    fun endnoteRoundTripUsesCanonicalOuterRange() {
+        val markup = "Read [en=en-P1-01][b]Comi[i]ket[/i][/b][/en]."
+        val state = RichInlineState.fromMarkup(markup)
+
+        assertEquals("Read Comiket.", state.text)
+        assertEquals(markup, state.toMarkup())
+        assertEquals("Comiket", state.anchorForEndnote("en-P1-01"))
+    }
+
+    @Test
+    fun applyingAndRemovingEndnotePreservesVisibleText() {
+        var state = RichInlineState.plain("Comiket").copy(selection = TextRange(0, 7))
+        state = state.applyEndnote("en-P1-01")
+        assertEquals("[en=en-P1-01]Comiket[/en]", state.toMarkup())
+
+        state = state.removeEndnote("en-P1-01")
+        assertEquals("Comiket", state.toMarkup())
+    }
+
+    @Test
+    fun typingInsideEndnoteKeepsRangeButTypingAtEndDoesNotExtendIt() {
+        var state = RichInlineState.fromMarkup("[en=en-P1-01]abc[/en]")
+        state = state.copy(selection = TextRange(1))
+        state = state.edited(TextFieldValue("aXbc", selection = TextRange(2)))
+        assertEquals("[en=en-P1-01]aXbc[/en]", state.toMarkup())
+
+        state = state.copy(selection = TextRange(4))
+        state = state.edited(TextFieldValue("aXbc!", selection = TextRange(5)))
+        assertEquals("[en=en-P1-01]aXbc[/en]!", state.toMarkup())
+    }
+
+    @Test
+    fun clipboardStripsEndnoteIdentityButKeepsInlineStyle() {
+        val state = RichInlineState.fromClipboard("[en=en-P1-01][b]Comiket[/b][/en]")
+        assertEquals("[b]Comiket[/b]", state.toMarkup())
+        assertNull(state.endnoteIdAtCaret())
     }
 }

@@ -52,8 +52,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -168,12 +170,20 @@ internal fun EditorScreen(
         require(index >= 0) { "Editor entry not found: $locator" }
         val entries = current.document.entries.toMutableList()
         entries[index] = entries[index].copy(english = english)
-        val wasReviewed = current.document.editorReviewComplete
-        val document = current.document.copy(entries = entries, editorReviewComplete = false)
-        var raw = IntakeParser.patchEnglishAt(current.raw, index, english)
-        if (wasReviewed) raw = IntakeParser.patchReviewComplete(raw, false)
-        current = current.copy(raw = raw, document = document)
-        onDraft(current)
+        val document = EndnoteIntegrity.prune(
+            current.document.copy(entries = entries, editorReviewComplete = false),
+        )
+        updateDocument(document)
+    }
+
+    fun saveEndnote(locator: String, english: String, note: EndnoteDefinition) {
+        updateDocument(EndnoteIntegrity.upsert(current.document, locator, english, note))
+        editorNotice = "Endnote saved."
+    }
+
+    fun removeEndnote(locator: String, english: String, noteId: String) {
+        updateDocument(EndnoteIntegrity.remove(current.document, locator, english, noteId))
+        editorNotice = "Endnote removed."
     }
 
     fun useImported(locator: String, text: String) {
@@ -199,8 +209,14 @@ internal fun EditorScreen(
 
     fun removeAllEnglish() {
         val cleared = current.document.entries.map { it.copy(english = "") }
-        updateDocument(current.document.copy(entries = cleared, editorReviewComplete = false))
-        editorNotice = "All English entries were cleared."
+        updateDocument(
+            current.document.copy(
+                entries = cleared,
+                endnotes = emptyList(),
+                editorReviewComplete = false,
+            ),
+        )
+        editorNotice = "All English entries and their endnotes were cleared."
     }
 
     fun jumpToFirstMissing() {
@@ -368,9 +384,13 @@ internal fun EditorScreen(
                         items(entries, key = { it.locator }) { entry ->
                             EntryCard(
                                 entry = entry,
+                                endnotes = current.document.endnotes.filter { it.locator == entry.locator },
                                 importedTranslation = imported?.translationFor(entry.locator),
+                                nextEndnoteId = { EndnoteIntegrity.nextId(current.document, entry.locator) },
                                 onUseImport = { text -> useImported(entry.locator, text) },
                                 onEnglishChange = { english -> updateEnglish(entry.locator, english) },
+                                onSaveEndnote = { english, note -> saveEndnote(entry.locator, english, note) },
+                                onRemoveEndnote = { english, noteId -> removeEndnote(entry.locator, english, noteId) },
                             )
                         }
                         if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(12.dp)) }
@@ -546,9 +566,13 @@ private fun filteredEntries(document: EditorDocument, filter: EntryFilter): List
 @Composable
 private fun EntryCard(
     entry: EditorEntry,
+    endnotes: List<EndnoteDefinition>,
     importedTranslation: String?,
+    nextEndnoteId: () -> String,
     onUseImport: (String) -> Unit,
     onEnglishChange: (String) -> Unit,
+    onSaveEndnote: (String, EndnoteDefinition) -> Unit,
+    onRemoveEndnote: (String, String) -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -560,6 +584,21 @@ private fun EntryCard(
                 .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) },
         )
     }
+    var showEndnoteDialog by remember(entry.locator) { mutableStateOf(false) }
+    var editingEndnoteId by remember(entry.locator) { mutableStateOf<String?>(null) }
+    var pendingSelection by remember(entry.locator) { mutableStateOf<TextRange?>(null) }
+    var endnoteAnchor by remember(entry.locator) { mutableStateOf("") }
+    var endnoteDraft by remember(entry.locator) { mutableStateOf("") }
+
+    fun openExistingEndnote(id: String) {
+        val definition = endnotes.firstOrNull { it.id == id } ?: return
+        editingEndnoteId = id
+        pendingSelection = rich.rangeForEndnote(id)
+        endnoteAnchor = rich.anchorForEndnote(id)
+        endnoteDraft = definition.content
+        showEndnoteDialog = true
+    }
+
     LaunchedEffect(entry.english) {
         if (entry.english != rich.toMarkup()) {
             rich = runCatching { RichInlineState.fromMarkup(entry.english) }
@@ -590,8 +629,19 @@ private fun EntryCard(
             OutlinedTextField(
                 value = rich.asTextFieldValue(),
                 onValueChange = { next ->
-                    rich = rich.edited(next)
-                    onEnglishChange(rich.toMarkup())
+                    val before = rich
+                    val beforeMarkup = before.toMarkup()
+                    val updated = before.edited(next)
+                    rich = updated
+                    val afterMarkup = updated.toMarkup()
+                    if (afterMarkup != beforeMarkup) onEnglishChange(afterMarkup)
+                    if (
+                        next.text == before.text &&
+                        next.selection.start == next.selection.end &&
+                        next.selection != before.selection
+                    ) {
+                        updated.endnoteIdAtCaret()?.let(::openExistingEndnote)
+                    }
                 },
                 label = { Text("English") },
                 minLines = 3,
@@ -618,6 +668,29 @@ private fun EntryCard(
                     },
                     enabled = rich.hasSelection(),
                 ) { Text("I", fontStyle = FontStyle.Italic) }
+                TextButton(
+                    onClick = {
+                        val ids = rich.endnoteIdsInSelection()
+                        when {
+                            ids.isEmpty() && !rich.selectionOverlapsEndnote() -> {
+                                editingEndnoteId = null
+                                pendingSelection = rich.selection
+                                endnoteAnchor = rich.selectedText()
+                                endnoteDraft = ""
+                                showEndnoteDialog = true
+                            }
+                            ids.size == 1 && rich.selectionIsEntirelyEndnote(ids.single()) -> {
+                                openExistingEndnote(ids.single())
+                            }
+                            else -> Toast.makeText(
+                                context,
+                                "Selection overlaps an existing endnote. Edit or remove that endnote first.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    },
+                    enabled = rich.hasSelection(),
+                ) { Text("N", textDecoration = TextDecoration.Underline) }
                 Spacer(Modifier.weight(1f))
                 importedTranslation?.let { importedText ->
                     TextButton(onClick = {
@@ -645,13 +718,73 @@ private fun EntryCard(
             }
         }
     }
+
+    if (showEndnoteDialog) {
+        AlertDialog(
+            onDismissRequest = { showEndnoteDialog = false },
+            title = { Text(if (editingEndnoteId == null) "Add endnote" else "Edit endnote") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Anchor", style = MaterialTheme.typography.labelLarge)
+                    Text(endnoteAnchor.ifBlank { "—" })
+                    OutlinedTextField(
+                        value = endnoteDraft,
+                        onValueChange = { endnoteDraft = it },
+                        label = { Text("Endnote") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val content = endnoteDraft.trim()
+                        val existingId = editingEndnoteId
+                        if (existingId != null) {
+                            onSaveEndnote(
+                                rich.toMarkup(),
+                                EndnoteDefinition(existingId, entry.locator, content),
+                            )
+                        } else {
+                            val selection = pendingSelection
+                            if (selection != null) {
+                                val id = nextEndnoteId()
+                                rich = rich.copy(selection = selection).applyEndnote(id)
+                                onSaveEndnote(
+                                    rich.toMarkup(),
+                                    EndnoteDefinition(id, entry.locator, content),
+                                )
+                            }
+                        }
+                        showEndnoteDialog = false
+                    },
+                    enabled = endnoteDraft.isNotBlank(),
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    editingEndnoteId?.let { id ->
+                        TextButton(
+                            onClick = {
+                                rich = rich.removeEndnote(id)
+                                onRemoveEndnote(rich.toMarkup(), id)
+                                showEndnoteDialog = false
+                            },
+                        ) { Text("Remove") }
+                    }
+                    TextButton(onClick = { showEndnoteDialog = false }) { Text("Cancel") }
+                }
+            },
+        )
+    }
 }
 
 @Composable
 private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Direct schema-v5 YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+            Text("Direct schema-v6 YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
             IconButton(onClick = onValidate) { Icon(Icons.Default.CheckCircle, "Validate whole file") }
         }
         Text("Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)
