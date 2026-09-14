@@ -3,6 +3,9 @@ name: Endnotes editor patch
 on:
   push:
     branches: [feature/endnotes-editor]
+    paths:
+      - 'tools/apply_endnotes_editor_ui.py'
+      - '.github/workflows/endnotes-editor-patch.yml'
 
 permissions:
   contents: write
