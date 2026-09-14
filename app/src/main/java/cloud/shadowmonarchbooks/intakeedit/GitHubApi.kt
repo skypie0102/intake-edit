@@ -80,6 +80,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
     }
 
     suspend fun updateFile(path: String, sha: String, content: String, message: String): String {
+        GitHubCredentialGuard.requireSafeForCommit(content)
         val payload = JSONObject()
             .put("message", message)
             .put(
@@ -97,6 +98,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
     suspend fun updateFilesAtomically(updates: List<GitHubFileUpdate>, message: String): String {
         require(updates.isNotEmpty()) { "At least one file update is required." }
         require(updates.map { it.path }.distinct().size == updates.size) { "Atomic update contains duplicate file paths." }
+        updates.forEach { GitHubCredentialGuard.requireSafeForCommit(it.content) }
 
         val branch = request("GET", "$repoBase/branches/${encode(settings.branch)}")
         val headSha = branch.getJSONObject("commit").getString("sha")
@@ -207,7 +209,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                     val json = runCatching { JSONObject(text) }.getOrElse { JSONObject() }
                     val apiMessage = json.optString("message")
                     val friendly = when (status) {
-                        401 -> "GitHub rejected the token. Check it in Settings."
+                        401 -> "GitHub returned 401 Bad credentials. This token is invalid, expired, or revoked on GitHub; reinstalling Intake Edit does not consume or rotate personal access tokens."
                         403 -> "GitHub denied this operation. Check repository access and Contents permissions."
                         409, 422 -> "GitHub rejected the update, usually because the repository changed after you opened it. Refresh before editing again."
                         else -> if (apiMessage.isNotBlank()) {

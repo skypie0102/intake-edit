@@ -618,7 +618,13 @@ private fun EntryCard(
                 IconButton(onClick = {
                     focusManager.clearFocus(force = true)
                     val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
-                    if (text.isNotEmpty()) {
+                    if (GitHubCredentialGuard.containsCredential(text)) {
+                        Toast.makeText(
+                            context,
+                            "Paste blocked: clipboard looks like a GitHub credential.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    } else if (text.isNotEmpty()) {
                         rich = RichInlineState.fromClipboard(text)
                         onEnglishChange(rich.toMarkup())
                     }
