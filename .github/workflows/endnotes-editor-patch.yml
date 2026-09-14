@@ -5,6 +5,7 @@ on:
     branches: [feature/endnotes-editor]
     paths:
       - 'tools/apply_endnotes_editor_ui.py'
+      - 'tools/apply_schema_v6_only.py'
       - '.github/workflows/endnotes-editor-patch.yml'
 
 permissions:
@@ -25,8 +26,10 @@ jobs:
         with:
           gradle-version: '9.6.0'
           cache-read-only: true
-      - name: Apply editor UI patch
+      - name: Apply manual Endnotes UI
         run: python tools/apply_endnotes_editor_ui.py
+      - name: Remove schema v5 compatibility
+        run: python tools/apply_schema_v6_only.py
       - name: Unit tests and debug build
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Commit generated app changes
@@ -35,5 +38,5 @@ jobs:
           git config user.email 'skypirate1202@gmail.com'
           git add app
           git diff --cached --quiet && exit 0
-          git commit -m 'Add manual endnote editor UI'
+          git commit -m 'Add schema v6-only Endnotes editor UI'
           git push origin HEAD:feature/endnotes-editor
