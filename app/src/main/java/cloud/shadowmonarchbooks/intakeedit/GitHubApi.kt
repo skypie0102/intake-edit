@@ -105,7 +105,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
         updates.forEach { update ->
             val current = getFileAtRef(update.path, headSha)
             if (current.sha != update.expectedSha) {
-                throw GitHubException("${update.path} changed after the glossary was loaded. Refresh before committing.", 409)
+                throw GitHubException("${update.path} changed after it was loaded. Refresh before committing.", 409)
             }
         }
 
@@ -142,7 +142,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                 for (i in 0 until errors.length()) add(errors.getJSONObject(i).optString("message"))
             }.filter { it.isNotBlank() }
             throw GitHubException(
-                messages.joinToString("; ").ifBlank { "GitHub rejected the atomic glossary commit." },
+                messages.joinToString("; ").ifBlank { "GitHub rejected the atomic commit." },
                 409,
             )
         }
@@ -152,7 +152,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
             ?.optJSONObject("commit")
             ?.optString("oid")
             ?.takeIf { it.isNotBlank() }
-            ?: throw GitHubException("GitHub did not return a commit id for the glossary update.")
+            ?: throw GitHubException("GitHub did not return a commit id for the atomic update.")
     }
 
     private suspend fun getFileAtRef(path: String, ref: String): FileSnapshot {
