@@ -25,6 +25,7 @@ internal data class EditorUiState(
 )
 
 internal sealed interface EditorEvent {
+    data object RefreshChapterList : EditorEvent
     data object ReturnChapterList : EditorEvent
 }
 
@@ -119,12 +120,28 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 draftRepository.persist(next)
                 val repository = repositoryFactory.create(settings, token)
-                repository.commitChapter(next, markReviewed)
+                val committedRemote = repository.commitChapter(next, markReviewed)
                 draftRepository.delete(next.file.path)
-                latest = null
                 touched = false
-                _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
-                eventChannel.send(EditorEvent.ReturnChapterList)
+                if (markReviewed) {
+                    latest = null
+                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
+                    eventChannel.send(EditorEvent.ReturnChapterList)
+                } else {
+                    val committed = next.copy(
+                        remote = committedRemote,
+                        raw = committedRemote.content,
+                    )
+                    latest = committed
+                    _uiState.update {
+                        it.copy(
+                            open = committed,
+                            actionInProgress = false,
+                            notice = "Committed without review.",
+                        )
+                    }
+                    eventChannel.send(EditorEvent.RefreshChapterList)
+                }
             } catch (t: Throwable) {
                 _uiState.update {
                     it.copy(

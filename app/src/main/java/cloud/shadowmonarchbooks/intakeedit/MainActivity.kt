@@ -139,7 +139,11 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     }
     LaunchedEffect(editorViewModel) {
         editorViewModel.events.collect { event ->
-            if (event == EditorEvent.ReturnChapterList) refresh()
+            when (event) {
+                EditorEvent.RefreshChapterList,
+                EditorEvent.ReturnChapterList,
+                -> refresh()
+            }
         }
     }
 

@@ -74,7 +74,27 @@ class EditorViewModelTest {
     }
 
     @Test
-    fun successfulCommitReturnsToChapterList() = runTest(dispatcher) {
+    fun successfulReviewedCommitReturnsToChapterList() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "edited raw", sha = "sha-1")
+        val draftRepository = FakeDraftRepository()
+        val chapterRepository = FakeEditorChapterRepository(remote)
+        val viewModel = EditorViewModel(
+            draftRepository = draftRepository,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
+        )
+        val event = async { viewModel.events.first() }
+
+        viewModel.commit(remote, true, RepoSettings(), "token")
+        advanceUntilIdle()
+
+        assertSame(EditorEvent.ReturnChapterList, event.await())
+        assertNull(viewModel.chapterForDisplay())
+        assertEquals(listOf(remote.file.path), draftRepository.deleted)
+        assertEquals(remote, chapterRepository.committedChapter)
+    }
+
+    @Test
+    fun commitWithoutReviewStaysInEditorWithFreshRemoteSha() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "edited raw", sha = "sha-1")
         val draftRepository = FakeDraftRepository()
         val chapterRepository = FakeEditorChapterRepository(remote)
@@ -87,10 +107,14 @@ class EditorViewModelTest {
         viewModel.commit(remote, false, RepoSettings(), "token")
         advanceUntilIdle()
 
-        assertSame(EditorEvent.ReturnChapterList, event.await())
-        assertNull(viewModel.chapterForDisplay())
+        assertSame(EditorEvent.RefreshChapterList, event.await())
+        val stillOpen = requireNotNull(viewModel.chapterForDisplay())
+        assertEquals("sha-committed", stillOpen.remote.sha)
+        assertEquals("edited raw", stillOpen.raw)
+        assertEquals("Committed without review.", viewModel.uiState.value.notice)
         assertEquals(listOf(remote.file.path), draftRepository.deleted)
         assertEquals(remote, chapterRepository.committedChapter)
+        assertEquals(false, chapterRepository.committedMarkReviewed)
     }
 
     @Test
@@ -140,6 +164,8 @@ private class FakeEditorChapterRepository(
         private set
     var committedChapter: OpenChapter? = null
         private set
+    var committedMarkReviewed: Boolean? = null
+        private set
 
     override suspend fun listVolumes(): List<Int> = error("Not used in this test")
     override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
@@ -152,8 +178,10 @@ private class FakeEditorChapterRepository(
         return base.copy(raw = raw)
     }
 
-    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) {
+    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean): FileSnapshot {
         committedChapter = chapter
+        committedMarkReviewed = markReviewed
+        return chapter.remote.copy(sha = "sha-committed", content = chapter.raw)
     }
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
 }
