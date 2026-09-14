@@ -8,16 +8,7 @@ data class EndnoteDefinition(
 
 object EndnoteIntegrity {
     fun validate(document: EditorDocument) {
-        if (document.schemaVersion == 5) {
-            require(document.endnotes.isEmpty()) { "Schema-v5 documents cannot contain endnotes." }
-            document.entries.forEach { entry ->
-                require(InlineMarkup.referencedEndnoteIds(entry.english).isEmpty()) {
-                    "${entry.locator}: schema-v5 English cannot contain endnote anchors."
-                }
-            }
-            return
-        }
-        require(document.schemaVersion == 6) { "This app version edits schema-v5 and schema-v6 chapter documents only." }
+        require(document.schemaVersion == 6) { "This app version edits schema-v6 chapter documents only." }
 
         val byId = linkedMapOf<String, EndnoteDefinition>()
         document.endnotes.forEachIndexed { index, note ->
@@ -49,7 +40,6 @@ object EndnoteIntegrity {
     }
 
     fun prune(document: EditorDocument): EditorDocument {
-        if (document.schemaVersion < 6) return document
         val referenced = document.entries.flatMapTo(linkedSetOf()) { entry ->
             InlineMarkup.referencedEndnoteIds(entry.english)
         }
@@ -78,7 +68,6 @@ object EndnoteIntegrity {
         entries[entryIndex] = entries[entryIndex].copy(english = english)
         val notes = document.endnotes.filterNot { it.id == note.id } + note
         val updated = document.copy(
-            schemaVersion = 6,
             entries = entries,
             endnotes = notes,
             editorReviewComplete = false,

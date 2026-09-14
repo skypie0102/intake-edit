@@ -56,35 +56,31 @@ object IntakeParser {
     private fun parseJson(raw: String): EditorDocument {
         val root = JSONObject(raw)
         val schemaVersion = root.optInt("schema_version", -1)
-        require(schemaVersion == 5 || schemaVersion == 6) {
-            "This app version edits schema-v5 and schema-v6 chapter documents only."
+        require(schemaVersion == 6) {
+            "This app version edits schema-v6 chapter documents only."
         }
-        val endnotes = if (schemaVersion == 6) {
-            val array = root.optJSONArray("endnotes") ?: error("Schema-v6 document is missing top-level endnotes array.")
-            buildList {
-                for (i in 0 until array.length()) {
-                    val item = array.getJSONObject(i)
-                    val allowed = setOf("id", "locator", "content")
-                    val unexpected = buildList {
-                        val keys = item.keys()
-                        while (keys.hasNext()) {
-                            val key = keys.next()
-                            if (key !in allowed) add(key)
-                        }
+        val endnoteArray = root.optJSONArray("endnotes")
+            ?: error("Schema-v6 document is missing top-level endnotes array.")
+        val endnotes = buildList {
+            for (i in 0 until endnoteArray.length()) {
+                val item = endnoteArray.getJSONObject(i)
+                val allowed = setOf("id", "locator", "content")
+                val unexpected = buildList {
+                    val keys = item.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        if (key !in allowed) add(key)
                     }
-                    require(unexpected.isEmpty()) { "Endnote $i has unsupported field(s): ${unexpected.joinToString()}" }
-                    add(
-                        EndnoteDefinition(
-                            id = item.getString("id"),
-                            locator = item.getString("locator"),
-                            content = item.getString("content"),
-                        ),
-                    )
                 }
+                require(unexpected.isEmpty()) { "Endnote $i has unsupported field(s): ${unexpected.joinToString()}" }
+                add(
+                    EndnoteDefinition(
+                        id = item.getString("id"),
+                        locator = item.getString("locator"),
+                        content = item.getString("content"),
+                    ),
+                )
             }
-        } else {
-            require(!root.has("endnotes")) { "Schema-v5 documents cannot contain top-level endnotes." }
-            emptyList()
         }
 
         val array = root.optJSONArray("entries") ?: error("Missing top-level entries array.")
@@ -201,12 +197,11 @@ object IntakeParser {
         }
 
         val schemaVersion = requiredInt("schema_version")
-        require(schemaVersion == 5 || schemaVersion == 6) {
-            "This app version edits schema-v5 and schema-v6 chapter documents only."
+        require(schemaVersion == 6) {
+            "This app version edits schema-v6 chapter documents only."
         }
         require(sawEntries && entryMaps.isNotEmpty()) { "Missing or empty top-level entries array." }
-        if (schemaVersion == 5) require(!sawEndnotes) { "Schema-v5 documents cannot contain top-level endnotes." }
-        if (schemaVersion == 6) require(sawEndnotes) { "Schema-v6 document is missing top-level endnotes list." }
+        require(sawEndnotes) { "Schema-v6 document is missing top-level endnotes list." }
 
         val endnotes = endnoteMaps.mapIndexed { index, item ->
             fun noteRequired(key: String): String = item[key] ?: error("Endnote $index is missing $key.")
@@ -396,22 +391,25 @@ object IntakeParser {
     }
 
     private fun patchEndnotesYaml(raw: String, endnotes: List<EndnoteDefinition>): String {
-        val entries = yamlEntriesFieldRegex.find(raw) ?: error("Could not locate top-level entries array.")
         val rendered = renderEndnotesYaml(endnotes)
-        val existing = yamlEndnotesFieldRegex.find(raw)
-        return if (existing != null && existing.range.first < entries.range.first) {
-            buildString(raw.length + rendered.length) {
-                append(raw, 0, existing.range.first)
-                append(rendered)
-                append(raw, entries.range.first, raw.length)
+        val lines = raw.lines().toMutableList()
+        val startIndex = lines.indexOfFirst { it.startsWith("endnotes:") }
+        require(startIndex >= 0) { "Schema-v6 document is missing top-level endnotes." }
+        var endIndex = startIndex + 1
+        while (endIndex < lines.size) {
+            val line = lines[endIndex]
+            if (line.isNotBlank() && !line.startsWith(" ") && !line.startsWith("- ")) break
+            if (line.startsWith("- ")) {
+                endIndex++
+                while (endIndex < lines.size && lines[endIndex].startsWith("  ")) endIndex++
+                continue
             }
-        } else {
-            buildString(raw.length + rendered.length) {
-                append(raw, 0, entries.range.first)
-                append(rendered)
-                append(raw, entries.range.first, raw.length)
-            }
+            endIndex++
         }
+        val renderedLines = rendered.trimEnd('\n').lines()
+        lines.subList(startIndex, endIndex).clear()
+        lines.addAll(startIndex, renderedLines)
+        return lines.joinToString("\n").let { if (raw.endsWith("\n")) "$it\n" else it }
     }
 
     private fun patchJsonEndnotes(raw: String, document: EditorDocument): String {
@@ -421,33 +419,27 @@ object IntakeParser {
         val entries = root.getJSONArray("entries")
         require(entries.length() == document.entries.size) { "JSON entry count changed unexpectedly." }
         document.entries.forEachIndexed { index, entry -> entries.getJSONObject(index).put("english", entry.english) }
-        if (document.schemaVersion == 6) {
-            val notes = JSONArray()
-            document.endnotes.forEach { note ->
-                notes.put(
-                    JSONObject()
-                        .put("id", note.id)
-                        .put("locator", note.locator)
-                        .put("content", note.content),
-                )
-            }
-            root.put("endnotes", notes)
-        } else {
-            root.remove("endnotes")
+        require(document.schemaVersion == 6) { "Only schema-v6 documents can be written." }
+        val notes = JSONArray()
+        document.endnotes.forEach { note ->
+            notes.put(
+                JSONObject()
+                    .put("id", note.id)
+                    .put("locator", note.locator)
+                    .put("content", note.content),
+            )
         }
+        root.put("endnotes", notes)
         return root.toString(2) + "\n"
     }
 
     fun patchDocument(raw: String, document: EditorDocument): String {
+        require(document.schemaVersion == 6) { "Only schema-v6 documents can be written." }
         EndnoteIntegrity.validate(document)
         if (isJson(raw)) return patchJsonEndnotes(raw, document)
         var patched = patchReviewComplete(patchEnglish(raw, document.entries), document.editorReviewComplete)
-        patched = patchSchemaVersion(patched, document.schemaVersion)
-        if (document.schemaVersion == 6) {
-            patched = patchEndnotesYaml(patched, document.endnotes)
-        } else {
-            require(document.endnotes.isEmpty()) { "Schema-v5 documents cannot contain endnotes." }
-        }
+        patched = patchSchemaVersion(patched, 6)
+        patched = patchEndnotesYaml(patched, document.endnotes)
         return patched
     }
 
