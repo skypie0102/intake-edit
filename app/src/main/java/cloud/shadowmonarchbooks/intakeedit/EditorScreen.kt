@@ -62,12 +62,10 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.derivedStateOf
 
@@ -272,18 +270,6 @@ internal fun EditorScreen(
                 },
             )
         },
-        floatingActionButton = {
-            if (missingEnglish.isNotEmpty() && !busy) {
-                SmallFloatingActionButton(
-                    onClick = { jumpToFirstMissing() },
-                    modifier = Modifier.padding(bottom = 52.dp),
-                ) {
-                    BadgedBox(badge = { Badge { Text(missingEnglish.size.toString()) } }) {
-                        Icon(Icons.Default.SkipNext, "Go to first unsupplied English field")
-                    }
-                }
-            }
-        },
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
@@ -380,6 +366,12 @@ internal fun EditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                TextButton(
+                    onClick = { jumpToFirstMissing() },
+                    enabled = !busy && missingEnglish.isNotEmpty(),
+                ) {
+                    Text("Next (${missingEnglish.size.toString().padStart(2, '0')})")
+                }
                 if (imported == null) {
                     IconButton(
                         onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },

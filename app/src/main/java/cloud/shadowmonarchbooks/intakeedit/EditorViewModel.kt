@@ -25,7 +25,7 @@ internal data class EditorUiState(
 )
 
 internal sealed interface EditorEvent {
-    data object ReturnHome : EditorEvent
+    data object ReturnChapterList : EditorEvent
 }
 
 internal class EditorViewModel(
@@ -124,7 +124,7 @@ internal class EditorViewModel(
                 latest = null
                 touched = false
                 _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
-                eventChannel.send(EditorEvent.ReturnHome)
+                eventChannel.send(EditorEvent.ReturnChapterList)
             } catch (t: Throwable) {
                 _uiState.update {
                     it.copy(

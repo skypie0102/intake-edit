@@ -1,7 +1,9 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -72,6 +74,26 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun successfulCommitReturnsToChapterList() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "edited raw", sha = "sha-1")
+        val draftRepository = FakeDraftRepository()
+        val chapterRepository = FakeEditorChapterRepository(remote)
+        val viewModel = EditorViewModel(
+            draftRepository = draftRepository,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
+        )
+        val event = async { viewModel.events.first() }
+
+        viewModel.commit(remote, false, RepoSettings(), "token")
+        advanceUntilIdle()
+
+        assertSame(EditorEvent.ReturnChapterList, event.await())
+        assertNull(viewModel.chapterForDisplay())
+        assertEquals(listOf(remote.file.path), draftRepository.deleted)
+        assertEquals(remote, chapterRepository.committedChapter)
+    }
+
+    @Test
     fun closeEditorFlushesLatestDraftBeforeDebounceFires() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
         val draftRepository = FakeDraftRepository()
@@ -116,6 +138,8 @@ private class FakeEditorChapterRepository(
 ) : ChapterRepository {
     var restoredRaw: String? = null
         private set
+    var committedChapter: OpenChapter? = null
+        private set
 
     override suspend fun listVolumes(): List<Int> = error("Not used in this test")
     override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
@@ -128,7 +152,9 @@ private class FakeEditorChapterRepository(
         return base.copy(raw = raw)
     }
 
-    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
+    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) {
+        committedChapter = chapter
+    }
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
 }
 
