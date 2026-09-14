@@ -1,0 +1,36 @@
+name: Endnotes editor patch
+
+on:
+  push:
+    branches: [feature/endnotes-editor]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/endnotes-editor
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+          cache-read-only: true
+      - name: Apply editor UI patch
+        run: python tools/apply_endnotes_editor_ui.py
+      - name: Unit tests and debug build
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Commit generated app changes
+        run: |
+          git config user.name 'skypie0102'
+          git config user.email 'skypirate1202@gmail.com'
+          git add app
+          git diff --cached --quiet && exit 0
+          git commit -m 'Add manual endnote editor UI'
+          git push origin HEAD:feature/endnotes-editor
