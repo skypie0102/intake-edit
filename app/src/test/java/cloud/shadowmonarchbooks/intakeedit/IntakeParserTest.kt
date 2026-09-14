@@ -37,6 +37,7 @@ class IntakeParserTest {
         assertEquals("It's a test.", document.entries[0].english)
         assertEquals(1, document.englishSupplied)
         assertEquals(2, document.englishTotal)
+        assertTrue(document.endnotes.isEmpty())
         assertFalse(document.editorReviewComplete)
     }
 
@@ -68,6 +69,50 @@ class IntakeParserTest {
         assertEquals("Only the second entry changes.", reparsed.entries[1].english)
         assertTrue(reparsed.editorReviewComplete)
         assertTrue(IntakeParser.validate(patched).isSuccess)
+    }
+
+    @Test
+    fun upgradesSchemaV5YamlWhenEndnoteIsAdded() {
+        val original = IntakeParser.parse(yaml)
+        val entries = original.entries.toMutableList()
+        entries[0] = entries[0].copy(english = "Visit [en=en-P1-01]Comiket[/en].")
+        val upgraded = original.copy(
+            schemaVersion = 6,
+            entries = entries,
+            endnotes = listOf(EndnoteDefinition("en-P1-01", "P1", "A translator note.")),
+        )
+
+        val patched = IntakeParser.patchDocument(yaml, upgraded)
+        val reparsed = IntakeParser.parse(patched)
+
+        assertTrue(patched.startsWith("schema_version: 6"))
+        assertTrue(patched.contains("endnotes:"))
+        assertEquals(6, reparsed.schemaVersion)
+        assertEquals(1, reparsed.endnotes.size)
+        assertEquals("A translator note.", reparsed.endnotes.single().content)
+        assertEquals("Visit [en=en-P1-01]Comiket[/en].", reparsed.entries[0].english)
+        assertTrue(IntakeParser.validate(patched).isSuccess)
+    }
+
+    @Test
+    fun parsesEmptySchemaV6EndnotesList() {
+        val upgraded = yaml
+            .replace("schema_version: 5", "schema_version: 6")
+            .replace("entries:\n", "endnotes: []\nentries:\n")
+        val document = IntakeParser.parse(upgraded)
+        assertEquals(6, document.schemaVersion)
+        assertTrue(document.endnotes.isEmpty())
+    }
+
+    @Test
+    fun rejectsOrphanEndnoteDefinition() {
+        val invalid = yaml
+            .replace("schema_version: 5", "schema_version: 6")
+            .replace(
+                "entries:\n",
+                "endnotes:\n- id: en-P1-01\n  locator: P1\n  content: \"Unused note\"\nentries:\n",
+            )
+        assertTrue(IntakeParser.validate(invalid).isFailure)
     }
 
     @Test
