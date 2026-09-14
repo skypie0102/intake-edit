@@ -24,6 +24,11 @@ s = replace_once(
     "YAML schema compatibility",
 )
 
+start = s.index("    private fun patchEndnotesYaml(")
+end = s.index("    private fun patchJsonEndnotes(", start)
+replacement = '''    private fun patchEndnotesYaml(raw: String, endnotes: List<EndnoteDefinition>): String {\n        val rendered = renderEndnotesYaml(endnotes)\n        val lines = raw.lines().toMutableList()\n        val startIndex = lines.indexOfFirst { it.startsWith("endnotes:") }\n        require(startIndex >= 0) { "Schema-v6 document is missing top-level endnotes." }\n        var endIndex = startIndex + 1\n        while (endIndex < lines.size) {\n            val line = lines[endIndex]\n            if (line.isNotBlank() && !line.startsWith(" ") && !line.startsWith("- ")) break\n            if (line.startsWith("- ")) {\n                endIndex++\n                while (endIndex < lines.size && lines[endIndex].startsWith("  ")) endIndex++\n                continue\n            }\n            endIndex++\n        }\n        val renderedLines = rendered.trimEnd('\\n').lines()\n        lines.subList(startIndex, endIndex).clear()\n        lines.addAll(startIndex, renderedLines)\n        return lines.joinToString("\\n").let { if (raw.endsWith("\\n")) "$it\\n" else it }\n    }\n\n'''
+s = s[:start] + replacement + s[end:]
+
 s = replace_once(
     s,
     '''        if (document.schemaVersion == 6) {\n            val notes = JSONArray()\n            document.endnotes.forEach { note ->\n                notes.put(\n                    JSONObject()\n                        .put("id", note.id)\n                        .put("locator", note.locator)\n                        .put("content", note.content),\n                )\n            }\n            root.put("endnotes", notes)\n        } else {\n            root.remove("endnotes")\n        }\n''',
@@ -70,7 +75,6 @@ if insert.strip() not in s:
 parser_test.write_text(s)
 
 editor = Path("app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt")
-# This file is patched by apply_endnotes_editor_ui.py first. Normalize its whole-file label afterward.
 if editor.exists():
     s = editor.read_text()
     s = s.replace("Direct schema-v5/v6 YAML editor", "Direct schema-v6 YAML editor")
