@@ -19,7 +19,7 @@ internal interface ChapterRepository {
     suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts
     suspend fun loadChapter(file: ChapterFile): OpenChapter
     fun restoreRaw(base: OpenChapter, raw: String): OpenChapter
-    suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean)
+    suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean): FileSnapshot
     suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter
 }
 
@@ -73,7 +73,7 @@ internal class GitHubChapterRepository(
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter =
         base.copy(raw = raw, document = IntakeParser.parse(raw))
 
-    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) {
+    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean): FileSnapshot {
         val document = if (markReviewed) {
             require(chapter.document.englishSupplied == chapter.document.englishTotal) {
                 "Supply English for every paragraph before marking editor review complete."
@@ -82,12 +82,13 @@ internal class GitHubChapterRepository(
         } else chapter.document
         val raw = IntakeParser.patchDocument(chapter.raw, document)
         IntakeParser.validate(raw).getOrThrow()
-        client.updateFile(
+        val sha = client.updateFile(
             chapter.file.path,
             chapter.remote.sha,
             raw,
             "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English",
         )
+        return FileSnapshot(chapter.file.path, sha.ifBlank { chapter.remote.sha }, raw)
     }
 
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter {

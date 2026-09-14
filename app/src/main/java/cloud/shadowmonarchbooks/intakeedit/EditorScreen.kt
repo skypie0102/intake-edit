@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -60,11 +62,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ModalBottomSheet
@@ -98,6 +99,7 @@ internal fun EditorScreen(
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
+    var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
     var showRemoveAllConfirm by remember { mutableStateOf(false) }
@@ -259,16 +261,43 @@ internal fun EditorScreen(
                         }
                     }
                     IconButton(
-                        onClick = {
-                            showWholeFile = !showWholeFile
-                            showQa = false
-                        },
+                        onClick = { showOverflow = true },
                         enabled = !busy,
                     ) {
-                        Icon(
-                            if (showWholeFile) Icons.Default.ViewAgenda else Icons.Default.Description,
-                            if (showWholeFile) "Show cards" else "Show whole file",
+                        Icon(Icons.Default.MoreVert, "Editor actions")
+                    }
+                    DropdownMenu(
+                        expanded = showOverflow,
+                        onDismissRequest = { showOverflow = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(if (showWholeFile) "Cards mode" else "Whole file mode") },
+                            onClick = {
+                                showOverflow = false
+                                focusManager.clearFocus(force = true)
+                                showWholeFile = !showWholeFile
+                                showQa = false
+                            },
+                            enabled = !busy,
                         )
+                        imported?.let { overlay ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        if (fillableImportCount > 0) "Fill blanks ($fillableImportCount)"
+                                        else "Remove all English",
+                                    )
+                                },
+                                onClick = {
+                                    showOverflow = false
+                                    focusManager.clearFocus(force = true)
+                                    if (fillableImportCount > 0) fillBlanksFromImport(overlay)
+                                    else showRemoveAllConfirm = true
+                                },
+                                enabled = !busy && !importBusy && !showWholeFile &&
+                                    (fillableImportCount > 0 || suppliedEnglishCount > 0),
+                            )
+                        }
                     }
                 },
             )
@@ -315,24 +344,6 @@ internal fun EditorScreen(
                     modifier = Modifier.weight(1f),
                 )
             } else {
-                imported?.let { overlay ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        if (fillableImportCount > 0) {
-                            TextButton(
-                                onClick = {
-                                    focusManager.clearFocus(force = true)
-                                    fillBlanksFromImport(overlay)
-                                },
-                                enabled = !busy && !importBusy,
-                            ) { Text("Fill blanks ($fillableImportCount)") }
-                        } else {
-                            TextButton(
-                                onClick = { showRemoveAllConfirm = true },
-                                enabled = !busy && !importBusy && suppliedEnglishCount > 0,
-                            ) { Text("Remove all") }
-                        }
-                    }
-                }
                 if (showQa) {
                     QaFindingsView(
                         snapshot = current.qa,
