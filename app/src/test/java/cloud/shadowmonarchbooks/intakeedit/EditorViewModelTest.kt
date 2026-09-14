@@ -178,11 +178,15 @@ private class FakeEditorChapterRepository(
         return base.copy(raw = raw)
     }
 
-    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean): FileSnapshot {
+    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean): ChapterCommitResult {
         committedChapter = chapter
         committedMarkReviewed = markReviewed
-        return chapter.remote.copy(sha = "sha-committed", content = chapter.raw)
+        return ChapterCommitResult(
+            remote = chapter.remote.copy(sha = "sha-committed", content = chapter.raw),
+            endnoteProposals = chapter.endnoteProposals,
+        )
     }
+
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
 }
 
