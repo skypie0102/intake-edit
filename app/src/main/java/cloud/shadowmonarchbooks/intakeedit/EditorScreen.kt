@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -85,6 +86,7 @@ internal fun EditorScreen(
     onOverride: (OpenChapter, String, String) -> Unit,
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val importStore = remember { TranslationImportStore(context) }
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
@@ -201,6 +203,7 @@ internal fun EditorScreen(
 
     fun jumpToFirstMissing() {
         val target = current.document.entries.firstOrNull { !it.isSupplied } ?: return
+        focusManager.clearFocus(force = true)
         showQa = false
         showWholeFile = false
         filter = EntryFilter.ALL
@@ -316,7 +319,10 @@ internal fun EditorScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         if (fillableImportCount > 0) {
                             TextButton(
-                                onClick = { fillBlanksFromImport(overlay) },
+                                onClick = {
+                                    focusManager.clearFocus(force = true)
+                                    fillBlanksFromImport(overlay)
+                                },
                                 enabled = !busy && !importBusy,
                             ) { Text("Fill blanks ($fillableImportCount)") }
                         } else {
@@ -374,7 +380,10 @@ internal fun EditorScreen(
                 }
                 if (imported == null) {
                     IconButton(
-                        onClick = { importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*")) },
+                        onClick = {
+                            focusManager.clearFocus(force = true)
+                            importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*"))
+                        },
                         enabled = !busy && !importBusy,
                     ) {
                         Icon(Icons.Default.UploadFile, if (importBusy) "Loading import" else "Import translation")
@@ -532,6 +541,7 @@ private fun EntryCard(
 ) {
     val context = LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val focusManager = LocalFocusManager.current
     val focusRequester = remember(entry.locator) { FocusRequester() }
     var rich by remember(entry.locator) {
         mutableStateOf(
@@ -558,11 +568,10 @@ private fun EntryCard(
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = {
+                    focusManager.clearFocus(force = true)
                     val reference = importedTranslation?.let { "\n\nIMPORTED TRANSLATION:\n$it" }.orEmpty()
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                    rich = rich.moveCaretToEnd()
-                    focusRequester.requestFocus()
                 }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
@@ -601,17 +610,17 @@ private fun EntryCard(
                 Spacer(Modifier.weight(1f))
                 importedTranslation?.let { importedText ->
                     TextButton(onClick = {
+                        focusManager.clearFocus(force = true)
                         rich = RichInlineState.plain(importedText)
                         onUseImport(importedText)
-                        focusRequester.requestFocus()
                     }) { Text("Use Import") }
                 }
                 IconButton(onClick = {
+                    focusManager.clearFocus(force = true)
                     val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
                     if (text.isNotEmpty()) {
                         rich = RichInlineState.fromClipboard(text)
                         onEnglishChange(rich.toMarkup())
-                        focusRequester.requestFocus()
                     }
                 }, enabled = clipboard.hasPrimaryClip()) {
                     Icon(Icons.Default.ContentPaste, "Paste English")
