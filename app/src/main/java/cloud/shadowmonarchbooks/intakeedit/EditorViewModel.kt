@@ -120,7 +120,7 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 draftRepository.persist(next)
                 val repository = repositoryFactory.create(settings, token)
-                val committedRemote = repository.commitChapter(next, markReviewed)
+                val committedResult = repository.commitChapter(next, markReviewed)
                 draftRepository.delete(next.file.path)
                 touched = false
                 if (markReviewed) {
@@ -129,8 +129,9 @@ internal class EditorViewModel(
                     eventChannel.send(EditorEvent.ReturnChapterList)
                 } else {
                     val committed = next.copy(
-                        remote = committedRemote,
-                        raw = committedRemote.content,
+                        remote = committedResult.remote,
+                        raw = committedResult.remote.content,
+                        endnoteProposals = committedResult.endnoteProposals,
                     )
                     latest = committed
                     _uiState.update {
