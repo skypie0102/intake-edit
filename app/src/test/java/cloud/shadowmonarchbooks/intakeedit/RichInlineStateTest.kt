@@ -71,6 +71,27 @@ class RichInlineStateTest {
     }
 
     @Test
+    fun replacingEndnoteAnchorPreservesEndnoteAndFormatting() {
+        var state = RichInlineState.fromMarkup("Read [en=en-P1-01][b]Comiket[/b][/en] today.")
+        state = state.copy(selection = state.rangeForEndnote("en-P1-01")!!)
+
+        state = state.replaceSelection("Comic Market")
+
+        assertEquals("Read Comic Market today.", state.text)
+        assertEquals("Comic Market", state.anchorForEndnote("en-P1-01"))
+        assertEquals("Read [en=en-P1-01][b]Comic Market[/b][/en] today.", state.toMarkup())
+    }
+
+    @Test
+    fun replacingPlainSelectionCanBecomeNewEndnoteAnchor() {
+        var state = RichInlineState.plain("Visit Comiket today.").copy(selection = TextRange(6, 13))
+
+        state = state.replaceSelection("Comic Market").applyEndnote("en-P1-01")
+
+        assertEquals("Visit [en=en-P1-01]Comic Market[/en] today.", state.toMarkup())
+    }
+
+    @Test
     fun typingInsideEndnoteKeepsRangeButTypingAtEndDoesNotExtendIt() {
         var state = RichInlineState.fromMarkup("[en=en-P1-01]abc[/en]")
         state = state.copy(selection = TextRange(1))

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.NavigateNext
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
@@ -437,17 +438,25 @@ internal fun EditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(
-                    onClick = { jumpToFirstMissing() },
-                    enabled = !busy && missingEnglish.isNotEmpty(),
+                BadgedBox(
+                    badge = { Badge { Text(missingEnglish.size.toString()) } },
                 ) {
-                    Text("Next (${missingEnglish.size.toString().padStart(2, '0')})")
+                    IconButton(
+                        onClick = { jumpToFirstMissing() },
+                        enabled = !busy && missingEnglish.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Default.NavigateNext, "Go to first unsupplied English")
+                    }
                 }
-                TextButton(
-                    onClick = { cycleUnusedEndnoteSuggestions() },
-                    enabled = !busy && unusedSuggestionLocators.isNotEmpty(),
+                BadgedBox(
+                    badge = { Badge { Text(unusedSuggestionLocators.size.toString()) } },
                 ) {
-                    Text("Notes (${unusedSuggestionLocators.size.toString().padStart(2, '0')})")
+                    IconButton(
+                        onClick = { cycleUnusedEndnoteSuggestions() },
+                        enabled = !busy && unusedSuggestionLocators.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Default.PriorityHigh, "Cycle unused endnote suggestions")
+                    }
                 }
                 if (imported == null) {
                     IconButton(
@@ -887,8 +896,13 @@ private fun EntryCard(
             title = { Text(if (editingEndnoteId == null) "Add endnote" else "Edit endnote") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Anchor", style = MaterialTheme.typography.labelLarge)
-                    Text(endnoteAnchor.ifBlank { "—" })
+                    OutlinedTextField(
+                        value = endnoteAnchor,
+                        onValueChange = { endnoteAnchor = it },
+                        label = { Text("Anchor") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
                     OutlinedTextField(
                         value = endnoteDraft,
                         onValueChange = { endnoteDraft = it },
@@ -904,6 +918,9 @@ private fun EntryCard(
                         val content = endnoteDraft.trim()
                         val existingId = editingEndnoteId
                         if (existingId != null) {
+                            rich.rangeForEndnote(existingId)?.let { range ->
+                                rich = rich.copy(selection = range).replaceSelection(endnoteAnchor)
+                            }
                             onSaveEndnote(
                                 rich.toMarkup(),
                                 EndnoteDefinition(existingId, entry.locator, content),
@@ -912,7 +929,7 @@ private fun EntryCard(
                             val selection = pendingSelection
                             if (selection != null) {
                                 val id = nextEndnoteId()
-                                rich = rich.copy(selection = selection).applyEndnote(id)
+                                rich = rich.copy(selection = selection).replaceSelection(endnoteAnchor).applyEndnote(id)
                                 onSaveEndnote(
                                     rich.toMarkup(),
                                     EndnoteDefinition(id, entry.locator, content),
@@ -925,7 +942,7 @@ private fun EntryCard(
                         proposalForEndnote = null
                         showEndnoteDialog = false
                     },
-                    enabled = endnoteDraft.isNotBlank(),
+                    enabled = endnoteAnchor.isNotBlank() && endnoteDraft.isNotBlank(),
                 ) { Text("Save") }
             },
             dismissButton = {
