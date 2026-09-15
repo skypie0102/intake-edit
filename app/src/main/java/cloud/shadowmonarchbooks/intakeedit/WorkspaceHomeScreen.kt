@@ -32,7 +32,7 @@ internal fun WorkspaceHomeScreen(
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Chapter Intake", fontWeight = FontWeight.Bold)
-                    Text("Import rough translations, edit authoritative English, review QA findings, and commit schema-v5 chapter files.")
+                    Text("Import rough translations, edit authoritative English, review QA findings, and commit schema-v6 chapter files.")
                     Button(onClick = onOpenChapters) { Text("Open Chapter Intake") }
                 }
             }
