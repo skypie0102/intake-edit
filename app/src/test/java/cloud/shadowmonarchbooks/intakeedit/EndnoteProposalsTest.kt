@@ -47,6 +47,18 @@ class EndnoteProposalsTest {
     }
 
     @Test
+    fun visibleForKeepsAcceptedSuggestionsAndHidesRejectedOnes() {
+        val document = EndnoteProposalParser.parse(raw)
+            .withStatus("endnote-v01-c0012-p7-001", "accepted")
+            .withStatus("endnote-v01-c0013-p2-001", "rejected")
+
+        assertEquals(1, document.visibleFor(1, 12, "P7").size)
+        assertEquals("accepted", document.visibleFor(1, 12, "P7").single().status)
+        assertTrue(document.pendingFor(1, 12, "P7").isEmpty())
+        assertTrue(document.visibleFor(1, 13, "P2").isEmpty())
+    }
+
+    @Test
     fun stageAcceptsProposalAndMarksSnapshotChanged() {
         val snapshot = EndnoteProposalSnapshot(
             path = EndnoteProposalParser.PATH,
@@ -64,6 +76,7 @@ class EndnoteProposalsTest {
             staged.document.proposals.single { it.id == "endnote-v01-c0012-p7-001" }.status,
         )
         assertTrue(staged.document.pendingFor(1, 12, "P7").isEmpty())
+        assertEquals(1, staged.document.visibleFor(1, 12, "P7").size)
         assertEquals(staged.document, EndnoteProposalParser.parse(staged.raw))
     }
 
@@ -82,6 +95,7 @@ class EndnoteProposalsTest {
             "rejected",
             staged.document.proposals.single { it.id == "endnote-v01-c0012-p7-001" }.status,
         )
+        assertTrue(staged.document.visibleFor(1, 12, "P7").isEmpty())
         assertEquals(1, staged.document.pendingFor(1, 13, "P2").size)
     }
 }

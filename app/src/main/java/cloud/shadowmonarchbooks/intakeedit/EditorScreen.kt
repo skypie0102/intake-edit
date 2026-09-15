@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -108,6 +109,7 @@ internal fun EditorScreen(
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
     var jumpRequestId by remember { mutableStateOf(0) }
+    var lastSuggestionLocator by remember(initial.file.path, initial.remote.sha) { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
@@ -241,7 +243,22 @@ internal fun EditorScreen(
         jumpRequestId += 1
     }
 
+    fun cycleUnusedEndnoteSuggestions() {
+        val targets = pendingSuggestionLocators(current)
+        if (targets.isEmpty()) return
+        val currentIndex = targets.indexOf(lastSuggestionLocator)
+        val target = targets[if (currentIndex < 0 || currentIndex == targets.lastIndex) 0 else currentIndex + 1]
+        focusManager.clearFocus(force = true)
+        showQa = false
+        showWholeFile = false
+        filter = EntryFilter.ALL
+        lastSuggestionLocator = target
+        jumpLocator = target
+        jumpRequestId += 1
+    }
+
     val missingEnglish = current.document.entries.filterNot { it.isSupplied }
+    val unusedSuggestionLocators = pendingSuggestionLocators(current)
     val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
     val fillableImportCount = imported?.let { overlay ->
         missingEnglish.count { overlay.translationFor(it.locator) != null }
@@ -399,7 +416,7 @@ internal fun EditorScreen(
                                 entry = entry,
                                 endnotes = current.document.endnotes.filter { it.locator == entry.locator },
                                 proposals = current.endnoteProposals?.document
-                                    ?.pendingFor(current.file.volume, current.file.chapter, entry.locator)
+                                    ?.visibleFor(current.file.volume, current.file.chapter, entry.locator)
                                     .orEmpty(),
                                 importedTranslation = imported?.translationFor(entry.locator),
                                 nextEndnoteId = { EndnoteIntegrity.nextId(current.document, entry.locator) },
@@ -425,6 +442,12 @@ internal fun EditorScreen(
                     enabled = !busy && missingEnglish.isNotEmpty(),
                 ) {
                     Text("Next (${missingEnglish.size.toString().padStart(2, '0')})")
+                }
+                TextButton(
+                    onClick = { cycleUnusedEndnoteSuggestions() },
+                    enabled = !busy && unusedSuggestionLocators.isNotEmpty(),
+                ) {
+                    Text("Notes (${unusedSuggestionLocators.size.toString().padStart(2, '0')})")
                 }
                 if (imported == null) {
                     IconButton(
@@ -589,6 +612,19 @@ private fun filteredEntries(document: EditorDocument, filter: EntryFilter): List
     EntryFilter.UNSUPPLIED -> document.entries.filterNot { it.isSupplied }
 }
 
+private fun pendingSuggestionLocators(chapter: OpenChapter): List<String> {
+    val pending = chapter.endnoteProposals?.document?.proposals.orEmpty()
+        .asSequence()
+        .filter {
+            it.status == "pending" &&
+                it.volume == chapter.file.volume &&
+                it.chapter == chapter.file.chapter
+        }
+        .map { it.locator }
+        .toSet()
+    return chapter.document.entries.map { it.locator }.filter { it in pending }
+}
+
 private fun suggestedAnchorSelection(text: String, anchor: String): TextRange? {
     val needle = anchor.trim()
     if (needle.isEmpty()) return null
@@ -689,8 +725,14 @@ private fun EntryCard(
                     modifier = Modifier.weight(1f),
                 )
                 if (proposals.isNotEmpty()) {
-                    TextButton(onClick = { showProposalSheet = true }) {
-                        Text(if (proposals.size == 1) "!" else "! ${proposals.size}")
+                    BadgedBox(
+                        badge = {
+                            if (proposals.size > 1) Badge { Text(proposals.size.toString()) }
+                        },
+                    ) {
+                        IconButton(onClick = { showProposalSheet = true }) {
+                            Icon(Icons.Default.PriorityHigh, "Endnote suggestions")
+                        }
                     }
                 }
                 IconButton(onClick = {
@@ -809,6 +851,9 @@ private fun EntryCard(
                             Modifier.padding(10.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
+                            if (proposal.status == "accepted") {
+                                Text("Used suggestion", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                            }
                             DisplayBlock("Source anchor", proposal.sourceAnchor)
                             if (proposal.suggestedEnglishAnchor.isNotBlank()) {
                                 DisplayBlock("Suggested English anchor", proposal.suggestedEnglishAnchor)
@@ -816,7 +861,9 @@ private fun EntryCard(
                             DisplayBlock("Suggested note", proposal.suggestedContent)
                             DisplayBlock("Reason", proposal.reason)
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Button(onClick = { openSuggestion(proposal) }) { Text("Use suggestion") }
+                                Button(onClick = { openSuggestion(proposal) }) {
+                                    Text(if (proposal.status == "accepted") "Use again" else "Use suggestion")
+                                }
                                 TextButton(
                                     onClick = {
                                         onProposalDecision(proposal.id, "rejected")
