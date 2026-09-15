@@ -24,6 +24,11 @@ data class EndnoteProposalDocument(
             it.status == "pending" && it.volume == volume && it.chapter == chapter && it.locator == locator
         }
 
+    fun visibleFor(volume: Int, chapter: Int, locator: String): List<EndnoteProposal> =
+        proposals.filter {
+            it.status != "rejected" && it.volume == volume && it.chapter == chapter && it.locator == locator
+        }
+
     fun withStatus(id: String, status: String): EndnoteProposalDocument {
         require(status in EndnoteProposalParser.validStatuses) { "Unsupported endnote proposal status: $status" }
         var found = false
