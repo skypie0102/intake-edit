@@ -78,6 +78,17 @@ data class RichInlineState(
         )
     }
 
+    fun replaceSelection(replacement: String): RichInlineState {
+        val range = selectedBounds() ?: return this
+        val start = range.first
+        val endExclusive = range.last + 1
+        val nextText = text.replaceRange(start, endExclusive, replacement)
+        val nextSelection = TextRange(start, start + replacement.length)
+        return copy(selection = TextRange(start, endExclusive)).edited(
+            TextFieldValue(nextText, selection = nextSelection),
+        )
+    }
+
     fun toggle(style: InlineStyle): RichInlineState {
         val range = selectedBounds() ?: return this
         val source = if (style == InlineStyle.BOLD) bold else italic
