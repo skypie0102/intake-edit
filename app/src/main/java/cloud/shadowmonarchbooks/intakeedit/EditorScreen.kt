@@ -869,7 +869,10 @@ private fun EntryCard(
                             }
                             DisplayBlock("Suggested note", proposal.suggestedContent)
                             DisplayBlock("Reason", proposal.reason)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Button(onClick = { openSuggestion(proposal) }) {
                                     Text(if (proposal.status == "accepted") "Use again" else "Use suggestion")
                                 }
@@ -879,6 +882,17 @@ private fun EntryCard(
                                         if (proposals.size == 1) showProposalSheet = false
                                     },
                                 ) { Text("Dismiss") }
+                                IconButton(
+                                    onClick = {
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText("Suggested endnote", proposal.suggestedContent),
+                                        )
+                                        Toast.makeText(context, "Suggestion note copied.", Toast.LENGTH_SHORT).show()
+                                    },
+                                    enabled = proposal.suggestedContent.isNotBlank(),
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, "Copy suggested note")
+                                }
                             }
                         }
                     }
