@@ -170,7 +170,7 @@ private class FakeEditorChapterRepository(
     override suspend fun listVolumes(): List<Int> = error("Not used in this test")
     override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress = error("Not used in this test")
-    override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
+    override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
     override suspend fun loadChapter(file: ChapterFile): OpenChapter = remote
 
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter {
@@ -188,6 +188,7 @@ private class FakeEditorChapterRepository(
     }
 
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
+    override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
 
 private fun sampleChapter(raw: String, sha: String): OpenChapter {

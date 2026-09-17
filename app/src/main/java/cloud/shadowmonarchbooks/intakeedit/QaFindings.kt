@@ -51,9 +51,13 @@ data class QaFindingsDocument(
         val pass = qaPass ?: return false
         val currentIds = findings.map { it.id }.sorted()
         if (currentIds != pass.findingIds.sorted()) return false
-        val currentLocators = findings.map { it.locator }.filter { it.isNotBlank() }.distinct().sorted()
-        if (currentLocators != pass.mutableLocators.sorted()) return false
-        return QaFindingsParser.protectedContentSha256(editor, currentLocators.toSet()) == pass.protectedContentSha256
+        val mutableLocators = if (findings.any { it.locator.isBlank() }) {
+            editor.entries.map { it.locator }.sorted()
+        } else {
+            findings.map { it.locator }.filter { it.isNotBlank() }.distinct().sorted()
+        }
+        if (mutableLocators != pass.mutableLocators.sorted()) return false
+        return QaFindingsParser.protectedContentSha256(editor, mutableLocators.toSet()) == pass.protectedContentSha256
     }
 
     fun disposition(finding: QaFinding, editor: EditorDocument, editorContentSha256: String): QaFindingDisposition {
@@ -242,8 +246,8 @@ object QaFindingsParser {
         val notes = document.endnotes
             .filter { it.locator !in mutableLocators }
             .sortedWith(compareBy<EndnoteDefinition> { it.locator }.thenBy { it.id }.thenBy { it.content })
-            .map(::endnoteMap)
-            .toMutableList<Any>()
+            .map { endnoteMap(it) as Any }
+            .toMutableList()
         mutableLocators.sorted().forEach { locator ->
             notes += mapOf("id" to "<QA_EDITABLE>", "locator" to locator, "content" to "<QA_EDITABLE>")
         }

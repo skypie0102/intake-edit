@@ -200,6 +200,9 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
             onOverride = { next, findingId, reason ->
                 editorViewModel.overrideQa(next, findingId, reason, settings, token)
             },
+            onResolve = { next, findingId ->
+                editorViewModel.resolveQa(next, findingId, settings, token)
+            },
         )
     } else {
         val openingPath = editorState.loadingPath

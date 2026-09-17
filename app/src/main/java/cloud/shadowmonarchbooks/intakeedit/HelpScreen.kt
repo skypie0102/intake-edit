@@ -49,10 +49,10 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
             }
             item {
                 HelpCard("What happens after Tag for QA") {
-                    Text("Pending QA → materialize reader output → full semantic QA → one of two outcomes:")
-                    HelpLine("No active findings", "The chapter becomes Approved.")
-                    HelpLine("Any active finding", "The chapter automatically returns to Pending Review. This includes warnings, errors, and blockers.")
-                    Text("After a return, cards needing attention show a ! button. It combines active QA findings and endnote suggestions in one sheet; the bottom ! button cycles through cards with unresolved attention. Fix the text/endnote or override an eligible finding, then Tag for QA & Commit again.")
+                    Text("Pending QA → one full semantic QA pass. After that, the recorded pass is reused while you address only the flagged paragraphs:")
+                    HelpLine("No findings", "The chapter can go straight through deterministic materialization/validation to Approved.")
+                    HelpLine("Any finding", "The chapter returns to Pending Review. Correct it and press Resolve, or press Override when the finding allows it.")
+                    Text("After a return, cards needing attention show a ! button. It combines active QA findings and endnote suggestions. Resolve requires that the flagged paragraph was actually changed. Override means you intentionally accept it as-is and requires a reason when allowed. Once every QA finding is closed, the main action becomes Finalize & Commit; semantic QA does not run again.")
                 }
             }
             item {
@@ -79,10 +79,11 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                HelpCard("Overrides") {
-                    Text("A finding can be overridden only when it is marked overrideable. The app requires a reason and keeps the override as an audit record.")
-                    Text("Overrides are bound to the authoritative English/endnote content. Editing that content makes an old override stale and the finding active again.")
-                    Text("Moving between Pending Review and Pending QA by itself does not stale an override.")
+                HelpCard("Resolve and Override") {
+                    HelpLine("Resolve", "Use this after correcting the flagged paragraph. Resolve is accepted only when that paragraph differs from the QA-reviewed baseline.")
+                    HelpLine("Override", "Use this when you intentionally accept the finding as-is. It is available only when the finding is overrideable and requires a reason.")
+                    Text("Both are paragraph-scoped audit records. Editing that same paragraph again makes its closure stale; editing another flagged paragraph does not.")
+                    Text("If you edit a paragraph that QA did not flag, or other protected chapter content, the recorded QA pass becomes stale and a fresh semantic QA pass is required.")
                 }
             }
             item {

@@ -92,6 +92,7 @@ internal fun EditorScreen(
     onDraft: (OpenChapter) -> Unit,
     onCommit: (OpenChapter, Boolean) -> Unit,
     onOverride: (OpenChapter, String, String) -> Unit,
+    onResolve: (OpenChapter, String) -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -266,7 +267,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
 
     fun cycleAttention() {
         val editorSha = QaFindingsParser.editorContentSha256(current.raw)
-        val qaLocators = current.qa?.document?.active(editorSha).orEmpty()
+        val qaLocators = current.qa?.document?.active(current.document, editorSha).orEmpty()
             .asSequence()
             .map { it.locator }
             .filter { it.isNotBlank() }
@@ -290,7 +291,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val missingEnglish = current.document.entries.filterNot { it.isSupplied }
     val unusedSuggestionLocators = pendingSuggestionLocators(current)
     val editorContentSha = QaFindingsParser.editorContentSha256(current.raw)
-    val activeQaByLocator = current.qa?.document?.active(editorContentSha).orEmpty()
+    val activeQaByLocator = current.qa?.document?.active(current.document, editorContentSha).orEmpty()
         .filter { it.locator.isNotBlank() }
         .groupBy { it.locator }
     val attentionLocators = current.document.entries
@@ -307,6 +308,10 @@ fun stageProposalDecision(proposalId: String, status: String) {
     }
     val activeFilterCount = (if (showQa) 1 else 0) + (if (!showQa && filter != EntryFilter.ALL) 1 else 0)
     val hasLocalChanges = current.raw != current.remote.content || current.endnoteProposals?.changed == true
+    val qaPassReusable = current.qa?.document?.qaPassReusable(current.document) == true
+    val qaPassStale = current.qa?.document?.qaPass != null && !qaPassReusable
+    val finalizingExistingQaPass = qaPassReusable && current.qa?.document?.active(current.document, editorContentSha).orEmpty().isEmpty()
+    val primaryCommitLabel = if (finalizingExistingQaPass) "Finalize & Commit" else "Tag for QA & Commit"
 
     LaunchedEffect(jumpRequestId, filter, showQa, showWholeFile) {
         val locator = jumpLocator
@@ -392,6 +397,9 @@ fun stageProposalDecision(proposalId: String, status: String) {
         ) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            if (qaPassStale) {
+                Text("Previous QA pass is stale because protected/unflagged content changed. Fresh semantic QA is required.", style = MaterialTheme.typography.bodySmall)
+            }
             AnimatedVisibility(visible = showWholeFile || showQa || headerExpanded) {
                 Text(
                     buildString {
@@ -436,9 +444,11 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 if (showQa) {
                     QaFindingsView(
                         snapshot = current.qa,
+                        editor = current.document,
                         editorSha = QaFindingsParser.editorContentSha256(current.raw),
                         busy = busy,
                         onOverride = { id, reason -> onOverride(current, id, reason) },
+                        onResolve = { id -> onResolve(current, id) },
                         onShowParagraph = { locator ->
                             showQa = false
                             showWholeFile = false
@@ -470,6 +480,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 onRemoveEndnote = { english, noteId -> removeEndnote(entry.locator, english, noteId) },
                                 onProposalDecision = ::stageProposalDecision,
                                 onOverrideFinding = { id, reason -> onOverride(current, id, reason) },
+                                onResolveFinding = { id -> onResolve(current, id) },
                         onRestoreEditState = { english, notes, proposalStatuses ->
                             restoreEntryEditState(entry.locator, english, notes, proposalStatuses)
                         },
@@ -521,7 +532,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Tag for QA & Commit") }
+                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text(primaryCommitLabel) }
             }
         }
     }
@@ -637,14 +648,18 @@ fun stageProposalDecision(proposalId: String, status: String) {
             text = {
                 Text(
                     buildString {
-                        append("Tag for QA only after checking the full chapter. Tagging moves the chapter to Pending QA, where full semantic QA can process it. Every English field must be supplied first. Any QA finding will return it to Pending Review. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.")
+                        if (finalizingExistingQaPass) {
+                            append("All findings from the recorded semantic QA pass are closed. Finalize commits the corrected/accepted chapter for deterministic materialization and approval without running semantic QA again. If protected or unflagged content changed, finalization will refuse and require fresh QA.")
+                        } else {
+                            append("Tag for QA only after checking the full chapter. Tagging moves the chapter to Pending QA for one full semantic QA pass. Every English field must be supplied first. Any QA finding returns it to Pending Review for Resolve or Override.")
+                        }
                         if (current.endnoteProposals?.changed == true) {
                             append(" Staged endnote suggestion decisions will be committed atomically with this chapter.")
                         }
                     },
                 )
             },
-            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy && missingEnglish.isEmpty()) { Text("Tag for QA & Commit") } },
+            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy && missingEnglish.isEmpty()) { Text(primaryCommitLabel) } },
             dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit as Pending Review") } },
         )
     }
@@ -706,6 +721,7 @@ private fun EntryCard(
     onRemoveEndnote: (String, String) -> Unit,
     onProposalDecision: (String, String) -> Unit,
     onOverrideFinding: (String, String) -> Unit,
+    onResolveFinding: (String) -> Unit,
     onRestoreEditState: (String, List<EndnoteDefinition>, Map<String, String>) -> Unit,
 ) {
     val context = LocalContext.current
@@ -998,11 +1014,14 @@ LaunchedEffect(qaFindings) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text("${finding.severity.uppercase()} • ${finding.category}", fontWeight = FontWeight.Bold)
                                 Text(finding.message)
-                                if (finding.overridable) {
-                                    TextButton(onClick = {
-                                        pendingQaOverride = finding
-                                        qaOverrideReason = ""
-                                    }) { Text("Override finding") }
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    TextButton(onClick = { onResolveFinding(finding.id) }) { Text("Resolve") }
+                                    if (finding.overridable) {
+                                        TextButton(onClick = {
+                                            pendingQaOverride = finding
+                                            qaOverrideReason = ""
+                                        }) { Text("Override") }
+                                    }
                                 }
                             }
                         }
@@ -1077,7 +1096,7 @@ LaunchedEffect(qaFindings) {
                         qaOverrideReason = ""
                     },
                     enabled = qaOverrideReason.isNotBlank(),
-                ) { Text("Confirm override") }
+                ) { Text("Override") }
             },
             dismissButton = {
                 TextButton(onClick = { pendingQaOverride = null }) { Text("Cancel") }
@@ -1198,9 +1217,11 @@ private fun DisplayBlock(title: String, value: String) {
 @Composable
 private fun QaFindingsView(
     snapshot: QaFindingsSnapshot?,
+    editor: EditorDocument,
     editorSha: String,
     busy: Boolean,
     onOverride: (String, String) -> Unit,
+    onResolve: (String) -> Unit,
     onShowParagraph: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1212,16 +1233,25 @@ private fun QaFindingsView(
     var reason by remember { mutableStateOf("") }
     LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         items(snapshot.document.findings, key = { it.id }) { finding ->
-            val overridden = finding.override?.editorContentSha256 == editorSha
+            val disposition = snapshot.document.disposition(finding, editor, editorSha)
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("${finding.severity.uppercase()} • ${finding.category}", fontWeight = FontWeight.Bold)
                     if (finding.locator.isNotBlank()) Text(finding.locator)
                     Text(finding.message)
-                    Text(if (overridden) "OVERRIDDEN" else if (finding.override != null) "ACTIVE • old override stale" else "ACTIVE")
+                    Text(
+                        when (disposition) {
+                            QaFindingDisposition.RESOLVED -> "RESOLVED"
+                            QaFindingDisposition.OVERRIDDEN -> "OVERRIDDEN"
+                            QaFindingDisposition.ACTIVE -> if (finding.resolution != null || finding.override != null) "ACTIVE • previous closure stale" else "ACTIVE"
+                        },
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (finding.locator.isNotBlank()) TextButton(onClick = { onShowParagraph(finding.locator) }, enabled = !busy) { Text("Show paragraph") }
-                        if (finding.overridable) TextButton(onClick = { pending = finding }, enabled = !busy && !overridden) { Text("Override finding") }
+                        if (disposition == QaFindingDisposition.ACTIVE) {
+                            TextButton(onClick = { onResolve(finding.id) }, enabled = !busy) { Text("Resolve") }
+                            if (finding.overridable) TextButton(onClick = { pending = finding }, enabled = !busy) { Text("Override") }
+                        }
                     }
                 }
             }
