@@ -166,7 +166,7 @@ internal class ChapterListViewModel(
 
                     val qaCounts = progressConcurrency.withPermit {
                         try {
-                            repository.loadQaCounts(file, loaded.editorContentSha256)
+                            repository.loadQaCounts(file, loaded.document, loaded.editorContentSha256)
                         } catch (t: Throwable) {
                             if (t is CancellationException) throw t
                             null

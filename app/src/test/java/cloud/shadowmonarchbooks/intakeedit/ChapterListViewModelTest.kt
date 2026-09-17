@@ -211,9 +211,14 @@ private class FakeChapterRepository(
         LoadedChapterProgress(
             progress = requireNotNull(progress[file.path]),
             editorContentSha256 = "editor-sha-${file.chapter}",
+            document = EditorDocument(
+                schemaVersion = 6, volume = file.volume, chapter = file.chapter,
+                sourceHref = "source.xhtml", sourceSha256 = "source-sha", readerFile = "reader.xhtml",
+                englishTitle = "Chapter ${file.chapter}", instructions = "", editorReviewComplete = false, entries = emptyList(),
+            ),
         )
 
-    override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts {
+    override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts {
         beforeQa()
         return requireNotNull(qaProgress[file.path])
     }
@@ -222,17 +227,19 @@ private class FakeChapterRepository(
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
+    override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
 
 private class ThrowingChapterRepository(private val message: String) : ChapterRepository {
     override suspend fun listVolumes(): List<Int> = error(message)
     override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress = error("Not used in this test")
-    override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
+    override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
     override suspend fun loadChapter(file: ChapterFile): OpenChapter = error("Not used in this test")
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
+    override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
 
 private class FakeChapterProgressCacheStore(
