@@ -59,6 +59,14 @@ class QaOnePassWorkflowTest {
     }
 
     @Test
+    fun protectedFingerprintMatchesPythonWorkflowCanonicalization() {
+        assertEquals(
+            "4a8b9caef8e56274ca6527754dae9eccc6313e7a74ed29069ad0b927563669cc",
+            QaFindingsParser.protectedContentSha256(editor(), setOf("P1", "P2")),
+        )
+    }
+
+    @Test
     fun flaggedParagraphMayChangeWithoutInvalidatingPass() {
         val base = editor()
         val qa = paragraphPass(base)
