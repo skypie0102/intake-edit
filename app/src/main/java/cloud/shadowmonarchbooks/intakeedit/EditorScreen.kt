@@ -113,7 +113,7 @@ internal fun EditorScreen(
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
     var jumpRequestId by remember { mutableStateOf(0) }
-    var lastSuggestionLocator by remember(initial.file.path, initial.remote.sha) { mutableStateOf<String?>(null) }
+    var lastAttentionLocator by remember(initial.file.path, initial.remote.sha) { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
@@ -264,22 +264,38 @@ fun stageProposalDecision(proposalId: String, status: String) {
         jumpRequestId += 1
     }
 
-    fun cycleUnusedEndnoteSuggestions() {
-        val targets = pendingSuggestionLocators(current)
+    fun cycleAttention() {
+        val editorSha = QaFindingsParser.editorContentSha256(current.raw)
+        val qaLocators = current.qa?.document?.active(editorSha).orEmpty()
+            .asSequence()
+            .map { it.locator }
+            .filter { it.isNotBlank() }
+            .toSet()
+        val suggestionLocators = pendingSuggestionLocators(current).toSet()
+        val targets = current.document.entries
+            .map { it.locator }
+            .filter { it in qaLocators || it in suggestionLocators }
         if (targets.isEmpty()) return
-        val currentIndex = targets.indexOf(lastSuggestionLocator)
+        val currentIndex = targets.indexOf(lastAttentionLocator)
         val target = targets[if (currentIndex < 0 || currentIndex == targets.lastIndex) 0 else currentIndex + 1]
         focusManager.clearFocus(force = true)
         showQa = false
         showWholeFile = false
         filter = EntryFilter.ALL
-        lastSuggestionLocator = target
+        lastAttentionLocator = target
         jumpLocator = target
         jumpRequestId += 1
     }
 
     val missingEnglish = current.document.entries.filterNot { it.isSupplied }
     val unusedSuggestionLocators = pendingSuggestionLocators(current)
+    val editorContentSha = QaFindingsParser.editorContentSha256(current.raw)
+    val activeQaByLocator = current.qa?.document?.active(editorContentSha).orEmpty()
+        .filter { it.locator.isNotBlank() }
+        .groupBy { it.locator }
+    val attentionLocators = current.document.entries
+        .map { it.locator }
+        .filter { it in unusedSuggestionLocators || activeQaByLocator[it].orEmpty().isNotEmpty() }
     val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
     val fillableImportCount = imported?.let { overlay ->
         missingEnglish.count { overlay.translationFor(it.locator) != null }
@@ -445,6 +461,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 proposals = current.endnoteProposals?.document
                                     ?.visibleFor(current.file.volume, current.file.chapter, entry.locator)
                                     .orEmpty(),
+                                qaFindings = activeQaByLocator[entry.locator].orEmpty(),
                                 importedTranslation = imported?.translationFor(entry.locator),
                                 nextEndnoteId = { EndnoteIntegrity.nextId(current.document, entry.locator) },
                                 onUseImport = { text -> useImported(entry.locator, text) },
@@ -452,6 +469,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 onSaveEndnote = { english, note -> saveEndnote(entry.locator, english, note) },
                                 onRemoveEndnote = { english, noteId -> removeEndnote(entry.locator, english, noteId) },
                                 onProposalDecision = ::stageProposalDecision,
+                                onOverrideFinding = { id, reason -> onOverride(current, id, reason) },
                         onRestoreEditState = { english, notes, proposalStatuses ->
                             restoreEntryEditState(entry.locator, english, notes, proposalStatuses)
                         },
@@ -478,13 +496,13 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     }
                 }
                 BadgedBox(
-                    badge = { Badge { Text(unusedSuggestionLocators.size.toString()) } },
+                    badge = { Badge { Text(attentionLocators.size.toString()) } },
                 ) {
                     IconButton(
-                        onClick = { cycleUnusedEndnoteSuggestions() },
-                        enabled = !busy && unusedSuggestionLocators.isNotEmpty(),
+                        onClick = { cycleAttention() },
+                        enabled = !busy && attentionLocators.isNotEmpty(),
                     ) {
-                        Icon(Icons.Default.PriorityHigh, "Cycle unused endnote suggestions")
+                        Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
                     }
                 }
                 if (imported == null) {
@@ -679,6 +697,7 @@ private fun EntryCard(
     entry: EditorEntry,
     endnotes: List<EndnoteDefinition>,
     proposals: List<EndnoteProposal>,
+    qaFindings: List<QaFinding>,
     importedTranslation: String?,
     nextEndnoteId: () -> String,
     onUseImport: (String) -> Unit,
@@ -686,6 +705,7 @@ private fun EntryCard(
     onSaveEndnote: (String, EndnoteDefinition) -> Unit,
     onRemoveEndnote: (String, String) -> Unit,
     onProposalDecision: (String, String) -> Unit,
+    onOverrideFinding: (String, String) -> Unit,
     onRestoreEditState: (String, List<EndnoteDefinition>, Map<String, String>) -> Unit,
 ) {
     val context = LocalContext.current
@@ -704,12 +724,14 @@ private fun EntryCard(
     }
     var history by remember(entry.locator) { mutableStateOf(EntryEditHistory()) }
     var showEndnoteDialog by remember(entry.locator) { mutableStateOf(false) }
-    var showProposalSheet by remember(entry.locator) { mutableStateOf(false) }
+    var showAttentionSheet by remember(entry.locator) { mutableStateOf(false) }
     var editingEndnoteId by remember(entry.locator) { mutableStateOf<String?>(null) }
     var proposalForEndnote by remember(entry.locator) { mutableStateOf<String?>(null) }
     var pendingSelection by remember(entry.locator) { mutableStateOf<TextRange?>(null) }
     var endnoteAnchor by remember(entry.locator) { mutableStateOf("") }
     var endnoteDraft by remember(entry.locator) { mutableStateOf("") }
+    var pendingQaOverride by remember(entry.locator) { mutableStateOf<QaFinding?>(null) }
+    var qaOverrideReason by remember(entry.locator) { mutableStateOf("") }
 
     fun currentSnapshot(): EntryEditSnapshot = EntryEditSnapshot(
     english = rich.toMarkup(),
@@ -786,7 +808,7 @@ fun openExistingEndnote(id: String) {
         pendingSelection = selected
         endnoteAnchor = rich.selectedText()
         endnoteDraft = proposal.suggestedContent
-        showProposalSheet = false
+        showAttentionSheet = false
         showEndnoteDialog = true
     }
 
@@ -810,8 +832,14 @@ LaunchedEffect(proposals) {
         localProposalStatuses = localProposalStatuses + incoming
         history = EntryEditHistory()
     }
-    if (proposals.isEmpty()) showProposalSheet = false
+    if (proposals.isEmpty() && qaFindings.isEmpty()) showAttentionSheet = false
 }
+
+LaunchedEffect(qaFindings) {
+    if (proposals.isEmpty() && qaFindings.isEmpty()) showAttentionSheet = false
+}
+
+    val activeAttentionCount = qaFindings.size + proposals.count { it.status == "pending" }
 
     Card(Modifier.fillMaxWidth()) {
         Column(
@@ -824,14 +852,14 @@ LaunchedEffect(proposals) {
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
-                if (proposals.isNotEmpty()) {
+                if (proposals.isNotEmpty() || qaFindings.isNotEmpty()) {
                     BadgedBox(
                         badge = {
-                            if (proposals.size > 1) Badge { Text(proposals.size.toString()) }
+                            if (activeAttentionCount > 0) Badge { Text(activeAttentionCount.toString()) }
                         },
                     ) {
-                        IconButton(onClick = { showProposalSheet = true }) {
-                            Icon(Icons.Default.PriorityHigh, "Endnote suggestions")
+                        IconButton(onClick = { showAttentionSheet = true }) {
+                            Icon(Icons.Default.PriorityHigh, "Attention")
                         }
                     }
                 }
@@ -956,53 +984,70 @@ LaunchedEffect(proposals) {
         }
     }
 
-    if (showProposalSheet) {
-        ModalBottomSheet(onDismissRequest = { showProposalSheet = false }) {
+    if (showAttentionSheet) {
+        ModalBottomSheet(onDismissRequest = { showAttentionSheet = false }) {
             Column(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("Endnote suggestions", style = MaterialTheme.typography.titleMedium)
-                proposals.forEach { proposal ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(
-                            Modifier.padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            if (proposal.status == "accepted") {
-                                Text("Used suggestion", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                            }
-                            DisplayBlock("Source anchor", proposal.sourceAnchor)
-                            if (proposal.suggestedEnglishAnchor.isNotBlank()) {
-                                DisplayBlock("Suggested English anchor", proposal.suggestedEnglishAnchor)
-                            }
-                            DisplayBlock("Suggested note", proposal.suggestedContent)
-                            DisplayBlock("Reason", proposal.reason)
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Button(onClick = { openSuggestion(proposal) }) {
-                                    Text(if (proposal.status == "accepted") "Use again" else "Use suggestion")
+                Text("Attention", style = MaterialTheme.typography.titleMedium)
+                if (qaFindings.isNotEmpty()) {
+                    Text("QA findings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    qaFindings.forEach { finding ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("${finding.severity.uppercase()} • ${finding.category}", fontWeight = FontWeight.Bold)
+                                Text(finding.message)
+                                if (finding.overridable) {
+                                    TextButton(onClick = {
+                                        pendingQaOverride = finding
+                                        qaOverrideReason = ""
+                                    }) { Text("Override finding") }
                                 }
-                                TextButton(
-                                    onClick = {
-                                        recordHistory(EntryEditKind.COMMAND)
-                                    localProposalStatuses = localProposalStatuses + (proposal.id to "rejected")
-                                    onProposalDecision(proposal.id, "rejected")
-                                        if (proposals.size == 1) showProposalSheet = false
-                                    },
-                                ) { Text("Dismiss") }
-                                IconButton(
-                                    onClick = {
-                                        clipboard.setPrimaryClip(
-                                            ClipData.newPlainText("Suggested endnote", proposal.suggestedContent),
-                                        )
-                                        Toast.makeText(context, "Suggestion note copied.", Toast.LENGTH_SHORT).show()
-                                    },
-                                    enabled = proposal.suggestedContent.isNotBlank(),
+                            }
+                        }
+                    }
+                }
+                if (proposals.isNotEmpty()) {
+                    Text("Endnote suggestions", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    proposals.forEach { proposal ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (proposal.status == "accepted") {
+                                    Text("Used suggestion", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                }
+                                DisplayBlock("Source anchor", proposal.sourceAnchor)
+                                if (proposal.suggestedEnglishAnchor.isNotBlank()) {
+                                    DisplayBlock("Suggested English anchor", proposal.suggestedEnglishAnchor)
+                                }
+                                DisplayBlock("Suggested note", proposal.suggestedContent)
+                                DisplayBlock("Reason", proposal.reason)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Icon(Icons.Default.ContentCopy, "Copy suggested note")
+                                    Button(onClick = { openSuggestion(proposal) }) {
+                                        Text(if (proposal.status == "accepted") "Use again" else "Use suggestion")
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            recordHistory(EntryEditKind.COMMAND)
+                                            localProposalStatuses = localProposalStatuses + (proposal.id to "rejected")
+                                            onProposalDecision(proposal.id, "rejected")
+                                            if (proposals.size == 1 && qaFindings.isEmpty()) showAttentionSheet = false
+                                        },
+                                    ) { Text("Dismiss") }
+                                    IconButton(
+                                        onClick = {
+                                            clipboard.setPrimaryClip(
+                                                ClipData.newPlainText("Suggested endnote", proposal.suggestedContent),
+                                            )
+                                            Toast.makeText(context, "Suggestion note copied.", Toast.LENGTH_SHORT).show()
+                                        },
+                                        enabled = proposal.suggestedContent.isNotBlank(),
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, "Copy suggested note")
+                                    }
                                 }
                             }
                         }
@@ -1010,6 +1055,34 @@ LaunchedEffect(proposals) {
                 }
             }
         }
+    }
+
+    pendingQaOverride?.let { finding ->
+        AlertDialog(
+            onDismissRequest = { pendingQaOverride = null },
+            title = { Text("Override QA finding?") },
+            text = {
+                OutlinedTextField(
+                    qaOverrideReason,
+                    { qaOverrideReason = it },
+                    label = { Text("Override reason") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingQaOverride = null
+                        onOverrideFinding(finding.id, qaOverrideReason.trim())
+                        qaOverrideReason = ""
+                    },
+                    enabled = qaOverrideReason.isNotBlank(),
+                ) { Text("Confirm override") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingQaOverride = null }) { Text("Cancel") }
+            },
+        )
     }
 
     if (showEndnoteDialog) {
