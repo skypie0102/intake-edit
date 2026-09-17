@@ -76,6 +76,26 @@ object EndnoteIntegrity {
         return updated
     }
 
+    fun restoreEntry(
+        document: EditorDocument,
+        locator: String,
+        english: String,
+        notes: List<EndnoteDefinition>,
+    ): EditorDocument {
+        val entryIndex = document.entries.indexOfFirst { it.locator == locator }
+        require(entryIndex >= 0) { "Editor entry not found: $locator" }
+        require(notes.all { it.locator == locator }) { "Restored endnotes must belong to $locator." }
+        val entries = document.entries.toMutableList()
+        entries[entryIndex] = entries[entryIndex].copy(english = english)
+        val updated = document.copy(
+            entries = entries,
+            endnotes = document.endnotes.filterNot { it.locator == locator } + notes,
+            editorReviewComplete = false,
+        )
+        validate(updated)
+        return updated
+    }
+
     fun remove(
         document: EditorDocument,
         locator: String,
