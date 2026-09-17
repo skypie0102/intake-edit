@@ -53,6 +53,7 @@ internal class SharedPreferencesChapterProgressCacheStore(context: Context) : Ch
                         englishSupplied = item.getInt("english_supplied"),
                         englishTotal = item.getInt("english_total"),
                         editorReviewComplete = item.optBoolean("editor_review_complete", false),
+                        approved = item.optBoolean("approved", false),
                         qaActive = item.optInt("qa_active", 0),
                         qaTotal = item.optInt("qa_total", 0),
                     ),
@@ -81,6 +82,7 @@ internal class SharedPreferencesChapterProgressCacheStore(context: Context) : Ch
                     .put("english_supplied", value.englishSupplied)
                     .put("english_total", value.englishTotal)
                     .put("editor_review_complete", value.editorReviewComplete)
+                    .put("approved", value.approved)
                     .put("qa_active", value.qaActive)
                     .put("qa_total", value.qaTotal),
             )
