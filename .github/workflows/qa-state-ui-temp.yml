@@ -1,0 +1,104 @@
+name: QA state UI temporary
+
+on:
+  push:
+    branches:
+      - feature/qa-state-workflow
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/qa-state-workflow
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Patch state UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_required(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"required text not found in {path}: {old[:120]!r}")
+              p.write_text(text.replace(old, new), encoding="utf-8")
+
+          main = "app/src/main/java/cloud/shadowmonarchbooks/intakeedit/MainActivity.kt"
+          replace_required(main, "private enum class AppDestination { HOME, CHAPTERS, GLOSSARY }", "private enum class AppDestination { HOME, CHAPTERS, GLOSSARY, HELP }")
+          replace_required(
+              main,
+              '''        AppDestination.HOME -> WorkspaceHomeScreen(\n            onOpenChapters = { destination = AppDestination.CHAPTERS },\n            onOpenGlossary = { destination = AppDestination.GLOSSARY },\n        )\n        AppDestination.CHAPTERS -> ChapterIntakeApp(\n            onExitToHome = { destination = AppDestination.HOME },\n        )\n        AppDestination.GLOSSARY -> {\n            BackHandler { destination = AppDestination.HOME }\n            GlossaryWorkspaceScreen(\n                onBack = { destination = AppDestination.HOME },\n                onOpenSettings = { destination = AppDestination.CHAPTERS },\n            )\n        }''',
+              '''        AppDestination.HOME -> WorkspaceHomeScreen(\n            onOpenChapters = { destination = AppDestination.CHAPTERS },\n            onOpenGlossary = { destination = AppDestination.GLOSSARY },\n            onOpenHelp = { destination = AppDestination.HELP },\n        )\n        AppDestination.CHAPTERS -> ChapterIntakeApp(\n            onExitToHome = { destination = AppDestination.HOME },\n        )\n        AppDestination.GLOSSARY -> {\n            BackHandler { destination = AppDestination.HOME }\n            GlossaryWorkspaceScreen(\n                onBack = { destination = AppDestination.HOME },\n                onOpenSettings = { destination = AppDestination.CHAPTERS },\n            )\n        }\n        AppDestination.HELP -> {\n            BackHandler { destination = AppDestination.HOME }\n            WorkflowHelpScreen(onBack = { destination = AppDestination.HOME })\n        }'''
+          )
+          replace_required(main, 'private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), COMPLETED("Completed"), ALL("All") }', 'private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), PENDING_QA("Pending QA"), COMPLETED("Completed"), ALL("All") }')
+          replace_required(
+              main,
+              '''internal data class ChapterProgress(\n    val englishSupplied: Int,\n    val englishTotal: Int,\n    val editorReviewComplete: Boolean,\n    val qaActive: Int = 0,\n    val qaTotal: Int = 0,\n) {\n    val complete: Boolean get() = editorReviewComplete && englishSupplied == englishTotal\n}''',
+              '''internal enum class ChapterWorkflowState(val label: String) {\n    PENDING_REVIEW("Pending Review"),\n    PENDING_QA("Pending QA"),\n    APPROVED("Approved"),\n}\n\ninternal data class ChapterProgress(\n    val englishSupplied: Int,\n    val englishTotal: Int,\n    val editorReviewComplete: Boolean,\n    val approved: Boolean = false,\n    val qaActive: Int = 0,\n    val qaTotal: Int = 0,\n) {\n    val workflowState: ChapterWorkflowState\n        get() = when {\n            approved -> ChapterWorkflowState.APPROVED\n            editorReviewComplete && englishSupplied == englishTotal -> ChapterWorkflowState.PENDING_QA\n            else -> ChapterWorkflowState.PENDING_REVIEW\n        }\n    val complete: Boolean get() = workflowState == ChapterWorkflowState.APPROVED\n}'''
+          )
+          replace_required(
+              main,
+              '''internal data class OpenChapter(\n    val file: ChapterFile,\n    val remote: FileSnapshot,\n    val raw: String,\n    val document: EditorDocument,\n    val qa: QaFindingsSnapshot?,\n    val endnoteProposals: EndnoteProposalSnapshot? = null,\n)''',
+              '''internal data class OpenChapter(\n    val file: ChapterFile,\n    val remote: FileSnapshot,\n    val raw: String,\n    val document: EditorDocument,\n    val qa: QaFindingsSnapshot?,\n    val endnoteProposals: EndnoteProposalSnapshot? = null,\n    val approved: Boolean = false,\n)'''
+          )
+          replace_required(
+              main,
+              '''        when (filter) {\n            ChapterListFilter.ACTIVE -> progress?.complete != true\n            ChapterListFilter.COMPLETED -> progress?.complete == true\n            ChapterListFilter.ALL -> true\n        }''',
+              '''        when (filter) {\n            ChapterListFilter.ACTIVE -> progress == null || progress.workflowState == ChapterWorkflowState.PENDING_REVIEW\n            ChapterListFilter.PENDING_QA -> progress?.workflowState == ChapterWorkflowState.PENDING_QA\n            ChapterListFilter.COMPLETED -> progress?.workflowState == ChapterWorkflowState.APPROVED\n            ChapterListFilter.ALL -> true\n        }'''
+          )
+          replace_required(
+              main,
+              '''                                    buildString {\n                                        append("${progress.englishSupplied}/${progress.englishTotal}")\n                                        append(if (progress.editorReviewComplete) " • Reviewed" else " • Review pending")\n                                        if (progress.qaTotal > 0) append(" • QA ${progress.qaActive}/${progress.qaTotal}")\n                                    }''',
+              '''                                    buildString {\n                                        append("${progress.englishSupplied}/${progress.englishTotal}")\n                                        append(" • ${progress.workflowState.label}")\n                                        if (progress.qaTotal > 0) append(" • QA ${progress.qaActive}/${progress.qaTotal}")\n                                    }'''
+          )
+
+          editor = "app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt"
+          replace_required(editor, "current = current.copy(raw = raw, document = document)\n        onDraft(current)", "current = current.copy(raw = raw, document = document, approved = false)\n        onDraft(current)")
+          replace_required(editor, "current = current.copy(raw = raw, document = document, endnoteProposals = stagedProposals)", "current = current.copy(raw = raw, document = document, endnoteProposals = stagedProposals, approved = false)")
+          replace_required(editor, "current = current.copy(raw = raw, document = parsed ?: current.document)", "current = current.copy(raw = raw, document = parsed ?: current.document, approved = false)")
+          replace_required(editor, "current = current.copy(document = parsed)\n                            onDraft(current)", "current = current.copy(document = parsed, approved = false)\n                            onDraft(current)")
+          replace_required(
+              editor,
+              '                        append(if (current.document.editorReviewComplete) " • Reviewed" else " • Review pending")',
+              '''                        append(\n                            when {\n                                current.approved -> " • Approved"\n                                current.document.editorReviewComplete -> " • Pending QA"\n                                else -> " • Pending Review"\n                            },\n                        )'''
+          )
+          replace_required(editor, "editorSha = QaFindingsParser.sha256(current.raw)", "editorSha = QaFindingsParser.editorContentSha256(current.raw)")
+          replace_required(editor, 'Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Review & commit") }', 'Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Tag for QA & Commit") }')
+          replace_required(editor, 'Text("This will clear every English entry in this chapter and mark editor review as pending. The cleared chapter will be saved as your local draft.")', 'Text("This will clear every English entry in this chapter and return it to Pending Review. The cleared chapter will be saved as your local draft.")')
+          replace_required(
+              editor,
+              '''                        append("Mark reviewed only after checking the full chapter. Every English field must be supplied first. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.")''',
+              '''                        append("Tag for QA only after checking the full chapter. Tagging moves the chapter to Pending QA, where full semantic QA can process it. Every English field must be supplied first. Any QA finding will return it to Pending Review. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.")'''
+          )
+          replace_required(
+              editor,
+              '''            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy) { Text("Mark reviewed & commit") } },\n            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit without review") } },''',
+              '''            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy && missingEnglish.isEmpty()) { Text("Tag for QA & Commit") } },\n            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit as Pending Review") } },'''
+          )
+
+          help_file = Path("app/src/main/java/cloud/shadowmonarchbooks/intakeedit/HelpScreen.kt")
+          help_text = help_file.read_text(encoding="utf-8")
+          help_text = help_text.replace("import androidx.compose.foundation.lazy.item\n", "")
+          help_file.write_text(help_text, encoding="utf-8")
+          PY
+      - run: ./gradlew testDebugUnitTest assembleDebug
+      - name: Commit UI migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/cloud/shadowmonarchbooks/intakeedit/MainActivity.kt app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt app/src/main/java/cloud/shadowmonarchbooks/intakeedit/HelpScreen.kt
+          if git diff --cached --quiet; then
+            echo "No UI migration changes"
+          else
+            git commit -m "ui: adopt Pending Review, Pending QA, and Approved states"
+            git push origin HEAD:feature/qa-state-workflow
+          fi
