@@ -1,0 +1,81 @@
+name: Unified attention patch
+
+on:
+  push:
+    branches:
+      - feature/unified-attention
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/unified-attention
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Patch unified attention UI
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt')
+          text = path.read_text(encoding='utf-8')
+
+          def once(old, new):
+              global text
+              if old not in text:
+                  raise SystemExit(f'pattern not found:\n{old[:220]}')
+              text = text.replace(old, new, 1)
+
+          text = text.replace('lastSuggestionLocator', 'lastAttentionLocator')
+          text = text.replace('showProposalSheet', 'showAttentionSheet')
+
+          once('''    fun cycleUnusedEndnoteSuggestions() {\n        val targets = pendingSuggestionLocators(current)\n        if (targets.isEmpty()) return\n        val currentIndex = targets.indexOf(lastAttentionLocator)\n        val target = targets[if (currentIndex < 0 || currentIndex == targets.lastIndex) 0 else currentIndex + 1]\n        focusManager.clearFocus(force = true)\n        showQa = false\n        showWholeFile = false\n        filter = EntryFilter.ALL\n        lastAttentionLocator = target\n        jumpLocator = target\n        jumpRequestId += 1\n    }''', '''    fun cycleAttention() {\n        val editorSha = QaFindingsParser.editorContentSha256(current.raw)\n        val qaLocators = current.qa?.document?.active(editorSha).orEmpty()\n            .asSequence()\n            .map { it.locator }\n            .filter { it.isNotBlank() }\n            .toSet()\n        val suggestionLocators = pendingSuggestionLocators(current).toSet()\n        val targets = current.document.entries\n            .map { it.locator }\n            .filter { it in qaLocators || it in suggestionLocators }\n        if (targets.isEmpty()) return\n        val currentIndex = targets.indexOf(lastAttentionLocator)\n        val target = targets[if (currentIndex < 0 || currentIndex == targets.lastIndex) 0 else currentIndex + 1]\n        focusManager.clearFocus(force = true)\n        showQa = false\n        showWholeFile = false\n        filter = EntryFilter.ALL\n        lastAttentionLocator = target\n        jumpLocator = target\n        jumpRequestId += 1\n    }''')
+
+          once('''    val missingEnglish = current.document.entries.filterNot { it.isSupplied }\n    val unusedSuggestionLocators = pendingSuggestionLocators(current)\n    val suppliedEnglishCount = current.document.entries.count { it.isSupplied }''', '''    val missingEnglish = current.document.entries.filterNot { it.isSupplied }\n    val unusedSuggestionLocators = pendingSuggestionLocators(current)\n    val editorContentSha = QaFindingsParser.editorContentSha256(current.raw)\n    val activeQaByLocator = current.qa?.document?.active(editorContentSha).orEmpty()\n        .filter { it.locator.isNotBlank() }\n        .groupBy { it.locator }\n    val attentionLocators = current.document.entries\n        .map { it.locator }\n        .filter { it in unusedSuggestionLocators || activeQaByLocator[it].orEmpty().isNotEmpty() }\n    val suppliedEnglishCount = current.document.entries.count { it.isSupplied }''')
+
+          once('''                                proposals = current.endnoteProposals?.document\n                                    ?.visibleFor(current.file.volume, current.file.chapter, entry.locator)\n                                    .orEmpty(),\n                                importedTranslation = imported?.translationFor(entry.locator),''', '''                                proposals = current.endnoteProposals?.document\n                                    ?.visibleFor(current.file.volume, current.file.chapter, entry.locator)\n                                    .orEmpty(),\n                                qaFindings = activeQaByLocator[entry.locator].orEmpty(),\n                                importedTranslation = imported?.translationFor(entry.locator),''')
+          once('''                                onProposalDecision = ::stageProposalDecision,\n                        onRestoreEditState = { english, notes, proposalStatuses ->''', '''                                onProposalDecision = ::stageProposalDecision,\n                                onOverrideFinding = { id, reason -> onOverride(current, id, reason) },\n                        onRestoreEditState = { english, notes, proposalStatuses ->''')
+
+          once('''                BadgedBox(\n                    badge = { Badge { Text(unusedSuggestionLocators.size.toString()) } },\n                ) {\n                    IconButton(\n                        onClick = { cycleUnusedEndnoteSuggestions() },\n                        enabled = !busy && unusedSuggestionLocators.isNotEmpty(),\n                    ) {\n                        Icon(Icons.Default.PriorityHigh, "Cycle unused endnote suggestions")\n                    }\n                }''', '''                BadgedBox(\n                    badge = { Badge { Text(attentionLocators.size.toString()) } },\n                ) {\n                    IconButton(\n                        onClick = { cycleAttention() },\n                        enabled = !busy && attentionLocators.isNotEmpty(),\n                    ) {\n                        Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")\n                    }\n                }''')
+
+          once('''    entry: EditorEntry,\n    endnotes: List<EndnoteDefinition>,\n    proposals: List<EndnoteProposal>,\n    importedTranslation: String?,''', '''    entry: EditorEntry,\n    endnotes: List<EndnoteDefinition>,\n    proposals: List<EndnoteProposal>,\n    qaFindings: List<QaFinding>,\n    importedTranslation: String?,''')
+          once('''    onRemoveEndnote: (String, String) -> Unit,\n    onProposalDecision: (String, String) -> Unit,\n    onRestoreEditState:''', '''    onRemoveEndnote: (String, String) -> Unit,\n    onProposalDecision: (String, String) -> Unit,\n    onOverrideFinding: (String, String) -> Unit,\n    onRestoreEditState:''')
+          once('''    var endnoteAnchor by remember(entry.locator) { mutableStateOf("") }\n    var endnoteDraft by remember(entry.locator) { mutableStateOf("") }''', '''    var endnoteAnchor by remember(entry.locator) { mutableStateOf("") }\n    var endnoteDraft by remember(entry.locator) { mutableStateOf("") }\n    var pendingQaOverride by remember(entry.locator) { mutableStateOf<QaFinding?>(null) }\n    var qaOverrideReason by remember(entry.locator) { mutableStateOf("") }''')
+
+          once('''    if (proposals.isEmpty()) showAttentionSheet = false\n}\n\n    Card(Modifier.fillMaxWidth()) {''', '''    if (proposals.isEmpty() && qaFindings.isEmpty()) showAttentionSheet = false\n}\n\nLaunchedEffect(qaFindings) {\n    if (proposals.isEmpty() && qaFindings.isEmpty()) showAttentionSheet = false\n}\n\n    val activeAttentionCount = qaFindings.size + proposals.count { it.status == "pending" }\n\n    Card(Modifier.fillMaxWidth()) {''')
+
+          once('''                if (proposals.isNotEmpty()) {\n                    BadgedBox(\n                        badge = {\n                            if (proposals.size > 1) Badge { Text(proposals.size.toString()) }\n                        },\n                    ) {\n                        IconButton(onClick = { showAttentionSheet = true }) {\n                            Icon(Icons.Default.PriorityHigh, "Endnote suggestions")\n                        }\n                    }\n                }''', '''                if (proposals.isNotEmpty() || qaFindings.isNotEmpty()) {\n                    BadgedBox(\n                        badge = {\n                            if (activeAttentionCount > 0) Badge { Text(activeAttentionCount.toString()) }\n                        },\n                    ) {\n                        IconButton(onClick = { showAttentionSheet = true }) {\n                            Icon(Icons.Default.PriorityHigh, "Attention")\n                        }\n                    }\n                }''')
+
+          start = text.index('    if (showAttentionSheet) {')
+          end = text.index('    if (showEndnoteDialog) {', start)
+          block = '''    if (showAttentionSheet) {\n        ModalBottomSheet(onDismissRequest = { showAttentionSheet = false }) {\n            Column(\n                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),\n                verticalArrangement = Arrangement.spacedBy(10.dp),\n            ) {\n                Text("Attention", style = MaterialTheme.typography.titleMedium)\n                if (qaFindings.isNotEmpty()) {\n                    Text("QA findings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)\n                    qaFindings.forEach { finding ->\n                        Card(Modifier.fillMaxWidth()) {\n                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {\n                                Text("${finding.severity.uppercase()} • ${finding.category}", fontWeight = FontWeight.Bold)\n                                Text(finding.message)\n                                if (finding.overridable) {\n                                    TextButton(onClick = {\n                                        pendingQaOverride = finding\n                                        qaOverrideReason = ""\n                                    }) { Text("Override finding") }\n                                }\n                            }\n                        }\n                    }\n                }\n                if (proposals.isNotEmpty()) {\n                    Text("Endnote suggestions", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)\n                    proposals.forEach { proposal ->\n                        Card(Modifier.fillMaxWidth()) {\n                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {\n                                if (proposal.status == "accepted") {\n                                    Text("Used suggestion", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)\n                                }\n                                DisplayBlock("Source anchor", proposal.sourceAnchor)\n                                if (proposal.suggestedEnglishAnchor.isNotBlank()) {\n                                    DisplayBlock("Suggested English anchor", proposal.suggestedEnglishAnchor)\n                                }\n                                DisplayBlock("Suggested note", proposal.suggestedContent)\n                                DisplayBlock("Reason", proposal.reason)\n                                Row(\n                                    horizontalArrangement = Arrangement.spacedBy(6.dp),\n                                    verticalAlignment = Alignment.CenterVertically,\n                                ) {\n                                    Button(onClick = { openSuggestion(proposal) }) {\n                                        Text(if (proposal.status == "accepted") "Use again" else "Use suggestion")\n                                    }\n                                    TextButton(\n                                        onClick = {\n                                            recordHistory(EntryEditKind.COMMAND)\n                                            localProposalStatuses = localProposalStatuses + (proposal.id to "rejected")\n                                            onProposalDecision(proposal.id, "rejected")\n                                            if (proposals.size == 1 && qaFindings.isEmpty()) showAttentionSheet = false\n                                        },\n                                    ) { Text("Dismiss") }\n                                    IconButton(\n                                        onClick = {\n                                            clipboard.setPrimaryClip(\n                                                ClipData.newPlainText("Suggested endnote", proposal.suggestedContent),\n                                            )\n                                            Toast.makeText(context, "Suggestion note copied.", Toast.LENGTH_SHORT).show()\n                                        },\n                                        enabled = proposal.suggestedContent.isNotBlank(),\n                                    ) {\n                                        Icon(Icons.Default.ContentCopy, "Copy suggested note")\n                                    }\n                                }\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n\n    pendingQaOverride?.let { finding ->\n        AlertDialog(\n            onDismissRequest = { pendingQaOverride = null },\n            title = { Text("Override QA finding?") },\n            text = {\n                OutlinedTextField(\n                    qaOverrideReason,\n                    { qaOverrideReason = it },\n                    label = { Text("Override reason") },\n                    modifier = Modifier.fillMaxWidth(),\n                )\n            },\n            confirmButton = {\n                Button(\n                    onClick = {\n                        pendingQaOverride = null\n                        onOverrideFinding(finding.id, qaOverrideReason.trim())\n                        qaOverrideReason = ""\n                    },\n                    enabled = qaOverrideReason.isNotBlank(),\n                ) { Text("Confirm override") }\n            },\n            dismissButton = {\n                TextButton(onClick = { pendingQaOverride = null }) { Text("Cancel") }\n            },\n        )\n    }\n\n'''
+          text = text[:start] + block + text[end:]
+          path.write_text(text, encoding='utf-8')
+
+          help_path = Path('app/src/main/java/cloud/shadowmonarchbooks/intakeedit/HelpScreen.kt')
+          help_text = help_path.read_text(encoding='utf-8')
+          old = 'Text("After a return, fix the text/endnote or override an eligible finding, then Tag for QA & Commit again.")'
+          new = 'Text("After a return, cards needing attention show a ! button. It combines active QA findings and endnote suggestions in one sheet; the bottom ! button cycles through cards with unresolved attention. Fix the text/endnote or override an eligible finding, then Tag for QA & Commit again.")'
+          if old not in help_text:
+              raise SystemExit('help text pattern not found')
+          help_path.write_text(help_text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt app/src/main/java/cloud/shadowmonarchbooks/intakeedit/HelpScreen.kt
+          git commit -m 'ui: unify QA and endnote attention controls'
+          git push origin HEAD:feature/unified-attention
