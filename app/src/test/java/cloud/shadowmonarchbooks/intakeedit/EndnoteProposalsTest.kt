@@ -47,7 +47,7 @@ class EndnoteProposalsTest {
     }
 
     @Test
-    fun visibleForKeepsAcceptedSuggestionsAndHidesRejectedOnes() {
+    fun visibleForKeepsAcceptedAndRejectedSuggestionsAsHistory() {
         val document = EndnoteProposalParser.parse(raw)
             .withStatus("endnote-v01-c0012-p7-001", "accepted")
             .withStatus("endnote-v01-c0013-p2-001", "rejected")
@@ -55,7 +55,9 @@ class EndnoteProposalsTest {
         assertEquals(1, document.visibleFor(1, 12, "P7").size)
         assertEquals("accepted", document.visibleFor(1, 12, "P7").single().status)
         assertTrue(document.pendingFor(1, 12, "P7").isEmpty())
-        assertTrue(document.visibleFor(1, 13, "P2").isEmpty())
+        assertEquals(1, document.visibleFor(1, 13, "P2").size)
+        assertEquals("rejected", document.visibleFor(1, 13, "P2").single().status)
+        assertTrue(document.pendingFor(1, 13, "P2").isEmpty())
     }
 
     @Test
@@ -81,7 +83,7 @@ class EndnoteProposalsTest {
     }
 
     @Test
-    fun stageRejectsProposalWithoutChangingOtherPendingItems() {
+    fun stageRejectsProposalButKeepsItVisibleWithoutChangingOtherPendingItems() {
         val snapshot = EndnoteProposalSnapshot(
             path = EndnoteProposalParser.PATH,
             remote = FileSnapshot(EndnoteProposalParser.PATH, "sha-1", raw),
@@ -95,7 +97,9 @@ class EndnoteProposalsTest {
             "rejected",
             staged.document.proposals.single { it.id == "endnote-v01-c0012-p7-001" }.status,
         )
-        assertTrue(staged.document.visibleFor(1, 12, "P7").isEmpty())
+        assertTrue(staged.document.pendingFor(1, 12, "P7").isEmpty())
+        assertEquals(1, staged.document.visibleFor(1, 12, "P7").size)
+        assertEquals("rejected", staged.document.visibleFor(1, 12, "P7").single().status)
         assertEquals(1, staged.document.pendingFor(1, 13, "P2").size)
     }
 }

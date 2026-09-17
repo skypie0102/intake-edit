@@ -26,7 +26,7 @@ data class EndnoteProposalDocument(
 
     fun visibleFor(volume: Int, chapter: Int, locator: String): List<EndnoteProposal> =
         proposals.filter {
-            it.status != "rejected" && it.volume == volume && it.chapter == chapter && it.locator == locator
+            it.volume == volume && it.chapter == chapter && it.locator == locator
         }
 
     fun withStatus(id: String, status: String): EndnoteProposalDocument {
