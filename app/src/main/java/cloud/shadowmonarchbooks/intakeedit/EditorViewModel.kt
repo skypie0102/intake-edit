@@ -110,7 +110,7 @@ internal class EditorViewModel(
         }
     }
 
-    fun commit(next: OpenChapter, markReviewed: Boolean, settings: RepoSettings, token: String) {
+    fun commit(next: OpenChapter, tagForQa: Boolean, settings: RepoSettings, token: String) {
         if (token.isBlank() || _uiState.value.actionInProgress) return
         viewModelScope.launch {
             _uiState.update { it.copy(actionInProgress = true, notice = null) }
@@ -120,25 +120,26 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 draftRepository.persist(next)
                 val repository = repositoryFactory.create(settings, token)
-                val committedResult = repository.commitChapter(next, markReviewed)
+                val committedResult = repository.commitChapter(next, tagForQa)
                 draftRepository.delete(next.file.path)
                 touched = false
-                if (markReviewed) {
+                if (tagForQa) {
                     latest = null
                     _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
                     eventChannel.send(EditorEvent.ReturnChapterList)
                 } else {
-                    val committed = next.copy(
+                    val restored = repository.restoreRaw(next, committedResult.remote.content)
+                    val committed = restored.copy(
                         remote = committedResult.remote,
-                        raw = committedResult.remote.content,
                         endnoteProposals = committedResult.endnoteProposals,
+                        approved = false,
                     )
                     latest = committed
                     _uiState.update {
                         it.copy(
                             open = committed,
                             actionInProgress = false,
-                            notice = "Committed without review.",
+                            notice = "Committed as Pending Review.",
                         )
                     }
                     eventChannel.send(EditorEvent.RefreshChapterList)
@@ -166,7 +167,7 @@ internal class EditorViewModel(
                     it.copy(
                         open = updated,
                         actionInProgress = false,
-                        notice = "QA override committed.",
+                        notice = "QA override committed. Tag for QA again when you are ready for another QA pass.",
                     )
                 }
             } catch (t: Throwable) {
