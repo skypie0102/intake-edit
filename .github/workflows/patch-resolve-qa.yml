@@ -32,21 +32,18 @@ jobs:
               text = text.replace(old, new, count if count >= 0 else -1)
               p.write_text(text)
 
-          # Fix the widened mutable list used by canonical QA hashing.
           replace(
               'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/QaFindings.kt',
               '.map(::endnoteMap)\n            .toMutableList<Any>()',
               '.map { endnoteMap(it) as Any }\n            .toMutableList()',
               1,
           )
-
           replace(
               'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/ChapterListViewModel.kt',
               'repository.loadQaCounts(file, loaded.editorContentSha256)',
               'repository.loadQaCounts(file, loaded.document, loaded.editorContentSha256)',
               1,
           )
-
           replace(
               'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/MainActivity.kt',
               '''            onOverride = { next, findingId, reason ->\n                editorViewModel.overrideQa(next, findingId, reason, settings, token)\n            },''',
@@ -55,35 +52,16 @@ jobs:
           )
 
           editor = 'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt'
-          replace(
-              editor,
-              '    onOverride: (OpenChapter, String, String) -> Unit,\n) {',
-              '    onOverride: (OpenChapter, String, String) -> Unit,\n    onResolve: (OpenChapter, String) -> Unit,\n) {',
-              1,
-          )
-          replace(
-              editor,
-              'current.qa?.document?.active(editorSha).orEmpty()',
-              'current.qa?.document?.active(current.document, editorSha).orEmpty()',
-          )
+          replace(editor, '    onOverride: (OpenChapter, String, String) -> Unit,\n) {', '    onOverride: (OpenChapter, String, String) -> Unit,\n    onResolve: (OpenChapter, String) -> Unit,\n) {', 1)
+          replace(editor, 'current.qa?.document?.active(editorSha).orEmpty()', 'current.qa?.document?.active(current.document, editorSha).orEmpty()')
           replace(
               editor,
               '''                    QaFindingsView(\n                        snapshot = current.qa,\n                        editorSha = QaFindingsParser.editorContentSha256(current.raw),\n                        busy = busy,\n                        onOverride = { id, reason -> onOverride(current, id, reason) },''',
               '''                    QaFindingsView(\n                        snapshot = current.qa,\n                        editor = current.document,\n                        editorSha = QaFindingsParser.editorContentSha256(current.raw),\n                        busy = busy,\n                        onOverride = { id, reason -> onOverride(current, id, reason) },\n                        onResolve = { id -> onResolve(current, id) },''',
               1,
           )
-          replace(
-              editor,
-              '                                onOverrideFinding = { id, reason -> onOverride(current, id, reason) },',
-              '                                onOverrideFinding = { id, reason -> onOverride(current, id, reason) },\n                                onResolveFinding = { id -> onResolve(current, id) },',
-              1,
-          )
-          replace(
-              editor,
-              '    onOverrideFinding: (String, String) -> Unit,\n    onRestoreEditState:',
-              '    onOverrideFinding: (String, String) -> Unit,\n    onResolveFinding: (String) -> Unit,\n    onRestoreEditState:',
-              1,
-          )
+          replace(editor, '                                onOverrideFinding = { id, reason -> onOverride(current, id, reason) },', '                                onOverrideFinding = { id, reason -> onOverride(current, id, reason) },\n                                onResolveFinding = { id -> onResolve(current, id) },', 1)
+          replace(editor, '    onOverrideFinding: (String, String) -> Unit,\n    onRestoreEditState:', '    onOverrideFinding: (String, String) -> Unit,\n    onResolveFinding: (String) -> Unit,\n    onRestoreEditState:', 1)
           replace(
               editor,
               '''                                if (finding.overridable) {\n                                    TextButton(onClick = {\n                                        pendingQaOverride = finding\n                                        qaOverrideReason = ""\n                                    }) { Text("Override finding") }\n                                }''',
@@ -91,19 +69,13 @@ jobs:
               1,
           )
           replace(editor, '                ) { Text("Confirm override") }', '                ) { Text("Override") }', 1)
-
           replace(
               editor,
               '''private fun QaFindingsView(\n    snapshot: QaFindingsSnapshot?,\n    editorSha: String,\n    busy: Boolean,\n    onOverride: (String, String) -> Unit,\n    onShowParagraph: (String) -> Unit,''',
               '''private fun QaFindingsView(\n    snapshot: QaFindingsSnapshot?,\n    editor: EditorDocument,\n    editorSha: String,\n    busy: Boolean,\n    onOverride: (String, String) -> Unit,\n    onResolve: (String) -> Unit,\n    onShowParagraph: (String) -> Unit,''',
               1,
           )
-          replace(
-              editor,
-              '            val overridden = finding.override?.editorContentSha256 == editorSha',
-              '            val disposition = snapshot.document.disposition(finding, editor, editorSha)',
-              1,
-          )
+          replace(editor, '            val overridden = finding.override?.editorContentSha256 == editorSha', '            val disposition = snapshot.document.disposition(finding, editor, editorSha)', 1)
           replace(
               editor,
               '                    Text(if (overridden) "OVERRIDDEN" else if (finding.override != null) "ACTIVE • old override stale" else "ACTIVE")',
@@ -116,19 +88,13 @@ jobs:
               '''                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {\n                        if (finding.locator.isNotBlank()) TextButton(onClick = { onShowParagraph(finding.locator) }, enabled = !busy) { Text("Show paragraph") }\n                        if (disposition == QaFindingDisposition.ACTIVE) {\n                            TextButton(onClick = { onResolve(finding.id) }, enabled = !busy) { Text("Resolve") }\n                            if (finding.overridable) TextButton(onClick = { pending = finding }, enabled = !busy) { Text("Override") }\n                        }\n                    }''',
               1,
           )
-
           replace(
               editor,
               '    val hasLocalChanges = current.raw != current.remote.content || current.endnoteProposals?.changed == true',
               '''    val hasLocalChanges = current.raw != current.remote.content || current.endnoteProposals?.changed == true\n    val qaPassReusable = current.qa?.document?.qaPassReusable(current.document) == true\n    val qaPassStale = current.qa?.document?.qaPass != null && !qaPassReusable\n    val finalizingExistingQaPass = qaPassReusable && current.qa?.document?.active(current.document, editorContentSha).orEmpty().isEmpty()\n    val primaryCommitLabel = if (finalizingExistingQaPass) "Finalize & Commit" else "Tag for QA & Commit"''',
               1,
           )
-          replace(
-              editor,
-              '            editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }',
-              '''            editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }\n            if (qaPassStale) {\n                Text("Previous QA pass is stale because protected/unflagged content changed. Fresh semantic QA is required.", style = MaterialTheme.typography.bodySmall)\n            }''',
-              1,
-          )
+          replace(editor, '            editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }', '            editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }\n            if (qaPassStale) {\n                Text("Previous QA pass is stale because protected/unflagged content changed. Fresh semantic QA is required.", style = MaterialTheme.typography.bodySmall)\n            }', 1)
           replace(editor, 'Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Tag for QA & Commit") }', 'Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text(primaryCommitLabel) }', 1)
           replace(
               editor,
@@ -138,19 +104,9 @@ jobs:
           )
           replace(editor, '{ Text("Tag for QA & Commit") } },\n            dismissButton', '{ Text(primaryCommitLabel) } },\n            dismissButton', 1)
 
-          # Chapter-list repository API test fakes.
-          replace(
-              'app/src/test/java/cloud/shadowmonarchbooks/intakeedit/EditorViewModelTest.kt',
-              'override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts = error("Not used in this test")',
-              'override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts = error("Not used in this test")',
-              1,
-          )
-          replace(
-              'app/src/test/java/cloud/shadowmonarchbooks/intakeedit/EditorViewModelTest.kt',
-              '    override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")',
-              '    override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")\n    override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")',
-              1,
-          )
+          evm = 'app/src/test/java/cloud/shadowmonarchbooks/intakeedit/EditorViewModelTest.kt'
+          replace(evm, 'override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts = error("Not used in this test")', 'override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts = error("Not used in this test")', 1)
+          replace(evm, '    override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")', '    override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")\n    override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")', 1)
 
           test = 'app/src/test/java/cloud/shadowmonarchbooks/intakeedit/ChapterListViewModelTest.kt'
           replace(
@@ -174,7 +130,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.6'
+          gradle-version: '9.6.0'
       - name: Test and build
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Commit patches
