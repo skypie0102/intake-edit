@@ -52,7 +52,7 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
                     Text("Pending QA → materialize reader output → full semantic QA → one of two outcomes:")
                     HelpLine("No active findings", "The chapter becomes Approved.")
                     HelpLine("Any active finding", "The chapter automatically returns to Pending Review. This includes warnings, errors, and blockers.")
-                    Text("After a return, fix the text/endnote or override an eligible finding, then Tag for QA & Commit again.")
+                    Text("After a return, cards needing attention show a ! button. It combines active QA findings and endnote suggestions in one sheet; the bottom ! button cycles through cards with unresolved attention. Fix the text/endnote or override an eligible finding, then Tag for QA & Commit again.")
                 }
             }
             item {
