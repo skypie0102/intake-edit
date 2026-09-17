@@ -167,7 +167,7 @@ internal fun EditorScreen(
 
     fun updateDocument(document: EditorDocument) {
         val raw = IntakeParser.patchDocument(current.raw, document)
-        current = current.copy(raw = raw, document = document)
+        current = current.copy(raw = raw, document = document, approved = false)
         onDraft(current)
     }
 
@@ -204,7 +204,7 @@ internal fun EditorScreen(
         stagedProposals = stagedProposals?.let { EndnoteProposalParser.stage(it, proposalId, status) }
     }
     val raw = IntakeParser.patchDocument(current.raw, document)
-    current = current.copy(raw = raw, document = document, endnoteProposals = stagedProposals)
+    current = current.copy(raw = raw, document = document, endnoteProposals = stagedProposals, approved = false)
     onDraft(current)
     editorNotice = "Edit history restored."
 }
@@ -380,7 +380,13 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 Text(
                     buildString {
                         append(current.document.englishTitle.ifBlank { "Untitled chapter" })
-                        append(if (current.document.editorReviewComplete) " • Reviewed" else " • Review pending")
+                        append(
+                            when {
+                                current.approved -> " • Approved"
+                                current.document.editorReviewComplete -> " • Pending QA"
+                                else -> " • Pending Review"
+                            },
+                        )
                     },
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
@@ -392,7 +398,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     raw = current.raw,
                     onRawChange = { raw ->
                         val parsed = runCatching { IntakeParser.parse(raw) }.getOrNull()
-                        current = current.copy(raw = raw, document = parsed ?: current.document)
+                        current = current.copy(raw = raw, document = parsed ?: current.document, approved = false)
                         onDraft(current)
                         editorNotice = null
                     },
@@ -400,7 +406,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         runCatching {
                             IntakeParser.validate(current.raw).getOrThrow()
                             val parsed = IntakeParser.parse(current.raw)
-                            current = current.copy(document = parsed)
+                            current = current.copy(document = parsed, approved = false)
                             onDraft(current)
                         }.onSuccess {
                             editorNotice = "Whole file is valid and synced."
@@ -414,7 +420,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 if (showQa) {
                     QaFindingsView(
                         snapshot = current.qa,
-                        editorSha = QaFindingsParser.sha256(current.raw),
+                        editorSha = QaFindingsParser.editorContentSha256(current.raw),
                         busy = busy,
                         onOverride = { id, reason -> onOverride(current, id, reason) },
                         onShowParagraph = { locator ->
@@ -497,7 +503,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Review & commit") }
+                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text("Tag for QA & Commit") }
             }
         }
     }
@@ -558,7 +564,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 }
             },
             text = {
-                Text("This will clear every English entry in this chapter and mark editor review as pending. The cleared chapter will be saved as your local draft.")
+                Text("This will clear every English entry in this chapter and return it to Pending Review. The cleared chapter will be saved as your local draft.")
             },
             confirmButton = {
                 Button(
@@ -613,15 +619,15 @@ fun stageProposalDecision(proposalId: String, status: String) {
             text = {
                 Text(
                     buildString {
-                        append("Mark reviewed only after checking the full chapter. Every English field must be supplied first. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.")
+                        append("Tag for QA only after checking the full chapter. Tagging moves the chapter to Pending QA, where full semantic QA can process it. Every English field must be supplied first. Any QA finding will return it to Pending Review. Imported translations stay local until you use them; Fill blanks and Use Import copy them into authoritative English fields.")
                         if (current.endnoteProposals?.changed == true) {
                             append(" Staged endnote suggestion decisions will be committed atomically with this chapter.")
                         }
                     },
                 )
             },
-            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy) { Text("Mark reviewed & commit") } },
-            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit without review") } },
+            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy && missingEnglish.isEmpty()) { Text("Tag for QA & Commit") } },
+            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit as Pending Review") } },
         )
     }
 }

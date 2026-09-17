@@ -60,7 +60,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ModalBottomSheet
 
-private enum class AppDestination { HOME, CHAPTERS, GLOSSARY }
+private enum class AppDestination { HOME, CHAPTERS, GLOSSARY, HELP }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +81,7 @@ private fun IntakeAppShell() {
         AppDestination.HOME -> WorkspaceHomeScreen(
             onOpenChapters = { destination = AppDestination.CHAPTERS },
             onOpenGlossary = { destination = AppDestination.GLOSSARY },
+            onOpenHelp = { destination = AppDestination.HELP },
         )
         AppDestination.CHAPTERS -> ChapterIntakeApp(
             onExitToHome = { destination = AppDestination.HOME },
@@ -92,10 +93,20 @@ private fun IntakeAppShell() {
                 onOpenSettings = { destination = AppDestination.CHAPTERS },
             )
         }
+        AppDestination.HELP -> {
+            BackHandler { destination = AppDestination.HOME }
+            WorkflowHelpScreen(onBack = { destination = AppDestination.HOME })
+        }
     }
 }
 
-private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), COMPLETED("Completed"), ALL("All") }
+private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), PENDING_QA("Pending QA"), COMPLETED("Completed"), ALL("All") }
+
+internal enum class ChapterWorkflowState(val label: String) {
+    PENDING_REVIEW("Pending Review"),
+    PENDING_QA("Pending QA"),
+    APPROVED("Approved"),
+}
 
 internal data class ChapterProgress(
     val englishSupplied: Int,
@@ -103,8 +114,15 @@ internal data class ChapterProgress(
     val editorReviewComplete: Boolean,
     val qaActive: Int = 0,
     val qaTotal: Int = 0,
+    val approved: Boolean = false,
 ) {
-    val complete: Boolean get() = editorReviewComplete && englishSupplied == englishTotal
+    val workflowState: ChapterWorkflowState
+        get() = when {
+            approved -> ChapterWorkflowState.APPROVED
+            editorReviewComplete && englishSupplied == englishTotal -> ChapterWorkflowState.PENDING_QA
+            else -> ChapterWorkflowState.PENDING_REVIEW
+        }
+    val complete: Boolean get() = workflowState == ChapterWorkflowState.APPROVED
 }
 
 internal data class OpenChapter(
@@ -114,6 +132,7 @@ internal data class OpenChapter(
     val document: EditorDocument,
     val qa: QaFindingsSnapshot?,
     val endnoteProposals: EndnoteProposalSnapshot? = null,
+    val approved: Boolean = false,
 )
 
 @Composable
@@ -228,8 +247,9 @@ private fun ChapterListScreen(
     val visible = searched.filter { file ->
         val progress = progressByPath[file.path]
         when (filter) {
-            ChapterListFilter.ACTIVE -> progress?.complete != true
-            ChapterListFilter.COMPLETED -> progress?.complete == true
+            ChapterListFilter.ACTIVE -> progress == null || progress.workflowState == ChapterWorkflowState.PENDING_REVIEW
+            ChapterListFilter.PENDING_QA -> progress?.workflowState == ChapterWorkflowState.PENDING_QA
+            ChapterListFilter.COMPLETED -> progress?.workflowState == ChapterWorkflowState.APPROVED
             ChapterListFilter.ALL -> true
         }
     }
@@ -284,7 +304,7 @@ private fun ChapterListScreen(
                                 } else {
                                     buildString {
                                         append("${progress.englishSupplied}/${progress.englishTotal}")
-                                        append(if (progress.editorReviewComplete) " • Reviewed" else " • Review pending")
+                                        append(" • ${progress.workflowState.label}")
                                         if (progress.qaTotal > 0) append(" • QA ${progress.qaActive}/${progress.qaTotal}")
                                     }
                                 }

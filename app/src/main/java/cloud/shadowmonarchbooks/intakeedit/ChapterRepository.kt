@@ -108,31 +108,39 @@ internal class GitHubChapterRepository(
             "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English"
         }
         val proposals = chapter.endnoteProposals
-
+        val approval = client.getFileOrNull(ApprovalParser.path(chapter.file.volume, chapter.file.chapter))
+        val updates = mutableListOf(
+            GitHubFileUpdate(
+                path = chapter.file.path,
+                expectedSha = chapter.remote.sha,
+                content = raw,
+            ),
+        )
         if (proposals?.changed == true) {
+            updates += GitHubFileUpdate(
+                path = proposals.path,
+                expectedSha = proposals.remote.sha,
+                content = proposals.raw,
+            )
+        }
+        val deletions = approval?.let { listOf(GitHubFileDeletion(it.path, it.sha)) }.orEmpty()
+
+        if (updates.size > 1 || deletions.isNotEmpty()) {
             client.updateFilesAtomically(
-                updates = listOf(
-                    GitHubFileUpdate(
-                        path = chapter.file.path,
-                        expectedSha = chapter.remote.sha,
-                        content = raw,
-                    ),
-                    GitHubFileUpdate(
-                        path = proposals.path,
-                        expectedSha = proposals.remote.sha,
-                        content = proposals.raw,
-                    ),
-                ),
-                message = "$message and endnote suggestions",
+                updates = updates,
+                deletions = deletions,
+                message = if (proposals?.changed == true) "$message and endnote suggestions" else message,
             )
             val committedChapter = client.getFile(chapter.file.path)
-            val committedProposalRemote = client.getFile(proposals.path)
-            val committedProposals = EndnoteProposalSnapshot(
-                path = proposals.path,
-                remote = committedProposalRemote,
-                raw = committedProposalRemote.content,
-                document = EndnoteProposalParser.parse(committedProposalRemote.content),
-            )
+            val committedProposals = if (proposals?.changed == true) {
+                val committedProposalRemote = client.getFile(proposals.path)
+                EndnoteProposalSnapshot(
+                    path = proposals.path,
+                    remote = committedProposalRemote,
+                    raw = committedProposalRemote.content,
+                    document = EndnoteProposalParser.parse(committedProposalRemote.content),
+                )
+            } else proposals
             return ChapterCommitResult(committedChapter, committedProposals)
         }
 
