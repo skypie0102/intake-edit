@@ -24,7 +24,7 @@ internal interface ChapterRepository {
     suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts
     suspend fun loadChapter(file: ChapterFile): OpenChapter
     fun restoreRaw(base: OpenChapter, raw: String): OpenChapter
-    suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean): ChapterCommitResult
+    suspend fun commitChapter(chapter: OpenChapter, tagForQa: Boolean): ChapterCommitResult
     suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter
 }
 
@@ -50,13 +50,16 @@ internal class GitHubChapterRepository(
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress {
         val remote = client.getFile(file.path)
         val document = IntakeParser.parse(remote.content)
+        val editorContentSha256 = QaFindingsParser.editorContentSha256(remote.content)
+        val approved = isApprovalCurrent(file, editorContentSha256, document.readerFile)
         return LoadedChapterProgress(
             progress = ChapterProgress(
                 englishSupplied = document.englishSupplied,
                 englishTotal = document.englishTotal,
                 editorReviewComplete = document.editorReviewComplete,
+                approved = approved,
             ),
-            editorContentSha256 = QaFindingsParser.sha256(remote.content),
+            editorContentSha256 = editorContentSha256,
         )
     }
 
@@ -71,6 +74,7 @@ internal class GitHubChapterRepository(
     override suspend fun loadChapter(file: ChapterFile): OpenChapter {
         val remote = client.getFile(file.path)
         val document = IntakeParser.parse(remote.content)
+        val editorContentSha256 = QaFindingsParser.editorContentSha256(remote.content)
         val qa = runCatching { loadQa(file) }.getOrNull()
         val endnoteProposals = loadEndnoteProposals()
         return OpenChapter(
@@ -80,22 +84,29 @@ internal class GitHubChapterRepository(
             document = document,
             qa = qa,
             endnoteProposals = endnoteProposals,
+            approved = isApprovalCurrent(file, editorContentSha256, document.readerFile),
         )
     }
 
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter =
-        base.copy(raw = raw, document = IntakeParser.parse(raw))
+        base.copy(raw = raw, document = IntakeParser.parse(raw), approved = false)
 
-    override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean): ChapterCommitResult {
-        val document = if (markReviewed) {
+    override suspend fun commitChapter(chapter: OpenChapter, tagForQa: Boolean): ChapterCommitResult {
+        val document = if (tagForQa) {
             require(chapter.document.englishSupplied == chapter.document.englishTotal) {
-                "Supply English for every paragraph before marking editor review complete."
+                "Supply English for every paragraph before tagging the chapter for QA."
             }
             chapter.document.copy(editorReviewComplete = true)
-        } else chapter.document
+        } else {
+            chapter.document.copy(editorReviewComplete = false)
+        }
         val raw = IntakeParser.patchDocument(chapter.raw, document)
         IntakeParser.validate(raw).getOrThrow()
-        val message = "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English"
+        val message = if (tagForQa) {
+            "edit: tag ch_${chapter.file.chapter.toString().padStart(4, '0')} for QA"
+        } else {
+            "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English"
+        }
         val proposals = chapter.endnoteProposals
 
         if (proposals?.changed == true) {
@@ -143,7 +154,7 @@ internal class GitHubChapterRepository(
             reason,
             Instant.now().toString(),
             client.verifyUser(),
-            QaFindingsParser.sha256(chapter.raw),
+            QaFindingsParser.editorContentSha256(chapter.raw),
         )
         val document = snapshot.document.withOverride(findingId, override)
         val raw = QaFindingsParser.serialize(document)
@@ -171,5 +182,22 @@ internal class GitHubChapterRepository(
             raw = remote.content,
             document = EndnoteProposalParser.parse(remote.content),
         )
+    }
+
+    private suspend fun isApprovalCurrent(
+        file: ChapterFile,
+        editorContentSha256: String,
+        readerFile: String,
+    ): Boolean {
+        val approvalRemote = client.getFileOrNull(ApprovalParser.path(file.volume, file.chapter)) ?: return false
+        val approval = runCatching { ApprovalParser.parse(approvalRemote.content) }.getOrNull() ?: return false
+        if (
+            approval.schemaVersion != 2 ||
+            approval.volume != file.volume ||
+            approval.chapter != file.chapter ||
+            approval.editorContentSha256 != editorContentSha256
+        ) return false
+        val reader = client.getFileOrNull(readerFile) ?: return false
+        return approval.readerContentSha256 == QaFindingsParser.sha256(reader.content)
     }
 }
