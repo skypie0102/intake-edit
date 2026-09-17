@@ -1266,7 +1266,7 @@ private fun QaFindingsView(
                 Button(
                     onClick = { pending = null; onOverride(finding.id, reason.trim()); reason = "" },
                     enabled = reason.isNotBlank() && !busy,
-                ) { Text("Confirm override") }
+                ) { Text("Override") }
             },
             dismissButton = { TextButton(onClick = { pending = null }, enabled = !busy) { Text("Cancel") } },
         )
