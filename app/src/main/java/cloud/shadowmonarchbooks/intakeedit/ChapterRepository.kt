@@ -5,6 +5,7 @@ import java.time.Instant
 internal data class LoadedChapterProgress(
     val progress: ChapterProgress,
     val editorContentSha256: String,
+    val document: EditorDocument,
 )
 
 internal data class QaProgressCounts(
@@ -21,11 +22,12 @@ internal interface ChapterRepository {
     suspend fun listVolumes(): List<Int>
     suspend fun listFiles(volume: Int): List<ChapterFile>
     suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress
-    suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts
+    suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts
     suspend fun loadChapter(file: ChapterFile): OpenChapter
     fun restoreRaw(base: OpenChapter, raw: String): OpenChapter
     suspend fun commitChapter(chapter: OpenChapter, tagForQa: Boolean): ChapterCommitResult
     suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter
+    suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter
 }
 
 internal fun interface ChapterRepositoryFactory {
@@ -60,13 +62,18 @@ internal class GitHubChapterRepository(
                 approved = approved,
             ),
             editorContentSha256 = editorContentSha256,
+            document = document,
         )
     }
 
-    override suspend fun loadQaCounts(file: ChapterFile, editorContentSha256: String): QaProgressCounts {
+    override suspend fun loadQaCounts(
+        file: ChapterFile,
+        document: EditorDocument,
+        editorContentSha256: String,
+    ): QaProgressCounts {
         val qa = loadQa(file) ?: return QaProgressCounts(active = 0, total = 0)
         return QaProgressCounts(
-            active = qa.document.active(editorContentSha256).size,
+            active = qa.document.active(document, editorContentSha256).size,
             total = qa.document.findings.size,
         )
     }
@@ -92,6 +99,19 @@ internal class GitHubChapterRepository(
         base.copy(raw = raw, document = IntakeParser.parse(raw), approved = false)
 
     override suspend fun commitChapter(chapter: OpenChapter, tagForQa: Boolean): ChapterCommitResult {
+        val currentEditorSha = QaFindingsParser.editorContentSha256(chapter.raw)
+        val currentQa = chapter.qa?.document
+        val reusablePass = currentQa?.qaPassReusable(chapter.document) == true
+        val activeFindings = if (reusablePass && currentQa != null) {
+            currentQa.active(chapter.document, currentEditorSha)
+        } else emptyList()
+
+        if (tagForQa && reusablePass) {
+            require(activeFindings.isEmpty()) {
+                "Close all active QA findings with Resolve or Override before finalizing this QA pass."
+            }
+        }
+
         val document = if (tagForQa) {
             require(chapter.document.englishSupplied == chapter.document.englishTotal) {
                 "Supply English for every paragraph before tagging the chapter for QA."
@@ -102,10 +122,10 @@ internal class GitHubChapterRepository(
         }
         val raw = IntakeParser.patchDocument(chapter.raw, document)
         IntakeParser.validate(raw).getOrThrow()
-        val message = if (tagForQa) {
-            "edit: tag ch_${chapter.file.chapter.toString().padStart(4, '0')} for QA"
-        } else {
-            "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English"
+        val message = when {
+            tagForQa && reusablePass -> "edit: finalize ch_${chapter.file.chapter.toString().padStart(4, '0')} for approval"
+            tagForQa -> "edit: tag ch_${chapter.file.chapter.toString().padStart(4, '0')} for QA"
+            else -> "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English"
         }
         val proposals = chapter.endnoteProposals
         val approval = client.getFileOrNull(ApprovalParser.path(chapter.file.volume, chapter.file.chapter))
@@ -158,15 +178,60 @@ internal class GitHubChapterRepository(
 
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter {
         val snapshot = requireNotNull(chapter.qa) { "No QA findings are loaded for this chapter." }
+        require(snapshot.document.qaPassReusable(chapter.document)) {
+            "The previous semantic QA pass is stale. Tag this chapter for a fresh QA run."
+        }
+        val finding = snapshot.document.findings.firstOrNull { it.id == findingId }
+            ?: error("QA finding not found: $findingId")
+        require(finding.overridable) { "This QA finding cannot be overridden." }
+        require(reason.isNotBlank()) { "Override reason is required." }
+        val editorSha = QaFindingsParser.editorContentSha256(chapter.raw)
+        require(snapshot.document.disposition(finding, chapter.document, editorSha) == QaFindingDisposition.ACTIVE) {
+            "This QA finding is already closed."
+        }
         val override = QaOverride(
-            reason,
-            Instant.now().toString(),
-            client.verifyUser(),
-            QaFindingsParser.editorContentSha256(chapter.raw),
+            reason = reason.trim(),
+            overriddenAt = Instant.now().toString(),
+            overriddenBy = client.verifyUser(),
+            editorContentSha256 = editorSha,
+            contentSha256 = QaFindingsParser.findingContentSha256(chapter.document, finding.locator),
         )
         val document = snapshot.document.withOverride(findingId, override)
+        return commitQaSnapshot(chapter, snapshot, document, "qa: override $findingId")
+    }
+
+    override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter {
+        val snapshot = requireNotNull(chapter.qa) { "No QA findings are loaded for this chapter." }
+        require(snapshot.document.qaPassReusable(chapter.document)) {
+            "The previous semantic QA pass is stale. Tag this chapter for a fresh QA run."
+        }
+        val finding = snapshot.document.findings.firstOrNull { it.id == findingId }
+            ?: error("QA finding not found: $findingId")
+        val editorSha = QaFindingsParser.editorContentSha256(chapter.raw)
+        require(snapshot.document.disposition(finding, chapter.document, editorSha) == QaFindingDisposition.ACTIVE) {
+            "This QA finding is already closed."
+        }
+        require(snapshot.document.canResolve(finding, chapter.document)) {
+            val scope = finding.locator.ifBlank { "chapter" }
+            "Edit $scope before resolving this finding."
+        }
+        val resolution = QaResolution(
+            resolvedAt = Instant.now().toString(),
+            resolvedBy = client.verifyUser(),
+            contentSha256 = QaFindingsParser.findingContentSha256(chapter.document, finding.locator),
+        )
+        val document = snapshot.document.withResolution(findingId, resolution)
+        return commitQaSnapshot(chapter, snapshot, document, "qa: resolve $findingId")
+    }
+
+    private suspend fun commitQaSnapshot(
+        chapter: OpenChapter,
+        snapshot: QaFindingsSnapshot,
+        document: QaFindingsDocument,
+        message: String,
+    ): OpenChapter {
         val raw = QaFindingsParser.serialize(document)
-        val sha = client.updateFile(snapshot.path, snapshot.sha, raw, "qa: override $findingId")
+        val sha = client.updateFile(snapshot.path, snapshot.sha, raw, message)
         return chapter.copy(
             qa = snapshot.copy(
                 sha = sha.ifBlank { snapshot.sha },
