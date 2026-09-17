@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.provider.OpenableColumns
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,6 +33,8 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NavigateNext
 import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -189,7 +192,24 @@ internal fun EditorScreen(
         editorNotice = "Endnote removed."
     }
 
-    fun stageProposalDecision(proposalId: String, status: String) {
+    fun restoreEntryEditState(
+    locator: String,
+    english: String,
+    notes: List<EndnoteDefinition>,
+    proposalStatuses: Map<String, String>,
+) {
+    val document = EndnoteIntegrity.restoreEntry(current.document, locator, english, notes)
+    var stagedProposals = current.endnoteProposals
+    proposalStatuses.forEach { (proposalId, status) ->
+        stagedProposals = stagedProposals?.let { EndnoteProposalParser.stage(it, proposalId, status) }
+    }
+    val raw = IntakeParser.patchDocument(current.raw, document)
+    current = current.copy(raw = raw, document = document, endnoteProposals = stagedProposals)
+    onDraft(current)
+    editorNotice = "Edit history restored."
+}
+
+fun stageProposalDecision(proposalId: String, status: String) {
         val snapshot = current.endnoteProposals ?: return
         val staged = EndnoteProposalParser.stage(snapshot, proposalId, status)
         current = current.copy(endnoteProposals = staged)
@@ -426,6 +446,9 @@ internal fun EditorScreen(
                                 onSaveEndnote = { english, note -> saveEndnote(entry.locator, english, note) },
                                 onRemoveEndnote = { english, noteId -> removeEndnote(entry.locator, english, noteId) },
                                 onProposalDecision = ::stageProposalDecision,
+                        onRestoreEditState = { english, notes, proposalStatuses ->
+                            restoreEntryEditState(entry.locator, english, notes, proposalStatuses)
+                        },
                             )
                         }
                         if (entries.isEmpty()) item { Text("No entries in this filter.", modifier = Modifier.padding(12.dp)) }
@@ -657,6 +680,7 @@ private fun EntryCard(
     onSaveEndnote: (String, EndnoteDefinition) -> Unit,
     onRemoveEndnote: (String, String) -> Unit,
     onProposalDecision: (String, String) -> Unit,
+    onRestoreEditState: (String, List<EndnoteDefinition>, Map<String, String>) -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -668,6 +692,11 @@ private fun EntryCard(
                 .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) },
         )
     }
+    var localEndnotes by remember(entry.locator) { mutableStateOf(endnotes) }
+    var localProposalStatuses by remember(entry.locator) {
+        mutableStateOf(proposals.associate { it.id to it.status })
+    }
+    var history by remember(entry.locator) { mutableStateOf(EntryEditHistory()) }
     var showEndnoteDialog by remember(entry.locator) { mutableStateOf(false) }
     var showProposalSheet by remember(entry.locator) { mutableStateOf(false) }
     var editingEndnoteId by remember(entry.locator) { mutableStateOf<String?>(null) }
@@ -676,8 +705,52 @@ private fun EntryCard(
     var endnoteAnchor by remember(entry.locator) { mutableStateOf("") }
     var endnoteDraft by remember(entry.locator) { mutableStateOf("") }
 
-    fun openExistingEndnote(id: String) {
-        val definition = endnotes.firstOrNull { it.id == id } ?: return
+    fun currentSnapshot(): EntryEditSnapshot = EntryEditSnapshot(
+    english = rich.toMarkup(),
+    selectionStart = rich.selection.start,
+    selectionEnd = rich.selection.end,
+    endnotes = localEndnotes,
+    proposalStatuses = localProposalStatuses,
+)
+
+fun recordHistory(kind: EntryEditKind) {
+    history = history.recordBefore(currentSnapshot(), kind, SystemClock.uptimeMillis())
+}
+
+fun restoreSnapshot(snapshot: EntryEditSnapshot) {
+    rich = runCatching {
+        RichInlineState.fromMarkup(
+            snapshot.english,
+            TextRange(snapshot.selectionStart, snapshot.selectionEnd),
+        )
+    }.getOrElse { RichInlineState.plain(InlineMarkup.visibleText(snapshot.english)) }
+    localEndnotes = snapshot.endnotes
+    localProposalStatuses = snapshot.proposalStatuses
+    onRestoreEditState(snapshot.english, snapshot.endnotes, snapshot.proposalStatuses)
+    focusRequester.requestFocus()
+}
+
+fun undoEdit() {
+    history.undo(currentSnapshot())?.let { step ->
+        history = step.history
+        restoreSnapshot(step.snapshot)
+    }
+}
+
+fun redoEdit() {
+    history.redo(currentSnapshot())?.let { step ->
+        history = step.history
+        restoreSnapshot(step.snapshot)
+    }
+}
+
+fun syncLocalEndnotesTo(state: RichInlineState) {
+    val referenced = InlineMarkup.referencedEndnoteIds(state.toMarkup())
+    localEndnotes = localEndnotes.filter { it.id in referenced }
+}
+
+fun openExistingEndnote(id: String) {
+    val definition = localEndnotes.firstOrNull { it.id == id } ?: return
         editingEndnoteId = id
         proposalForEndnote = null
         pendingSelection = rich.rangeForEndnote(id)
@@ -711,16 +784,28 @@ private fun EntryCard(
         showEndnoteDialog = true
     }
 
-    LaunchedEffect(entry.english) {
-        if (entry.english != rich.toMarkup()) {
-            rich = runCatching { RichInlineState.fromMarkup(entry.english) }
-                .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) }
-        }
+    LaunchedEffect(entry.english, endnotes) {
+    var externalChange = false
+    if (entry.english != rich.toMarkup()) {
+        rich = runCatching { RichInlineState.fromMarkup(entry.english) }
+            .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) }
+        externalChange = true
     }
+    if (endnotes != localEndnotes) {
+        localEndnotes = endnotes
+        externalChange = true
+    }
+    if (externalChange) history = EntryEditHistory()
+}
 
-    LaunchedEffect(proposals.size) {
-        if (proposals.isEmpty()) showProposalSheet = false
+LaunchedEffect(proposals) {
+    val incoming = proposals.associate { it.id to it.status }
+    if (incoming.any { (id, status) -> localProposalStatuses[id] != status }) {
+        localProposalStatuses = localProposalStatuses + incoming
+        history = EntryEditHistory()
     }
+    if (proposals.isEmpty()) showProposalSheet = false
+}
 
     Card(Modifier.fillMaxWidth()) {
         Column(
@@ -759,9 +844,15 @@ private fun EntryCard(
                     val before = rich
                     val beforeMarkup = before.toMarkup()
                     val updated = before.edited(next)
-                    rich = updated
                     val afterMarkup = updated.toMarkup()
-                    if (afterMarkup != beforeMarkup) onEnglishChange(afterMarkup)
+                    if (afterMarkup != beforeMarkup) {
+                        recordHistory(EntryEditKind.INPUT)
+                        rich = updated
+                        syncLocalEndnotesTo(updated)
+                        onEnglishChange(afterMarkup)
+                    } else {
+                        rich = updated
+                    }
                     if (
                         next.text == before.text &&
                         next.selection.start == next.selection.end &&
@@ -781,6 +872,7 @@ private fun EntryCard(
             ) {
                 TextButton(
                     onClick = {
+                        recordHistory(EntryEditKind.COMMAND)
                         rich = rich.toggle(InlineStyle.BOLD)
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
@@ -789,6 +881,7 @@ private fun EntryCard(
                 ) { Text("B", fontWeight = FontWeight.Bold) }
                 TextButton(
                     onClick = {
+                        recordHistory(EntryEditKind.COMMAND)
                         rich = rich.toggle(InlineStyle.ITALIC)
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
@@ -819,11 +912,19 @@ private fun EntryCard(
                     },
                     enabled = rich.hasSelection(),
                 ) { Text("N", textDecoration = TextDecoration.Underline) }
-                Spacer(Modifier.weight(1f))
+    IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
+        Icon(Icons.Default.Undo, "Undo English edit")
+    }
+    IconButton(onClick = ::redoEdit, enabled = history.canRedo) {
+        Icon(Icons.Default.Redo, "Redo English edit")
+    }
+    Spacer(Modifier.weight(1f))
                 importedTranslation?.let { importedText ->
                     TextButton(onClick = {
                         focusManager.clearFocus(force = true)
+                        recordHistory(EntryEditKind.COMMAND)
                         rich = RichInlineState.plain(importedText)
+                        localEndnotes = emptyList()
                         onUseImport(importedText)
                     }) { Text("Use Import") }
                 }
@@ -837,7 +938,9 @@ private fun EntryCard(
                             Toast.LENGTH_LONG,
                         ).show()
                     } else if (text.isNotEmpty()) {
+                        recordHistory(EntryEditKind.COMMAND)
                         rich = RichInlineState.fromClipboard(text)
+                        syncLocalEndnotesTo(rich)
                         onEnglishChange(rich.toMarkup())
                     }
                 }, enabled = clipboard.hasPrimaryClip()) {
@@ -878,7 +981,9 @@ private fun EntryCard(
                                 }
                                 TextButton(
                                     onClick = {
-                                        onProposalDecision(proposal.id, "rejected")
+                                        recordHistory(EntryEditKind.COMMAND)
+                                    localProposalStatuses = localProposalStatuses + (proposal.id to "rejected")
+                                    onProposalDecision(proposal.id, "rejected")
                                         if (proposals.size == 1) showProposalSheet = false
                                     },
                                 ) { Text("Dismiss") }
@@ -931,25 +1036,33 @@ private fun EntryCard(
                     onClick = {
                         val content = endnoteDraft.trim()
                         val existingId = editingEndnoteId
+                        recordHistory(EntryEditKind.COMMAND)
                         if (existingId != null) {
                             rich.rangeForEndnote(existingId)?.let { range ->
                                 rich = rich.copy(selection = range).replaceSelection(endnoteAnchor)
                             }
-                            onSaveEndnote(
-                                rich.toMarkup(),
-                                EndnoteDefinition(existingId, entry.locator, content),
-                            )
+                            val definition = EndnoteDefinition(existingId, entry.locator, content)
+
+                            localEndnotes = localEndnotes.filterNot { it.id == existingId } + definition
+
+                            onSaveEndnote(rich.toMarkup(), definition)
                         } else {
                             val selection = pendingSelection
                             if (selection != null) {
                                 val id = nextEndnoteId()
                                 rich = rich.copy(selection = selection).replaceSelection(endnoteAnchor).applyEndnote(id)
-                                onSaveEndnote(
-                                    rich.toMarkup(),
-                                    EndnoteDefinition(id, entry.locator, content),
-                                )
+                                val definition = EndnoteDefinition(id, entry.locator, content)
+
+                                localEndnotes = localEndnotes.filterNot { it.id == id } + definition
+
+                                onSaveEndnote(rich.toMarkup(), definition)
+
                                 proposalForEndnote?.let { proposalId ->
+
+                                    localProposalStatuses = localProposalStatuses + (proposalId to "accepted")
+
                                     onProposalDecision(proposalId, "accepted")
+
                                 }
                             }
                         }
@@ -964,7 +1077,9 @@ private fun EntryCard(
                     editingEndnoteId?.let { id ->
                         TextButton(
                             onClick = {
+                                recordHistory(EntryEditKind.COMMAND)
                                 rich = rich.removeEndnote(id)
+                                localEndnotes = localEndnotes.filterNot { it.id == id }
                                 onRemoveEndnote(rich.toMarkup(), id)
                                 proposalForEndnote = null
                                 showEndnoteDialog = false
