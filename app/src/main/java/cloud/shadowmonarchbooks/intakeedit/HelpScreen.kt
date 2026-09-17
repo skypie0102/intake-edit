@@ -52,7 +52,15 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
                     Text("Pending QA → one full semantic QA pass. After that, the recorded pass is reused while you address only the flagged paragraphs:")
                     HelpLine("No findings", "The chapter can go straight through deterministic materialization/validation to Approved.")
                     HelpLine("Any finding", "The chapter returns to Pending Review. Correct it and press Resolve, or press Override when the finding allows it.")
-                    Text("After a return, cards needing attention show a ! button. It combines active QA findings and endnote suggestions. Resolve requires that the flagged paragraph was actually changed. Override means you intentionally accept it as-is and requires a reason when allowed. Once every QA finding is closed, the main action becomes Finalize & Commit; semantic QA does not run again.")
+                    Text("After a return, cards needing attention show a ! button. It combines QA findings and endnote suggestions. Resolve requires that the flagged paragraph was actually changed. Override means you intentionally accept it as-is and requires a reason when allowed. Once every QA finding is closed, the main action becomes Finalize & Commit; semantic QA does not run again.")
+                }
+            }
+            item {
+                HelpCard("Attention (!) counts") {
+                    Text("The bottom ! badge counts unresolved attention items: active QA findings plus pending endnote suggestions. Each Resolve, Override, Use, or Dismiss decision reduces that count when it closes an item.")
+                    Text("When the unresolved count reaches zero, the badge disappears and the bottom ! navigator is disabled.")
+                    Text("A paragraph's own ! button stays available as history even after its QA findings are Resolved/Overridden or its endnote suggestions are Used/Dismissed. Opening it shows those closed items and their status, but they no longer count toward the badge.")
+                    Text("Count badges are hidden whenever their value is zero.")
                 }
             }
             item {
