@@ -1,0 +1,477 @@
+name: Apply undo redo patch
+
+on:
+  push:
+    branches:
+      - feature/undo-redo
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/undo-redo
+      - name: Patch editor UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt')
+          text = path.read_text()
+
+          def replace_once(old, new, label):
+              global text
+              if old not in text:
+                  raise SystemExit(f'{label} not found')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'import android.provider.OpenableColumns\n',
+              'import android.provider.OpenableColumns\nimport android.os.SystemClock\n',
+              'SystemClock import anchor',
+          )
+          replace_once(
+              'import androidx.compose.material.icons.filled.PriorityHigh\nimport androidx.compose.material.icons.filled.UploadFile\n',
+              'import androidx.compose.material.icons.filled.PriorityHigh\nimport androidx.compose.material.icons.filled.Redo\nimport androidx.compose.material.icons.filled.Undo\nimport androidx.compose.material.icons.filled.UploadFile\n',
+              'undo redo imports anchor',
+          )
+
+          replace_once(
+              '''    fun removeEndnote(locator: String, english: String, noteId: String) {
+                  updateDocument(EndnoteIntegrity.remove(current.document, locator, english, noteId))
+                  editorNotice = "Endnote removed."
+              }
+
+              fun stageProposalDecision(proposalId: String, status: String) {
+          ''',
+              '''    fun removeEndnote(locator: String, english: String, noteId: String) {
+                  updateDocument(EndnoteIntegrity.remove(current.document, locator, english, noteId))
+                  editorNotice = "Endnote removed."
+              }
+
+              fun restoreEntryEditState(
+                  locator: String,
+                  english: String,
+                  notes: List<EndnoteDefinition>,
+                  proposalStatuses: Map<String, String>,
+              ) {
+                  val document = EndnoteIntegrity.restoreEntry(current.document, locator, english, notes)
+                  var stagedProposals = current.endnoteProposals
+                  proposalStatuses.forEach { (proposalId, status) ->
+                      stagedProposals = stagedProposals?.let {
+                          EndnoteProposalParser.stage(it, proposalId, status)
+                      }
+                  }
+                  val raw = IntakeParser.patchDocument(current.raw, document)
+                  current = current.copy(raw = raw, document = document, endnoteProposals = stagedProposals)
+                  onDraft(current)
+                  editorNotice = "Edit history restored."
+              }
+
+              fun stageProposalDecision(proposalId: String, status: String) {
+          ''',
+              'restore entry state helper',
+          )
+
+          replace_once(
+              '''                                onRemoveEndnote = { english, noteId -> removeEndnote(entry.locator, english, noteId) },
+                                  onProposalDecision = ::stageProposalDecision,
+                              )
+          ''',
+              '''                                onRemoveEndnote = { english, noteId -> removeEndnote(entry.locator, english, noteId) },
+                                  onProposalDecision = ::stageProposalDecision,
+                                  onRestoreEditState = { english, notes, proposalStatuses ->
+                                      restoreEntryEditState(entry.locator, english, notes, proposalStatuses)
+                                  },
+                              )
+          ''',
+              'EntryCard callback anchor',
+          )
+
+          replace_once(
+              '''    onSaveEndnote: (String, EndnoteDefinition) -> Unit,
+              onRemoveEndnote: (String, String) -> Unit,
+              onProposalDecision: (String, String) -> Unit,
+          ) {
+          ''',
+              '''    onSaveEndnote: (String, EndnoteDefinition) -> Unit,
+              onRemoveEndnote: (String, String) -> Unit,
+              onProposalDecision: (String, String) -> Unit,
+              onRestoreEditState: (String, List<EndnoteDefinition>, Map<String, String>) -> Unit,
+          ) {
+          ''',
+              'EntryCard signature anchor',
+          )
+
+          replace_once(
+              '''    var showEndnoteDialog by remember(entry.locator) { mutableStateOf(false) }
+              var showProposalSheet by remember(entry.locator) { mutableStateOf(false) }
+              var editingEndnoteId by remember(entry.locator) { mutableStateOf<String?>(null) }
+              var proposalForEndnote by remember(entry.locator) { mutableStateOf<String?>(null) }
+              var pendingSelection by remember(entry.locator) { mutableStateOf<TextRange?>(null) }
+              var endnoteAnchor by remember(entry.locator) { mutableStateOf("") }
+              var endnoteDraft by remember(entry.locator) { mutableStateOf("") }
+
+              fun openExistingEndnote(id: String) {
+                  val definition = endnotes.firstOrNull { it.id == id } ?: return
+          ''',
+              '''    var localEndnotes by remember(entry.locator) { mutableStateOf(endnotes) }
+              var localProposalStatuses by remember(entry.locator) {
+                  mutableStateOf(proposals.associate { it.id to it.status })
+              }
+              var history by remember(entry.locator) { mutableStateOf(EntryEditHistory()) }
+              var showEndnoteDialog by remember(entry.locator) { mutableStateOf(false) }
+              var showProposalSheet by remember(entry.locator) { mutableStateOf(false) }
+              var editingEndnoteId by remember(entry.locator) { mutableStateOf<String?>(null) }
+              var proposalForEndnote by remember(entry.locator) { mutableStateOf<String?>(null) }
+              var pendingSelection by remember(entry.locator) { mutableStateOf<TextRange?>(null) }
+              var endnoteAnchor by remember(entry.locator) { mutableStateOf("") }
+              var endnoteDraft by remember(entry.locator) { mutableStateOf("") }
+
+              fun currentSnapshot(): EntryEditSnapshot = EntryEditSnapshot(
+                  english = rich.toMarkup(),
+                  selectionStart = rich.selection.start,
+                  selectionEnd = rich.selection.end,
+                  endnotes = localEndnotes,
+                  proposalStatuses = localProposalStatuses,
+              )
+
+              fun recordHistory(kind: EntryEditKind) {
+                  history = history.recordBefore(currentSnapshot(), kind, SystemClock.uptimeMillis())
+              }
+
+              fun restoreSnapshot(snapshot: EntryEditSnapshot) {
+                  rich = runCatching {
+                      RichInlineState.fromMarkup(
+                          snapshot.english,
+                          TextRange(snapshot.selectionStart, snapshot.selectionEnd),
+                      )
+                  }.getOrElse { RichInlineState.plain(InlineMarkup.visibleText(snapshot.english)) }
+                  localEndnotes = snapshot.endnotes
+                  localProposalStatuses = snapshot.proposalStatuses
+                  onRestoreEditState(snapshot.english, snapshot.endnotes, snapshot.proposalStatuses)
+                  focusRequester.requestFocus()
+              }
+
+              fun undoEdit() {
+                  history.undo(currentSnapshot())?.let { step ->
+                      history = step.history
+                      restoreSnapshot(step.snapshot)
+                  }
+              }
+
+              fun redoEdit() {
+                  history.redo(currentSnapshot())?.let { step ->
+                      history = step.history
+                      restoreSnapshot(step.snapshot)
+                  }
+              }
+
+              fun syncLocalEndnotesTo(state: RichInlineState) {
+                  val referenced = InlineMarkup.referencedEndnoteIds(state.toMarkup())
+                  localEndnotes = localEndnotes.filter { it.id in referenced }
+              }
+
+              fun openExistingEndnote(id: String) {
+                  val definition = localEndnotes.firstOrNull { it.id == id } ?: return
+          ''',
+              'local history state anchor',
+          )
+
+          replace_once(
+              '''    LaunchedEffect(entry.english) {
+                  if (entry.english != rich.toMarkup()) {
+                      rich = runCatching { RichInlineState.fromMarkup(entry.english) }
+                          .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) }
+                  }
+              }
+
+              LaunchedEffect(proposals.size) {
+                  if (proposals.isEmpty()) showProposalSheet = false
+              }
+          ''',
+              '''    LaunchedEffect(entry.english, endnotes) {
+                  var externalChange = false
+                  if (entry.english != rich.toMarkup()) {
+                      rich = runCatching { RichInlineState.fromMarkup(entry.english) }
+                          .getOrElse { RichInlineState.plain(InlineMarkup.visibleText(entry.english)) }
+                      externalChange = true
+                  }
+                  if (endnotes != localEndnotes) {
+                      localEndnotes = endnotes
+                      externalChange = true
+                  }
+                  if (externalChange) history = EntryEditHistory()
+              }
+
+              LaunchedEffect(proposals) {
+                  val incoming = proposals.associate { it.id to it.status }
+                  if (incoming.any { (id, status) -> localProposalStatuses[id] != status }) {
+                      localProposalStatuses = localProposalStatuses + incoming
+                      history = EntryEditHistory()
+                  }
+                  if (proposals.isEmpty()) showProposalSheet = false
+              }
+          ''',
+              'sync effects anchor',
+          )
+
+          replace_once(
+              '''                onValueChange = { next ->
+                      val before = rich
+                      val beforeMarkup = before.toMarkup()
+                      val updated = before.edited(next)
+                      rich = updated
+                      val afterMarkup = updated.toMarkup()
+                      if (afterMarkup != beforeMarkup) onEnglishChange(afterMarkup)
+                      if (
+                          next.text == before.text &&
+                          next.selection.start == next.selection.end &&
+                          next.selection != before.selection
+                      ) {
+                          updated.endnoteIdAtCaret()?.let(::openExistingEndnote)
+                      }
+                  },
+          ''',
+              '''                onValueChange = { next ->
+                      val before = rich
+                      val beforeMarkup = before.toMarkup()
+                      val updated = before.edited(next)
+                      val afterMarkup = updated.toMarkup()
+                      if (afterMarkup != beforeMarkup) {
+                          recordHistory(EntryEditKind.INPUT)
+                          rich = updated
+                          syncLocalEndnotesTo(updated)
+                          onEnglishChange(afterMarkup)
+                      } else {
+                          rich = updated
+                      }
+                      if (
+                          next.text == before.text &&
+                          next.selection.start == next.selection.end &&
+                          next.selection != before.selection
+                      ) {
+                          updated.endnoteIdAtCaret()?.let(::openExistingEndnote)
+                      }
+                  },
+          ''',
+              'text field history anchor',
+          )
+
+          replace_once(
+              '''                TextButton(
+                      onClick = {
+                          rich = rich.toggle(InlineStyle.BOLD)
+                          onEnglishChange(rich.toMarkup())
+                          focusRequester.requestFocus()
+                      },
+                      enabled = rich.hasSelection(),
+                  ) { Text("B", fontWeight = FontWeight.Bold) }
+                  TextButton(
+                      onClick = {
+                          rich = rich.toggle(InlineStyle.ITALIC)
+                          onEnglishChange(rich.toMarkup())
+                          focusRequester.requestFocus()
+                      },
+                      enabled = rich.hasSelection(),
+                  ) { Text("I", fontStyle = FontStyle.Italic) }
+          ''',
+              '''                TextButton(
+                      onClick = {
+                          recordHistory(EntryEditKind.COMMAND)
+                          rich = rich.toggle(InlineStyle.BOLD)
+                          onEnglishChange(rich.toMarkup())
+                          focusRequester.requestFocus()
+                      },
+                      enabled = rich.hasSelection(),
+                  ) { Text("B", fontWeight = FontWeight.Bold) }
+                  TextButton(
+                      onClick = {
+                          recordHistory(EntryEditKind.COMMAND)
+                          rich = rich.toggle(InlineStyle.ITALIC)
+                          onEnglishChange(rich.toMarkup())
+                          focusRequester.requestFocus()
+                      },
+                      enabled = rich.hasSelection(),
+                  ) { Text("I", fontStyle = FontStyle.Italic) }
+          ''',
+              'format history anchor',
+          )
+
+          replace_once(
+              '''                ) { Text("N", textDecoration = TextDecoration.Underline) }
+                  Spacer(Modifier.weight(1f))
+                  importedTranslation?.let { importedText ->
+                      TextButton(onClick = {
+                          focusManager.clearFocus(force = true)
+                          rich = RichInlineState.plain(importedText)
+                          onUseImport(importedText)
+                      }) { Text("Use Import") }
+                  }
+          ''',
+              '''                ) { Text("N", textDecoration = TextDecoration.Underline) }
+                  IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
+                      Icon(Icons.Default.Undo, "Undo English edit")
+                  }
+                  IconButton(onClick = ::redoEdit, enabled = history.canRedo) {
+                      Icon(Icons.Default.Redo, "Redo English edit")
+                  }
+                  Spacer(Modifier.weight(1f))
+                  importedTranslation?.let { importedText ->
+                      TextButton(onClick = {
+                          focusManager.clearFocus(force = true)
+                          recordHistory(EntryEditKind.COMMAND)
+                          rich = RichInlineState.plain(importedText)
+                          localEndnotes = emptyList()
+                          onUseImport(importedText)
+                      }) { Text("Use Import") }
+                  }
+          ''',
+              'undo redo toolbar anchor',
+          )
+
+          replace_once(
+              '''                } else if (text.isNotEmpty()) {
+                          rich = RichInlineState.fromClipboard(text)
+                          onEnglishChange(rich.toMarkup())
+                      }
+          ''',
+              '''                } else if (text.isNotEmpty()) {
+                          recordHistory(EntryEditKind.COMMAND)
+                          rich = RichInlineState.fromClipboard(text)
+                          syncLocalEndnotesTo(rich)
+                          onEnglishChange(rich.toMarkup())
+                      }
+          ''',
+              'paste history anchor',
+          )
+
+          replace_once(
+              '''                                TextButton(
+                                      onClick = {
+                                          onProposalDecision(proposal.id, "rejected")
+                                          if (proposals.size == 1) showProposalSheet = false
+                                      },
+                                  ) { Text("Dismiss") }
+          ''',
+              '''                                TextButton(
+                                      onClick = {
+                                          recordHistory(EntryEditKind.COMMAND)
+                                          localProposalStatuses = localProposalStatuses + (proposal.id to "rejected")
+                                          onProposalDecision(proposal.id, "rejected")
+                                          if (proposals.size == 1) showProposalSheet = false
+                                      },
+                                  ) { Text("Dismiss") }
+          ''',
+              'proposal dismiss history anchor',
+          )
+
+          replace_once(
+              '''                Button(
+                      onClick = {
+                          val content = endnoteDraft.trim()
+                          val existingId = editingEndnoteId
+                          if (existingId != null) {
+                              rich.rangeForEndnote(existingId)?.let { range ->
+                                  rich = rich.copy(selection = range).replaceSelection(endnoteAnchor)
+                              }
+                              onSaveEndnote(
+                                  rich.toMarkup(),
+                                  EndnoteDefinition(existingId, entry.locator, content),
+                              )
+                          } else {
+                              val selection = pendingSelection
+                              if (selection != null) {
+                                  val id = nextEndnoteId()
+                                  rich = rich.copy(selection = selection).replaceSelection(endnoteAnchor).applyEndnote(id)
+                                  onSaveEndnote(
+                                      rich.toMarkup(),
+                                      EndnoteDefinition(id, entry.locator, content),
+                                  )
+                                  proposalForEndnote?.let { proposalId ->
+                                      onProposalDecision(proposalId, "accepted")
+                                  }
+                              }
+                          }
+                          proposalForEndnote = null
+                          showEndnoteDialog = false
+                      },
+          ''',
+              '''                Button(
+                      onClick = {
+                          val content = endnoteDraft.trim()
+                          val existingId = editingEndnoteId
+                          recordHistory(EntryEditKind.COMMAND)
+                          if (existingId != null) {
+                              rich.rangeForEndnote(existingId)?.let { range ->
+                                  rich = rich.copy(selection = range).replaceSelection(endnoteAnchor)
+                              }
+                              val definition = EndnoteDefinition(existingId, entry.locator, content)
+                              localEndnotes = localEndnotes.filterNot { it.id == existingId } + definition
+                              onSaveEndnote(rich.toMarkup(), definition)
+                          } else {
+                              val selection = pendingSelection
+                              if (selection != null) {
+                                  val id = nextEndnoteId()
+                                  rich = rich.copy(selection = selection).replaceSelection(endnoteAnchor).applyEndnote(id)
+                                  val definition = EndnoteDefinition(id, entry.locator, content)
+                                  localEndnotes = localEndnotes.filterNot { it.id == id } + definition
+                                  onSaveEndnote(rich.toMarkup(), definition)
+                                  proposalForEndnote?.let { proposalId ->
+                                      localProposalStatuses = localProposalStatuses + (proposalId to "accepted")
+                                      onProposalDecision(proposalId, "accepted")
+                                  }
+                              }
+                          }
+                          proposalForEndnote = null
+                          showEndnoteDialog = false
+                      },
+          ''',
+              'endnote save history anchor',
+          )
+
+          replace_once(
+              '''                        TextButton(
+                              onClick = {
+                                  rich = rich.removeEndnote(id)
+                                  onRemoveEndnote(rich.toMarkup(), id)
+                                  proposalForEndnote = null
+                                  showEndnoteDialog = false
+                              },
+                          ) { Text("Remove") }
+          ''',
+              '''                        TextButton(
+                              onClick = {
+                                  recordHistory(EntryEditKind.COMMAND)
+                                  rich = rich.removeEndnote(id)
+                                  localEndnotes = localEndnotes.filterNot { it.id == id }
+                                  onRemoveEndnote(rich.toMarkup(), id)
+                                  proposalForEndnote = null
+                                  showEndnoteDialog = false
+                              },
+                          ) { Text("Remove") }
+          ''',
+              'endnote remove history anchor',
+          )
+
+          path.write_text(text)
+
+          gradle = Path('app/build.gradle.kts')
+          build = gradle.read_text()
+          if 'versionCode = 31' not in build or 'versionName = "0.11.1"' not in build:
+              raise SystemExit('Expected v0.11.1 version not found')
+          build = build.replace('versionCode = 31', 'versionCode = 32', 1)
+          build = build.replace('versionName = "0.11.1"', 'versionName = "0.12.0"', 1)
+          gradle.write_text(build)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/cloud/shadowmonarchbooks/intakeedit/EditorScreen.kt app/build.gradle.kts
+          git commit -m "Add English editor undo and redo"
+          git push origin HEAD:feature/undo-redo
