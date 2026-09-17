@@ -167,14 +167,40 @@ internal class EditorViewModel(
                     it.copy(
                         open = updated,
                         actionInProgress = false,
-                        notice = "QA override committed. Tag for QA again when you are ready for another QA pass.",
+                        notice = "QA finding overridden.",
                     )
                 }
             } catch (t: Throwable) {
                 _uiState.update {
                     it.copy(
                         actionInProgress = false,
-                        notice = t.message ?: "Could not commit QA override.",
+                        notice = t.message ?: "Could not override QA finding.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun resolveQa(next: OpenChapter, findingId: String, settings: RepoSettings, token: String) {
+        if (next.qa == null || token.isBlank() || _uiState.value.actionInProgress) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(actionInProgress = true, notice = null) }
+            try {
+                val repository = repositoryFactory.create(settings, token)
+                val updated = repository.resolveQa(next, findingId)
+                latest = updated
+                _uiState.update {
+                    it.copy(
+                        open = updated,
+                        actionInProgress = false,
+                        notice = "QA finding resolved.",
+                    )
+                }
+            } catch (t: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        actionInProgress = false,
+                        notice = t.message ?: "Could not resolve QA finding.",
                     )
                 }
             }
