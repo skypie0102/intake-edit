@@ -267,16 +267,24 @@ fun stageProposalDecision(proposalId: String, status: String) {
 
     fun cycleAttention() {
         val editorSha = QaFindingsParser.editorContentSha256(current.raw)
-        val qaLocators = current.qa?.document?.active(current.document, editorSha).orEmpty()
-            .asSequence()
-            .map { it.locator }
-            .filter { it.isNotBlank() }
-            .toSet()
-        val suggestionLocators = pendingSuggestionLocators(current).toSet()
-        val targets = current.document.entries
-            .map { it.locator }
-            .filter { it in qaLocators || it in suggestionLocators }
-        if (targets.isEmpty()) return
+        val attention = buildAttentionState(
+            document = current.document,
+            qa = current.qa?.document,
+            proposals = current.endnoteProposals?.document,
+            volume = current.file.volume,
+            chapter = current.file.chapter,
+            editorContentSha256 = editorSha,
+        )
+        val targets = attention.unresolvedLocators
+        if (targets.isEmpty()) {
+            if (attention.hasUnlocatedActiveQa) {
+                focusManager.clearFocus(force = true)
+                showWholeFile = false
+                showQa = true
+                filter = EntryFilter.ALL
+            }
+            return
+        }
         val currentIndex = targets.indexOf(lastAttentionLocator)
         val target = targets[if (currentIndex < 0 || currentIndex == targets.lastIndex) 0 else currentIndex + 1]
         focusManager.clearFocus(force = true)
@@ -289,14 +297,18 @@ fun stageProposalDecision(proposalId: String, status: String) {
     }
 
     val missingEnglish = current.document.entries.filterNot { it.isSupplied }
-    val unusedSuggestionLocators = pendingSuggestionLocators(current)
     val editorContentSha = QaFindingsParser.editorContentSha256(current.raw)
-    val activeQaByLocator = current.qa?.document?.active(current.document, editorContentSha).orEmpty()
-        .filter { it.locator.isNotBlank() }
-        .groupBy { it.locator }
-    val attentionLocators = current.document.entries
-        .map { it.locator }
-        .filter { it in unusedSuggestionLocators || activeQaByLocator[it].orEmpty().isNotEmpty() }
+    val attentionState = buildAttentionState(
+        document = current.document,
+        qa = current.qa?.document,
+        proposals = current.endnoteProposals?.document,
+        volume = current.file.volume,
+        chapter = current.file.chapter,
+        editorContentSha256 = editorContentSha,
+    )
+    val allQaByLocator = attentionState.allQaByLocator
+    val qaDispositionById = attentionState.qaDispositionById
+    val unresolvedAttentionCount = attentionState.unresolvedCount
     val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
     val fillableImportCount = imported?.let { overlay ->
         missingEnglish.count { overlay.translationFor(it.locator) != null }
@@ -471,7 +483,8 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 proposals = current.endnoteProposals?.document
                                     ?.visibleFor(current.file.volume, current.file.chapter, entry.locator)
                                     .orEmpty(),
-                                qaFindings = activeQaByLocator[entry.locator].orEmpty(),
+                                qaFindings = allQaByLocator[entry.locator].orEmpty(),
+                                qaDispositionById = qaDispositionById,
                                 importedTranslation = imported?.translationFor(entry.locator),
                                 nextEndnoteId = { EndnoteIntegrity.nextId(current.document, entry.locator) },
                                 onUseImport = { text -> useImported(entry.locator, text) },
@@ -497,7 +510,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BadgedBox(
-                    badge = { Badge { Text(missingEnglish.size.toString()) } },
+                    badge = { if (missingEnglish.isNotEmpty()) Badge { Text(missingEnglish.size.toString()) } },
                 ) {
                     IconButton(
                         onClick = { jumpToFirstMissing() },
@@ -507,11 +520,11 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     }
                 }
                 BadgedBox(
-                    badge = { Badge { Text(attentionLocators.size.toString()) } },
+                    badge = { if (unresolvedAttentionCount > 0) Badge { Text(unresolvedAttentionCount.toString()) } },
                 ) {
                     IconButton(
                         onClick = { cycleAttention() },
-                        enabled = !busy && attentionLocators.isNotEmpty(),
+                        enabled = !busy && unresolvedAttentionCount > 0,
                     ) {
                         Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
                     }
@@ -713,6 +726,7 @@ private fun EntryCard(
     endnotes: List<EndnoteDefinition>,
     proposals: List<EndnoteProposal>,
     qaFindings: List<QaFinding>,
+    qaDispositionById: Map<String, QaFindingDisposition>,
     importedTranslation: String?,
     nextEndnoteId: () -> String,
     onUseImport: (String) -> Unit,
@@ -855,7 +869,9 @@ LaunchedEffect(qaFindings) {
     if (proposals.isEmpty() && qaFindings.isEmpty()) showAttentionSheet = false
 }
 
-    val activeAttentionCount = qaFindings.size + proposals.count { it.status == "pending" }
+    val activeAttentionCount =
+        qaFindings.count { qaDispositionById[it.id] == QaFindingDisposition.ACTIVE } +
+            proposals.count { (localProposalStatuses[it.id] ?: it.status) == "pending" }
 
     Card(Modifier.fillMaxWidth()) {
         Column(
@@ -1010,17 +1026,28 @@ LaunchedEffect(qaFindings) {
                 if (qaFindings.isNotEmpty()) {
                     Text("QA findings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                     qaFindings.forEach { finding ->
+                        val disposition = qaDispositionById[finding.id] ?: QaFindingDisposition.ACTIVE
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text("${finding.severity.uppercase()} • ${finding.category}", fontWeight = FontWeight.Bold)
                                 Text(finding.message)
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    TextButton(onClick = { onResolveFinding(finding.id) }) { Text("Resolve") }
-                                    if (finding.overridable) {
-                                        TextButton(onClick = {
-                                            pendingQaOverride = finding
-                                            qaOverrideReason = ""
-                                        }) { Text("Override") }
+                                Text(
+                                    when (disposition) {
+                                        QaFindingDisposition.RESOLVED -> "RESOLVED"
+                                        QaFindingDisposition.OVERRIDDEN -> "OVERRIDDEN"
+                                        QaFindingDisposition.ACTIVE -> if (finding.resolution != null || finding.override != null) "ACTIVE • previous closure stale" else "ACTIVE"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                                if (disposition == QaFindingDisposition.ACTIVE) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        TextButton(onClick = { onResolveFinding(finding.id) }) { Text("Resolve") }
+                                        if (finding.overridable) {
+                                            TextButton(onClick = {
+                                                pendingQaOverride = finding
+                                                qaOverrideReason = ""
+                                            }) { Text("Override") }
+                                        }
                                     }
                                 }
                             }
@@ -1030,10 +1057,12 @@ LaunchedEffect(qaFindings) {
                 if (proposals.isNotEmpty()) {
                     Text("Endnote suggestions", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                     proposals.forEach { proposal ->
+                        val proposalStatus = localProposalStatuses[proposal.id] ?: proposal.status
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                if (proposal.status == "accepted") {
-                                    Text("Used suggestion", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                when (proposalStatus) {
+                                    "accepted" -> Text("Used suggestion", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                    "rejected" -> Text("Dismissed suggestion", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                                 }
                                 DisplayBlock("Source anchor", proposal.sourceAnchor)
                                 if (proposal.suggestedEnglishAnchor.isNotBlank()) {
@@ -1046,7 +1075,7 @@ LaunchedEffect(qaFindings) {
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Button(onClick = { openSuggestion(proposal) }) {
-                                        Text(if (proposal.status == "accepted") "Use again" else "Use suggestion")
+                                        Text(if (proposalStatus == "accepted") "Use again" else "Use suggestion")
                                     }
                                     TextButton(
                                         onClick = {
