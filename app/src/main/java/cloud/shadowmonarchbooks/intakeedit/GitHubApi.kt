@@ -20,6 +20,11 @@ data class GitHubFileUpdate(
     val content: String,
 )
 
+data class GitHubFileDeletion(
+    val path: String,
+    val expectedSha: String,
+)
+
 class GitHubApi(private val settings: RepoSettings, private val token: String) {
     private val repoBase = "/repos/${encode(settings.owner)}/${encode(settings.repo)}"
 
@@ -95,9 +100,14 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
             .orEmpty()
     }
 
-    suspend fun updateFilesAtomically(updates: List<GitHubFileUpdate>, message: String): String {
-        require(updates.isNotEmpty()) { "At least one file update is required." }
-        require(updates.map { it.path }.distinct().size == updates.size) { "Atomic update contains duplicate file paths." }
+    suspend fun updateFilesAtomically(
+        updates: List<GitHubFileUpdate>,
+        message: String,
+        deletions: List<GitHubFileDeletion> = emptyList(),
+    ): String {
+        require(updates.isNotEmpty() || deletions.isNotEmpty()) { "At least one file change is required." }
+        val paths = updates.map { it.path } + deletions.map { it.path }
+        require(paths.distinct().size == paths.size) { "Atomic update contains duplicate file paths." }
         updates.forEach { GitHubCredentialGuard.requireSafeForCommit(it.content) }
 
         val branch = request("GET", "$repoBase/branches/${encode(settings.branch)}")
@@ -108,18 +118,31 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                 throw GitHubException("${update.path} changed after it was loaded. Refresh before committing.", 409)
             }
         }
-
-        val additions = JSONArray()
-        updates.forEach { update ->
-            additions.put(
-                JSONObject()
-                    .put("path", update.path)
-                    .put(
-                        "contents",
-                        Base64.encodeToString(update.content.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP),
-                    ),
-            )
+        deletions.forEach { deletion ->
+            val current = getFileAtRef(deletion.path, headSha)
+            if (current.sha != deletion.expectedSha) {
+                throw GitHubException("${deletion.path} changed after it was loaded. Refresh before committing.", 409)
+            }
         }
+
+        val fileChanges = JSONObject()
+        if (updates.isNotEmpty()) {
+            val additions = JSONArray()
+            updates.forEach { update ->
+                additions.put(
+                    JSONObject()
+                        .put("path", update.path)
+                        .put("contents", Base64.encodeToString(update.content.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)),
+                )
+            }
+            fileChanges.put("additions", additions)
+        }
+        if (deletions.isNotEmpty()) {
+            val removed = JSONArray()
+            deletions.forEach { deletion -> removed.put(JSONObject().put("path", deletion.path)) }
+            fileChanges.put("deletions", removed)
+        }
+
         val input = JSONObject()
             .put(
                 "branch",
@@ -128,7 +151,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                     .put("branchName", settings.branch),
             )
             .put("message", JSONObject().put("headline", message))
-            .put("fileChanges", JSONObject().put("additions", additions))
+            .put("fileChanges", fileChanges)
             .put("expectedHeadOid", headSha)
         val payload = JSONObject()
             .put(

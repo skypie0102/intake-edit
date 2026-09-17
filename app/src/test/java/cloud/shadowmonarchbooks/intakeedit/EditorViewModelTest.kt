@@ -111,7 +111,7 @@ class EditorViewModelTest {
         val stillOpen = requireNotNull(viewModel.chapterForDisplay())
         assertEquals("sha-committed", stillOpen.remote.sha)
         assertEquals("edited raw", stillOpen.raw)
-        assertEquals("Committed without review.", viewModel.uiState.value.notice)
+        assertEquals("Committed as Pending Review.", viewModel.uiState.value.notice)
         assertEquals(listOf(remote.file.path), draftRepository.deleted)
         assertEquals(remote, chapterRepository.committedChapter)
         assertEquals(false, chapterRepository.committedMarkReviewed)
