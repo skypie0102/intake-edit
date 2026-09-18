@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,7 +34,6 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NavigateNext
 import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
@@ -800,13 +800,6 @@ fun undoEdit() {
     }
 }
 
-fun redoEdit() {
-    history.redo(currentSnapshot())?.let { step ->
-        history = step.history
-        restoreSnapshot(step.snapshot)
-    }
-}
-
 fun syncLocalEndnotesTo(state: RichInlineState) {
     val referenced = InlineMarkup.referencedEndnoteIds(state.toMarkup())
     localEndnotes = localEndnotes.filter { it.id in referenced }
@@ -941,25 +934,27 @@ LaunchedEffect(qaFindings) {
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(
+                IconButton(
                     onClick = {
                         recordHistory(EntryEditKind.COMMAND)
                         rich = rich.toggle(InlineStyle.BOLD)
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
                     },
+                    modifier = Modifier.size(40.dp),
                     enabled = rich.hasSelection(),
                 ) { Text("B", fontWeight = FontWeight.Bold) }
-                TextButton(
+                IconButton(
                     onClick = {
                         recordHistory(EntryEditKind.COMMAND)
                         rich = rich.toggle(InlineStyle.ITALIC)
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
                     },
+                    modifier = Modifier.size(40.dp),
                     enabled = rich.hasSelection(),
                 ) { Text("I", fontStyle = FontStyle.Italic) }
-                TextButton(
+                IconButton(
                     onClick = {
                         val ids = rich.endnoteIdsInSelection()
                         when {
@@ -981,15 +976,33 @@ LaunchedEffect(qaFindings) {
                             ).show()
                         }
                     },
+                    modifier = Modifier.size(40.dp),
                     enabled = rich.hasSelection(),
                 ) { Text("N", textDecoration = TextDecoration.Underline) }
-    IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
-        Icon(Icons.Default.Undo, "Undo English edit")
-    }
-    IconButton(onClick = ::redoEdit, enabled = history.canRedo) {
-        Icon(Icons.Default.Redo, "Redo English edit")
-    }
-    Spacer(Modifier.weight(1f))
+                IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
+                    Icon(Icons.Default.Undo, "Undo English edit")
+                }
+                IconButton(
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+                        if (GitHubCredentialGuard.containsCredential(text)) {
+                            Toast.makeText(
+                                context,
+                                "Paste blocked: clipboard looks like a GitHub credential.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        } else if (text.isNotEmpty()) {
+                            recordHistory(EntryEditKind.COMMAND)
+                            rich = RichInlineState.fromClipboard(text)
+                            syncLocalEndnotesTo(rich)
+                            onEnglishChange(rich.toMarkup())
+                        }
+                    },
+                    enabled = clipboard.hasPrimaryClip(),
+                ) {
+                    Icon(Icons.Default.ContentPaste, "Paste English")
+                }
                 importedTranslation?.let { importedText ->
                     TextButton(onClick = {
                         focusManager.clearFocus(force = true)
@@ -998,24 +1011,6 @@ LaunchedEffect(qaFindings) {
                         localEndnotes = emptyList()
                         onUseImport(importedText)
                     }) { Text("Use Import") }
-                }
-                IconButton(onClick = {
-                    focusManager.clearFocus(force = true)
-                    val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
-                    if (GitHubCredentialGuard.containsCredential(text)) {
-                        Toast.makeText(
-                            context,
-                            "Paste blocked: clipboard looks like a GitHub credential.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    } else if (text.isNotEmpty()) {
-                        recordHistory(EntryEditKind.COMMAND)
-                        rich = RichInlineState.fromClipboard(text)
-                        syncLocalEndnotesTo(rich)
-                        onEnglishChange(rich.toMarkup())
-                    }
-                }, enabled = clipboard.hasPrimaryClip()) {
-                    Icon(Icons.Default.ContentPaste, "Paste English")
                 }
             }
         }
