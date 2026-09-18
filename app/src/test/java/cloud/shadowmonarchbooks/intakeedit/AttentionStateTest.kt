@@ -102,6 +102,42 @@ class AttentionStateTest {
     }
 
     @Test
+    fun closingQaFindingDropsCountButKeepsCardHistory() {
+        val doc = document()
+        val finding = QaFinding(
+            id = "f1",
+            locator = "P1",
+            category = "test",
+            severity = "warning",
+            message = "Fix P1",
+            overridable = true,
+        )
+        val activeQa = QaFindingsDocument(
+            schemaVersion = 1,
+            volume = 1,
+            chapter = 1,
+            qaPass = null,
+            findings = listOf(finding),
+        )
+        val before = buildAttentionState(doc, activeQa, null, 1, 1, "editor-sha")
+        val resolvedQa = activeQa.withResolution(
+            "f1",
+            QaResolution(
+                resolvedAt = "2026-09-18T01:00:00Z",
+                resolvedBy = "editor",
+                contentSha256 = QaFindingsParser.findingContentSha256(doc, "P1"),
+            ),
+        )
+        val after = buildAttentionState(doc, resolvedQa, null, 1, 1, "editor-sha")
+
+        assertEquals(1, before.unresolvedCount)
+        assertEquals(0, after.unresolvedCount)
+        assertTrue(after.unresolvedLocators.isEmpty())
+        assertEquals(listOf("f1"), after.allQaByLocator.getValue("P1").map { it.id })
+        assertEquals(QaFindingDisposition.RESOLVED, after.qaDispositionById.getValue("f1"))
+    }
+
+    @Test
     fun chapterWideActiveFindingStillCountsWithoutCardLocator() {
         val doc = document()
         val qa = QaFindingsDocument(
