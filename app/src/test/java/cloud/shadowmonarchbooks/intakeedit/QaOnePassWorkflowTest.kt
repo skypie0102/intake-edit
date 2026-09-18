@@ -67,6 +67,37 @@ class QaOnePassWorkflowTest {
     }
 
     @Test
+    fun protectedFingerprintPreservesUnicodePunctuationLikePythonEnsureAsciiFalse() {
+        val document = EditorDocument(
+            schemaVersion = 6,
+            volume = 1,
+            chapter = 1,
+            sourceHref = "canonical/vol-01/ch_0001.xhtml",
+            sourceSha256 = "source-sha",
+            readerFile = "reader/vol-01/ch_0001.xhtml",
+            englishTitle = "Did Yukino Shirasaka Get a Boyfriend?",
+            instructions = "Use “curly quotes” — and an ellipsis… plus BLACK•OUT.",
+            editorReviewComplete = false,
+            endnotes = listOf(
+                EndnoteDefinition(
+                    id = "en-P2-01",
+                    locator = "P2",
+                    content = "Honorific -sama means “Lord Handsome.”",
+                ),
+            ),
+            entries = listOf(
+                EditorEntry("P1", "原文", "He said, “Hello…”"),
+                EditorEntry("P2", "眉毛を八の字", "Eyebrows like “八”"),
+            ),
+        )
+
+        assertEquals(
+            "d6be71dfdc4abb3491b6a9905dc884478e747b2eec105def8ace2b83021786ce",
+            QaFindingsParser.protectedContentSha256(document, setOf("P1")),
+        )
+    }
+
+    @Test
     fun flaggedParagraphMayChangeWithoutInvalidatingPass() {
         val base = editor()
         val qa = paragraphPass(base)
