@@ -308,6 +308,9 @@ fun stageProposalDecision(proposalId: String, status: String) {
     )
     val allQaByLocator = attentionState.allQaByLocator
     val qaDispositionById = attentionState.qaDispositionById
+    val qaCanResolveById = current.qa?.document?.findings.orEmpty().associate { finding ->
+        finding.id to (current.qa?.document?.canResolve(finding, current.document) == true)
+    }
     val unresolvedAttentionCount = attentionState.unresolvedCount
     val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
     val fillableImportCount = imported?.let { overlay ->
@@ -485,6 +488,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                     .orEmpty(),
                                 qaFindings = allQaByLocator[entry.locator].orEmpty(),
                                 qaDispositionById = qaDispositionById,
+                                qaCanResolveById = qaCanResolveById,
                                 importedTranslation = imported?.translationFor(entry.locator),
                                 nextEndnoteId = { EndnoteIntegrity.nextId(current.document, entry.locator) },
                                 onUseImport = { text -> useImported(entry.locator, text) },
@@ -727,6 +731,7 @@ private fun EntryCard(
     proposals: List<EndnoteProposal>,
     qaFindings: List<QaFinding>,
     qaDispositionById: Map<String, QaFindingDisposition>,
+    qaCanResolveById: Map<String, Boolean>,
     importedTranslation: String?,
     nextEndnoteId: () -> String,
     onUseImport: (String) -> Unit,
@@ -1041,7 +1046,10 @@ LaunchedEffect(qaFindings) {
                                 )
                                 if (disposition == QaFindingDisposition.ACTIVE) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        TextButton(onClick = { onResolveFinding(finding.id) }) { Text("Resolve") }
+                                        TextButton(
+                                            onClick = { onResolveFinding(finding.id) },
+                                            enabled = qaCanResolveById[finding.id] == true,
+                                        ) { Text("Resolve") }
                                         if (finding.overridable) {
                                             TextButton(onClick = {
                                                 pendingQaOverride = finding
@@ -1278,7 +1286,10 @@ private fun QaFindingsView(
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (finding.locator.isNotBlank()) TextButton(onClick = { onShowParagraph(finding.locator) }, enabled = !busy) { Text("Show paragraph") }
                         if (disposition == QaFindingDisposition.ACTIVE) {
-                            TextButton(onClick = { onResolve(finding.id) }, enabled = !busy) { Text("Resolve") }
+                            TextButton(
+                                onClick = { onResolve(finding.id) },
+                                enabled = !busy && snapshot.document.canResolve(finding, editor),
+                            ) { Text("Resolve") }
                             if (finding.overridable) TextButton(onClick = { pending = finding }, enabled = !busy) { Text("Override") }
                         }
                     }
