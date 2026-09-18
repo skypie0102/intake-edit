@@ -930,7 +930,7 @@ LaunchedEffect(qaFindings) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             )
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -982,6 +982,16 @@ LaunchedEffect(qaFindings) {
                 IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
                     Icon(Icons.Default.Undo, "Undo English edit")
                 }
+                Spacer(Modifier.weight(1f))
+                importedTranslation?.let { importedText ->
+                    TextButton(onClick = {
+                        focusManager.clearFocus(force = true)
+                        recordHistory(EntryEditKind.COMMAND)
+                        rich = RichInlineState.plain(importedText)
+                        localEndnotes = emptyList()
+                        onUseImport(importedText)
+                    }) { Text("Use Import") }
+                }
                 IconButton(
                     onClick = {
                         focusManager.clearFocus(force = true)
@@ -1002,15 +1012,6 @@ LaunchedEffect(qaFindings) {
                     enabled = clipboard.hasPrimaryClip(),
                 ) {
                     Icon(Icons.Default.ContentPaste, "Paste English")
-                }
-                importedTranslation?.let { importedText ->
-                    TextButton(onClick = {
-                        focusManager.clearFocus(force = true)
-                        recordHistory(EntryEditKind.COMMAND)
-                        rich = RichInlineState.plain(importedText)
-                        localEndnotes = emptyList()
-                        onUseImport(importedText)
-                    }) { Text("Use Import") }
                 }
             }
         }
