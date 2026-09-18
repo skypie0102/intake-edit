@@ -1,0 +1,1163 @@
+schema_version: 6
+volume: 1
+chapter: 1
+source_href: canonical/vol-01/ch_0001.xhtml
+source_sha256: e640188450b25ba10383203505c1ed539b1301a96c5578ae21eaa1e76a306159
+reader_file: reader/vol-01/ch_0001.xhtml
+english_title: Did Yukino Shirasaka Get a Boyfriend?
+instructions: Supply authoritative English for every paragraph, add endnotes when useful, then explicitly mark the chapter reviewed.
+editor_review_complete: false
+endnotes:
+- id: en-P141-01
+  locator: P141
+  content: "Yaoyorozu no kami—literally 'eight million gods'—is a Shinto expression meaning the countless or myriad kami of the world, not a literal census of eight million deities."
+- id: en-P188-01
+  locator: P188
+  content: "Ikemen is Japanese slang for a handsome, attractive man. The honorific -sama is normally highly respectful, but here it is used sarcastically, giving ikemen-sama the sense of “His Handsomeness” or “Lord Handsome.”"
+- id: en-P185-01
+  locator: P185
+  content: "Golden Week is Japan's cluster of national holidays from late April into early May. Because the Japanese school year begins in April, it also falls roughly one month into the new school year here."
+- id: en-P112-01
+  locator: P112
+  content: "Pee Buddy/Tsureshon is slang for friends going to the restroom or urinal together. Yoshida jokingly adds 'man' and numbers the pair like a superhero duo."
+entries:
+- locator: P1
+  source_japanese: ……あわわわわ、うわわわわわ、おわわわわわわ、うげげげげぇーッ！
+  english: "...Awa-wa-wa, uwa-wa-wa-wa, owa-wa-wa-wa-wa, ugegegegeee!"
+- locator: P2
+  source_japanese: 授業時間終了のチャイムが鳴り終わったと同時にトイレに駆け込むッ！
+  english: "The moment the end-of-class bell stopped ringing, I rushed into the restroom!"
+- locator: P3
+  source_japanese: 勢いよく個室のドアを開け、ズボンとパンツを同時に下ろし、便座に座ってスタンバイ完了！
+  english: "I flung open the stall door, yanked down my pants and underwear at the same time, and planted myself on the toilet seat—standby complete!"
+- locator: P4
+  source_japanese: 肛門開けェーッ！
+  english: "Butthole, open uuup—!"
+- locator: P5
+  source_japanese: 発射ァーッ！！
+  english: "Fire!!"
+- locator: P6
+  source_japanese: すばばばばーっ！！
+  english: "[i]Splat-splat-splat-splaaaat!![/i]"
+- locator: P7
+  source_japanese: ……うああーっ、何とか間に合った。
+  english: "…Uaaah, I barely made it."
+- locator: P8
+  source_japanese: ふぅーっ。
+  english: "Phew."
+- locator: P9
+  source_japanese: 六時限目の途中から、オレの腹はグルグルルルーッと鳴りっぱなしだった。
+  english: "Since halfway through sixth period, my stomach had been rumbling nonstop—[i]gurgle-gurgle-gurrrrgle[/i]."
+- locator: P10
+  source_japanese: 授業中、ずっと小刻みにプルプルと体を震わせて貧乏揺すりガタガタ。おでこからタラタラと油汗を垂らして、必死に便意をガマンしていたのだ！
+  english: "All through class, my whole body was trembling in tiny shivers while my leg bounced up and down nonstop. Cold sweat streamed down my forehead as I desperately fought to hold in the urge to take a dump!"
+- locator: P11
+  source_japanese: みっともない。格好悪い。情けない。
+  english: "Embarrassing. Lame. Pathetic."
+- locator: P12
+  source_japanese: でも、小学生じゃあるまいし、授業中に手を上げて「先生、トイレ行ってもいいですか？」とは、とても言えなかった。
+  english: "But I’m not an elementary school kid anymore. I just couldn’t bring myself to raise my hand in the middle of class and say, “Sensei, can I go to the restroom?”"
+- locator: P13
+  source_japanese: ……そんなこと白坂さんの前じゃ、恥ずかしくてできない。
+  english: "…That would be way too embarrassing to do in front of Shirasaka-san."
+- locator: P14
+  source_japanese: もっとも、授業が終わった途端にドタバタとトイレに走るのも、相当格好悪かったんだろうけど。
+  english: "Then again, frantically rushing to the restroom the second class ended was probably pretty lame too."
+- locator: P15
+  source_japanese: 白坂さんに見られたかな？
+  english: "I wonder if Shirasaka-san saw me?"
+- locator: P16
+  source_japanese: ……変な人って思われちゃったかも？
+  english: "…Maybe she thinks I’m a weirdo now?"
+- locator: P17
+  source_japanese: ジクジク痛む腹を抱えて便座に座ったまま、オレはしばし白坂さんのことを考える。
+  english: "Still sitting on the toilet clutching my throbbing stomach, I think about Shirasaka-san for a while."
+- locator: P18
+  source_japanese: 落ち着きのない男って思われたかな？……嫌われたかな？
+  english: "Did she think I was some restless guy? …Did she end up disliking me?"
+- locator: P19
+  source_japanese: いやいや、考えすぎだ……どうせ白坂さんは、オレのことなんか気にしてはしない。
+  english: "No, no, I’m overthinking it… Shirasaka-san probably doesn’t even pay any attention to me."
+- locator: P20
+  source_japanese: 白坂さんが、オレの方を見たことなんか一度もないもの。
+  english: "After all, Shirasaka-san has never even looked my way once."
+- locator: P21
+  source_japanese: ……オレは毎日、白坂さんばかり見ているっていうのに。
+  english: "…Even though I do nothing but watch Shirasaka-san every single day."
+- locator: P22
+  source_japanese: 白坂さん……白坂雪乃。
+  english: "Shirasaka-san… Shirasaka Yukino."
+- locator: P23
+  source_japanese: 高校の入学式の日以来、オレはずっと彼女ばかりを見ている……！
+  english: "Ever since the high school entrance ceremony, she’s the only one I’ve had my eyes on…!"
+- locator: P24
+  source_japanese: 高校での生活も、入学式からすでに一ヶ月弱が経過。
+  english: "Nearly a month of my high school life has already passed since the entrance ceremony."
+- locator: P25
+  source_japanese: されど、オレはまだ男女共学というやつに慣れてはいない。
+  english: "And yet, I’m still not used to this whole co-ed thing."
+- locator: P26
+  source_japanese: ここだけの話……オレは、中学の三年間を山奥の全寮制男子校で過ごした。
+  english: "Just between us… I spent all three years of middle school at an all-boys boarding school deep in the mountains."
+- locator: P27
+  source_japanese: まあ、家庭の事情とかあって……っていうか、うちの祖父さんという人がちょっとメンドクサイ人で「わしの母校にお前も通って、質実剛健なオトコになれっ！」って無理矢理オレを押し込めたってわけで。
+  english: "Well, there were some family circumstances… or rather, my grandpa’s kind of a pain in the ass. He forced me into the place, saying, “You’re going to attend my alma mater too and become a strong, no-nonsense man!”"
+- locator: P28
+  source_japanese: でもさあ……祖父さんがその学校に通ってたってのは七十年も前の話でさ。
+  english: "But come on… my grandpa went to that school seventy years ago."
+- locator: P29
+  source_japanese: さすがに二十一世紀の世の中となれば、祖父さんの少年時代とは違うはずで……そう思ってたんだけど……。
+  english: "Surely, now that it’s the twenty-first century, things would be different from when my grandpa was a kid… or so I thought…."
+- locator: P30
+  source_japanese: どうしてだか、その山奥の男子校はいまだに戦前の軍隊式の教育を続けていて…。
+  english: "For some reason, that boys’ school deep in the mountains is still carrying on with prewar military-style education…."
+- locator: P31
+  source_japanese: はい……正に、この世の地獄。
+  english: "Yep… truly hell on earth."
+- locator: P32
+  source_japanese: その学寮は、体罰とイジメに彩られた、人権無視の閉鎖空間だったのだ！
+  english: "That dormitory was a closed-off world defined by corporal punishment, bullying, and a complete disregard for human rights!"
+- locator: P33
+  source_japanese: 二十四時間、体罰教師に監視され、上級生の理不尽な命令に迫害される生活！
+  english: "A life spent under round-the-clock surveillance by teachers who dished out corporal punishment, while being tormented by the unreasonable orders of upperclassmen!"
+- locator: P34
+  source_japanese: 個人の物とか金とかが盗まれるなんてのは、もう日常茶飯事！
+  english: "Having your personal belongings or money stolen was just an everyday occurrence!"
+- locator: P35
+  source_japanese: ちょっとでも気を許したら、殴られる！シメられる！集団イジメの標的になる！……という人外魔境！
+  english: "Let your guard down for even a second and you’d get punched! Roughed up! Made the target of group bullying! …It was an absolute hellhole!"
+- locator: P36
+  source_japanese: 耐えろ！気を張れ！誰も信用してはならぬ！
+  english: "Endure! Stay alert! Trust no one!"
+- locator: P37
+  source_japanese: ……と、まあ、地獄の寮生活を送ること丸三年！
+  english: "…And so, I spent three whole years living that hellish dorm life!"
+- locator: P38
+  source_japanese: 「頼むから、高校だけは普通の学校に通わせてくれ！」と、両親に泣きついて、ようやく地獄の寮生活から生還！
+  english: "I went crying to my parents, begging, “Please, just let me go to a normal school for high school!” And at long last, I made it out of that hellish dorm life alive!"
+- locator: P39
+  source_japanese: この春からは、自宅から通える共学の高等学校へ通うことになった。
+  english: "Starting this spring, I ended up attending a co-ed high school that I can commute to from home."
+- locator: P40
+  source_japanese: というか……一年半前に祖父さんも亡くなってたし……。
+  english: "I mean… my grandpa had already passed away a year and a half ago anyway…."
+- locator: P41
+  source_japanese: ……そりゃあ、まあ、最初はスゲェ嬉しかったよ。
+  english: "…Well, yeah, I was really damn happy at first."
+- locator: P42
+  source_japanese: 「これぞまさにシャバの匂い！自由の空気よ！うおお、ようやくオレの人生に華が咲く！高校生活は、明るく、楽しく、元気で行こうッ！！」
+  english: "“This is it—the smell of the outside world! The air of freedom! Uoooh, at last my life is finally going to bloom! I’m gonna make my high school life bright, fun, and full of energy!!”"
+- locator: P43
+  source_japanese: と、まあ、入学式に行くまでは、そんな風に思ってたんだけど……。
+  english: "Well, that’s what I thought until I went to the entrance ceremony…."
+- locator: P44
+  source_japanese: いざ高校に着いてみると、中学三年間の男子校寮生活の影響でしょうか……あ、あ、あ、あの、オレ、緊張しちゃって、すっかり女の子と喋れない体質になっちゃってて！！！
+  english: "But once I actually got to high school, maybe because of those three years of dorm life at an all-boys school… u-u-u-um, I got so nervous that I’d completely lost the ability to talk to girls!!!"
+- locator: P45
+  source_japanese: いや、おかしいんだよ。
+  english: "No, it’s weird."
+- locator: P46
+  source_japanese: オレ、小学生の時は、ちゃんと女の子と喋れたんだから！
+  english: "I could talk to girls just fine when I was in elementary school!"
+- locator: P47
+  source_japanese: それが、どうしてだか高校へ来たら、女の子の側にすら近寄れなくて……。
+  english: "But for some reason, now that I’m in high school, I can’t even bring myself to go near a girl…."
+- locator: P48
+  source_japanese: 近づくだけで、何か体がギクシャクしちゃって……。
+  english: "Just getting close to them makes my whole body go stiff and awkward…."
+- locator: P49
+  source_japanese: オタオタしちゃって、緊張して体がカクカクしちゃったりして……。
+  english: "I get all flustered, and from the nerves my body gets all stiff and jerky…."
+- locator: P50
+  source_japanese: てゆーか、お前ら小学生の頃は、もっとお子様体型だったろ！
+  english: "I mean, you guys had much more childlike bodies back in elementary school!"
+- locator: P51
+  source_japanese: それが、高校生になったら、なんでそんなにエロいボディに成長してんだよ！
+  english: "And then, once you girls got to high school, why’d you all have to grow such sexy bodies?!"
+- locator: P52
+  source_japanese: カンベンしろよ、鼻血出るだろッ！
+  english: "Give me a break, I’m gonna get a nosebleed!"
+- locator: P53
+  source_japanese: 気が付いたら、異常に無口で引っ込み思案なオレが、新しい1年2組の教室の隅っこで小さくなっていて……。
+  english: "Before I knew it, the abnormally quiet and withdrawn me was huddled up in a corner of the new Class 1-2 classroom…."
+- locator: P54
+  source_japanese: 何か体は震えてくるし、立ちくらみはするし……ダメだこりゃ。
+  english: "My body starts trembling, I get lightheaded… Man, I’m hopeless."
+- locator: P55
+  source_japanese: オレの高校生活初日からすでに絶望的……ブラック・アウト状態。
+  english: "My high school life was already hopeless from day one… BLACK•OUT."
+- locator: P56
+  source_japanese: うつむいて、ふぅと小さく溜め息を吐く……。
+  english: "I look down and let out a small sigh…."
+- locator: P57
+  source_japanese: そしたら……そしたらだ！！！
+  english: "And then… and then!!!"
+- locator: P58
+  source_japanese: 「どうしたの、君？……具合、悪いの？」
+  english: "“What's wrong? …Are you feeling sick?”"
+- locator: P59
+  source_japanese: ……突然、すごい可愛らしい声が聞こえてきて…。
+  english: "…Suddenly, I heard an incredibly cute voice…."
+- locator: P60
+  source_japanese: ふっと、声の方を見ると……あれ……あれれれれ、オレの前に天使が現れた！！！
+  english: "I glance toward the voice… huh… huhhh?! An angel appeared before me!!!"
+- locator: P61
+  source_japanese: な、な、な、なんて可愛い子なんだろう！！！
+  english: "W-w-w-what a cute girl!!!"
+- locator: P62
+  source_japanese: その女の子は、目がおっきくて、髪は肩までのストレートで、それがサラサラフワッとしてて、キューティクルが輝いてて……胸はどっちかっていうと小ぶりで、巨乳じゃないけれど、ツンとしてて上向いてて、多分、美乳……美乳に違いないッ！|（女の生乳なんて見たことないけれど）……そして、また脚が細くて、スラッとしてて、余計な肉が付いていなくて、つるんとしてて……ぬああああああ！！！
+  english: "That girl had huge eyes and straight hair down to her shoulders, all silky and fluffy, with a beautiful glossy shine… Her breasts were on the smaller side—not huge, but pert and pointing upward. Probably beautiful breasts… They had to be beautiful breasts! (Though I’ve never seen a woman’s bare breasts before)… And then there were her legs, so slim and sleek, without an ounce of excess fat, all smooth and silky… NUAAAAAAAAH!!!"
+- locator: P63
+  source_japanese: 「保健室に行った方がいいわよ。一緒に行く？」
+  english: "“You should go to the Nurse’s Office. Want me to go with you?”"
+- locator: P64
+  source_japanese: て……天使が、オレに話し掛けているッッ！！！
+  english: "T-the angel is talking to me!!!"
+- locator: P65
+  source_japanese: 「いっ、いえっ、だ、だ、だ、大丈夫ですからっ！」
+  english: "“N-no, I-I-I-I’m okay!”"
+- locator: P66
+  source_japanese: 「そう？ならいいけど……無理しないでね。」
+  english: "“Really? If you’re okay, then that’s fine, but… don’t push yourself, okay?”"
+- locator: P67
+  source_japanese: 「あ、あ、あ、ありがとう……」
+  english: "“T-t-th-thank you…”"
+- locator: P68
+  source_japanese: 「あ、あたし……白坂雪乃。よろしくね！」
+  english: "“I-I’m… Shirasaka Yukino. Nice to meet you!”"
+- locator: P69
+  source_japanese: 天使は、そう微笑んで、オレから離れていった……！
+  english: "The angel smiled as she said that, then walked away from me…!"
+- locator: P70
+  source_japanese: し、白坂雪乃さんっ？！
+  english: "S-Shirasaka Yukino-san?!"
+- locator: P71
+  source_japanese: ……こ、こんな可愛い子が、お、同じクラスなんだっ！！
+  english: "…A-a girl this cute is in the s-same class as me!!"
+- locator: P72
+  source_japanese: 思わず、白坂さんの後ろ姿を目で追う！
+  english: "I instinctively follow Shirasaka-san’s retreating figure with my eyes!"
+- locator: P73
+  source_japanese: オレなんかと違って、彼女は新しいクラスですぐに友達を作ったみたいで、女の子たちのグループで笑って話している。
+  english: "Unlike me, she seems to have made friends in the new class right away, and now she’s laughing and chatting with a group of girls."
+- locator: P74
+  source_japanese: その微笑みがまたキュートで……ああ、ずっと見ていたい！
+  english: "And that smile is so cute too… Ahh, I could watch her forever!"
+- locator: P75
+  source_japanese: それが、白坂さんとの出会い。
+  english: "That was how I met Shirasaka-san."
+- locator: P76
+  source_japanese: その日以来、オレはもう白坂さんに夢中。
+  english: "Since that day, I’ve been completely crazy about Shirasaka-san."
+- locator: P77
+  source_japanese: 毎日、白坂さんばかり見ている。
+  english: "Every day, I do nothing but watch Shirasaka-san."
+- locator: P78
+  source_japanese: ……遠くの方から、こっそり彼女を見ている。
+  english: "…I secretly watch her from a distance."
+- locator: P79
+  source_japanese: 昼休みに美味しそうにお弁当を食べてる白坂さん。
+  english: "Shirasaka-san happily eating her bento during lunch break."
+- locator: P80
+  source_japanese: 眉毛を八の字にして数学の問題を解いている白坂さん。
+  english: "Shirasaka-san solving math problems with her eyebrows furrowed into “八”."
+- locator: P81
+  source_japanese: 体操着姿で体育座りしている時の姿なんて、もう最高の美少女って感じで……！
+  english: "The way she looks sitting in her gym clothes with her knees hugged to her chest… she’s just the very picture of the perfect beautiful girl…!"
+- locator: P82
+  source_japanese: いつも白坂さんは、ニコニコしている。その笑顔が可愛い。
+  english: "Shirasaka-san is always smiling. That smile is so cute."
+- locator: P83
+  source_japanese: 誰にでも優しく話し掛けるし、頭も良くて勉強もできる。|（入学試験はトップ３の成績だったらしい）
+  english: "She speaks kindly to everyone, and she’s smart and does well in school. (Apparently, she ranked in the top three on the entrance exam.)"
+- locator: P84
+  source_japanese: しかも、ただ優しいだけじゃなくって、とってもしっかりしていて、掃除当番をサボろうとした男子に、「ルールが守れない人は、あたしサイテイだと思うわっ！」なんてハッキリ文句を言ったこともあった。
+  english: "And she’s not just kind—she’s very responsible, too. There was even a time when she flat-out told off a boy who tried to skip cleaning duty: “I think people who can’t follow the rules are the worst!”"
+- locator: P85
+  source_japanese: その毅然とした態度が格好良くて、また人気が出ちゃって……入学してまだそんなに間もないのに、今やクラスの女子たちの相談役とかにもなっている。
+  english: "That firm, confident attitude made her even more popular… Even though it hasn’t been that long since we started school, she’s already become the person the girls in class go to for advice."
+- locator: P86
+  source_japanese: だからきっとオレみたいのが話し掛けても、彼女はきっと普通のクラスメイトとして当たり前に話をしてくれるだろう。
+  english: "So I’m sure that even if someone like me talked to her, she’d talk to me just like she would any other classmate."
+- locator: P87
+  source_japanese: それは判っている……判っているんだけど。
+  english: "I know that… I know, but…."
+- locator: P88
+  source_japanese: オレには彼女に話し掛ける勇気がなくて……入学式の日以来、彼女と話したことはない。
+  english: "I don’t have the courage to talk to her… I haven’t spoken to her since the day of the entrance ceremony."
+- locator: P89
+  source_japanese: ……話せないよ。
+  english: "…I can’t talk to her."
+- locator: P90
+  source_japanese: 話したら嫌われる。
+  english: "If I talk to her, she’ll hate me."
+- locator: P91
+  source_japanese: 絶対にオレ、白坂さんのこと、エッチな目で見ちゃってると思うし……。
+  english: "I’m sure I’m looking at Shirasaka-san in a totally pervy way, too…."
+- locator: P92
+  source_japanese: どうしたって白坂さん、魅力的だし……。
+  english: "No matter what, Shirasaka-san is just so attractive…."
+- locator: P93
+  source_japanese: ああ、あんな子と付き合えたら最高だろうなあ、幸せだろうなあとは思うんだけど……。
+  english: "Ahh, if I could date a girl like that, it’d be amazing. I’d be so happy… but…."
+- locator: P94
+  source_japanese: でも、あんなに綺麗で可愛い子が、オレと付き合ってくれるハズがない。
+  english: "But there’s no way a girl that beautiful and cute would ever date me."
+- locator: P95
+  source_japanese: 何より、付き合うって何することなのか、オレ、よく判らないし……。
+  english: "More than anything, I don’t even really know what you’re supposed to do when you’re dating…."
+- locator: P96
+  source_japanese: オレ、実際のところ、女の子とデートとかもしたことが無い。
+  english: "To be honest, I’ve never even been on a date with a girl."
+- locator: P97
+  source_japanese: デートって、何処行けばいいのかも判らない。
+  english: "I don’t even know where you’re supposed to go on a date."
+- locator: P98
+  source_japanese: 何回デートしたらキスしていいのかも判らないし。
+  english: "I don’t even know how many dates you’re supposed to go on before it’s okay to kiss."
+- locator: P99
+  source_japanese: それこそ……セックスなんて、何回目のデートで解禁になるのか知らないし。
+  english: "And as for sex… I don’t even know which date it gets unlocked on."
+- locator: P100
+  source_japanese: ……はぁ。
+  english: "[i]…Sigh[/i]."
+- locator: P101
+  source_japanese: そんな具合で、入学式からのここ一ヶ月弱というもの、オレの頭の中は毎日、白坂さんのことばかりで悶々としている。
+  english: "And so, for nearly a month since the entrance ceremony, I’ve spent every day with nothing but Shirasaka-san on my mind, restlessly obsessing over her."
+- locator: P102
+  source_japanese: （ああ、白坂さん……白坂さん……白坂さぁぁん……）
+  english: "[i]Ah, Shirasaka-san... Shirasaka-san... Shirasaka-saaaan...[/i]"
+- locator: P103
+  source_japanese: と、放課後の男子トイレの個室の中で、白坂さんの姿を思い浮かべている、オレ。
+  english: "And here I am, in a stall in the boys’ restroom after school, picturing Shirasaka-san."
+- locator: P104
+  source_japanese: ……ああ、情けないッ！
+  english: "…Ahh, I’m so pathetic!"
+- locator: P105
+  source_japanese: いいんだよ、いいんだよ、オレは白坂さんを遠くから見ているだけで、それで満足なんだ。
+  english: "It’s fine, it’s fine. Just watching Shirasaka-san from afar is enough for me."
+- locator: P106
+  source_japanese: 毎日、あの可愛い微笑みが見られれば、それだけで……！！！
+  english: "If I can see that cute smile every day, that alone is all I need…!!!"
+- locator: P107
+  source_japanese: 「……しっかし、うちのクラスの白坂って、見れば見るほどいいオンナだよなあ」
+  english: "“…Man, the more I look at Shirasaka from our class, the hotter she gets.”"
+- locator: P108
+  source_japanese: ふと気が付くと、ドアの向こうからそんな声がした。
+  english: "Suddenly, I heard a voice coming from the other side of the door."
+- locator: P109
+  source_japanese: オレがブッ太いのを排泄している間に、何人かがトイレに入って来たらしい。
+  english: "Apparently, some guys came into the restroom while I was dropping a big fat one."
+- locator: P110
+  source_japanese: 「あいつゼッタイ処女だぜ。処女。あー、白坂の中にブチ込んでみてぇなぁ！」
+  english: "“She’s definitely a virgin. A virgin. Ahh, I wanna ram it into Shirasaka so bad!”"
+- locator: P111
+  source_japanese: 声の主は、どうやらオレのクラスの小林のようだ。
+  english: "The voice seems to belong to Kobayashi from my class."
+- locator: P112
+  source_japanese: となると連れション相手は、相棒の大宮に違いない。
+  english: "Which means his [en=en-P112-01]pee buddy[/en] has to be his partner, Oomiya."
+- locator: P113
+  source_japanese: ここでは仮に連れションマン１号、２号と命名することにする。
+  english: "For now, I’ll dub them Pee Buddy No. 1 and Pee Buddy No. 2."
+- locator: P114
+  source_japanese: 「えー、お前知らないの？最新ニュース！」
+  english: "“What, you haven’t heard? The latest news!”"
+- locator: P115
+  source_japanese: 「へ？何の話だよ？」
+  english: "“Huh? What are you talking about?”"
+- locator: P116
+  source_japanese: 「あのさ、白坂雪乃にオトコができたらしいぜ。」
+  english: "“Apparently Shirasaka Yukino got herself a boyfriend.”"
+- locator: P117
+  source_japanese: 瞬間、オレはトイレの便座の上で凍り付いた！！！
+  english: "In that instant, I froze on the toilet seat!!!"
+- locator: P118
+  source_japanese: ……あちゃ～と思った。
+  english: "…Oh crap, I thought."
+- locator: P119
+  source_japanese: ありゃりゃ～とも思った。
+  english: "…Uh-oh, I thought."
+- locator: P120
+  source_japanese: とほほ～とも思った。
+  english: "…Oh man, I thought."
+- locator: P121
+  source_japanese: そして……全身の血が、一瞬にして沸騰した！！！
+  english: "And then… all the blood in my body boiled in an instant!!!"
+- locator: P122
+  source_japanese: るえええええーッッ！！！！！！
+  english: "[i]RUEEEEEEEE!!!!!![/i]"
+- locator: P123
+  source_japanese: し、し、し、白坂さんにオトコができたぁぁぁ？！！！！！！！
+  english: "Sh-Sh-Shirasaka-san got a boyfrieeeend?!!!!!!!"
+- locator: P124
+  source_japanese: ブヒーッ！がががぁぁーんッッ！！！
+  english: "[i]Buhiii! G-g-gaaaaan!!![/i]"
+- locator: P125
+  source_japanese: オレは個室の中で、思わずウンコする力を緩めて、聞き耳を立てるッ！
+  english: "Inside the stall, I instinctively ease up on pushing out my shit and strain my ears!"
+- locator: P126
+  source_japanese: 「えー、嘘だろ？」と、連れションマン２号。
+  english: "“Eh? You’re kidding, right?” says Pee Buddy No. 2."
+- locator: P127
+  source_japanese: ……そうだ、嘘だと言ってくれ、連れションマン１号よッ！
+  english: "…Yeah, that's right tell me it’s a lie, Pee Buddy No. 1!"
+- locator: P128
+  source_japanese: 「嘘じゃねえよ。マジな話」
+  english: "“It’s not a lie. Dead serious.”"
+- locator: P129
+  source_japanese: 「えー、誰だよ。相手は？」
+  english: "“Eh, who is it? Who’s the guy?”"
+- locator: P130
+  source_japanese: ……そ、そ、そ、そうだ、誰だ？誰だ？相手は誰なんだ？
+  english: "…Th-th-th-that’s right, who is it? Who is it? Who’s the guy?!"
+- locator: P131
+  source_japanese: 「それがよぉ……あの遠藤だってよ。」
+  english: "“Well… apparently it’s that Endo guy.”"
+- locator: P132
+  source_japanese: エンドウ？……あの遠藤ってどの遠藤だよぉぉっ？！
+  english: "Endo? …Which Endo do you mean by “that Endoooo”?!"
+- locator: P133
+  source_japanese: 「えー、遠藤って、野球部の？」
+  english: "“Eh? Endo from the baseball club?”"
+- locator: P134
+  source_japanese: 「……そう、その遠藤」
+  english: "“…Yeah, that Endo.”"
+- locator: P135
+  source_japanese: あ、遠藤って、うちのクラスの遠藤ケンジかぁっ！！
+  english: "Ah, Endo—you mean Endo Kenji from our claaass?!!"
+- locator: P136
+  source_japanese: 「はー、あの遠藤なら仕方ないかもなあ」
+  english: "“Hah… if it’s that Endo, I guess it can’t be helped.”"
+- locator: P137
+  source_japanese: ……な、な、な、何を言う！！
+  english: "…W-w-w-what are you saying?!!"
+- locator: P138
+  source_japanese: 仕方ないことなんかあるかっ！
+  english: "Like hell it can’t be helped!"
+- locator: P139
+  source_japanese: 遠藤ケンジなんて、顔が良くて、背が高くて、家が資産家で、スポーツ万能で、一年生なのに野球部のレギュラー獲れそうだっていう噂で、一年女子にモテモテで……ただそれだけのオトコじゃないかっ！
+  english: "Endo Kenji’s just handsome, tall, comes from a wealthy family, is good at every sport, is rumored to be good enough to make the baseball team’s starting lineup even as a first-year, and is crazy popular with the first-year girls… That’s all he’s got going for him!"
+- locator: P140
+  source_japanese: 例えヤツが完全無欠のスーパー高校生だったとしても、だからって、だからって、だからって……それで白坂さんと付き合っていいわけがないっ！
+  english: "Even if he’s some absolutely flawless super high schooler, that doesn’t mean—doesn’t mean, doesn’t mean—he gets to date Shirasaka-san!"
+- locator: P141
+  source_japanese: そうだろ、そうでしょ、そういうもんだろう……なあ！八百万の神々よ！！！
+  english: "Right? Isn’t that right? That’s how it should be… right?! [en=en-P141-01]O Eight Million Gods!!![/en]"
+- locator: P142
+  source_japanese: 「……まあ仕方ないよな、あの遠藤じゃあ。」
+  english: "“…Well, I guess it can’t be helped if it’s that Endo.”"
+- locator: P143
+  source_japanese: ……そ、そんなことないやいぃっ！
+  english: "…Th-that’s not truuue!"
+- locator: P144
+  source_japanese: 許さん。このオレが許さないぞぞぞぞ。あーッ！
+  english: "I won’t allow it. I, for one, won’t allow iiiit! Aaaah!"
+- locator: P145
+  source_japanese: 「……んで、いつからなんだよ？」
+  english: "“…So, since when?”"
+- locator: P146
+  source_japanese: 「何が？」
+  english: "“What?”"
+- locator: P147
+  source_japanese: 「だから、いつから付き合っているんだよ、白坂と遠藤」
+  english: "“I mean, since when have Shirasaka and Endo been dating?”"
+- locator: P148
+  source_japanese: ……そっそっそ、そうだ、それが大事！
+  english: "…Th-th-th-that’s right, that’s the important part!"
+- locator: P149
+  source_japanese: よくぞ気が付いたな連れションマン２号！
+  english: "Good catch, Pee Buddy No. 2!"
+- locator: P150
+  source_japanese: ホメてつかわすぞ！
+  english: "I shall commend you for that!"
+- locator: P151
+  source_japanese: あー、二人はいつからの関係なのだ？
+  english: "Ah, since when have those two been together?"
+- locator: P152
+  source_japanese: あー、白坂さんの唇はまだ汚されていないのか？
+  english: "Ah, are Shirasaka-san’s lips still undefiled?"
+- locator: P153
+  source_japanese: いやいや、それどころか白坂さんの純潔は？！
+  english: "No, no, forget that—what about Shirasaka-san’s chastity?!"
+- locator: P154
+  source_japanese: しょ、しょ、処女膜は無事なのかかかかかーッ？！！
+  english: "I-i-is her hymen still intaaact?!?!!"
+- locator: P155
+  source_japanese: 「……どうやらさ、先週の土曜日かららしいぜ」
+  english: "“…Apparently, they’ve been together since last Saturday.”"
+- locator: P156
+  source_japanese: 「へー、先週の土曜？」
+  english: "“Heh? Last Saturday?”"
+- locator: P157
+  source_japanese: 「うん、何か昨日の練習の後で、遠藤のヤツが部活の先輩に問いつめられて、そんで白状したらしいんだよね」
+  english: "“Yeah, I heard Endo got grilled by some senpai in the club after practice yesterday, and then he admitted it.”"
+- locator: P158
+  source_japanese: 「えー、何で先輩にバレたの？」
+  english: "“Eh? How did the senpai find out?”"
+- locator: P159
+  source_japanese: 「そりゃ昨日、白坂がグラウンドの隅で、ずっと遠藤の練習を見てたっていうから……手に白いタオル持って」
+  english: "“Well, yesterday Shirasaka was watching Endo practice from the edge of the field the whole time… holding a white towel in her hand.”"
+- locator: P160
+  source_japanese: 「ほー、そりゃバレるわな」
+  english: "“Hoh, yeah, no wonder they found out.”"
+- locator: P161
+  source_japanese: 「つーか、バレバレだよな」
+  english: "“I mean, it’s totally obvious.”"
+- locator: P162
+  source_japanese: ……白坂さんのタオル、うらやましいぃっ！
+  english: "…I’m so jealooous of Shirasaka-san’s towel!"
+- locator: P163
+  source_japanese: って、そこがポイントじゃないだろっ！
+  english: "Wait, that’s not the point!"
+- locator: P164
+  source_japanese: うー、よし、もう一度よく考えてみよう。
+  english: "Ugh… alright, let me think this through carefully one more time."
+- locator: P165
+  source_japanese: ①先週の土曜から二人は付き合っている。
+  english: "① They’ve been dating since last Saturday."
+- locator: P166
+  source_japanese: ②先週の土曜から二人はカップル。
+  english: "② They’ve been a couple since last Saturday."
+- locator: P167
+  source_japanese: ③先週の土曜から二人は恋人同士。
+  english: "③ They’ve been boyfriend and girlfriend since last Saturday."
+- locator: P168
+  source_japanese: 今日は火曜日…土曜日の三日後。
+  english: "Today is Tuesday… three days after Saturday."
+- locator: P169
+  source_japanese: ……てことは、白坂さんの純潔はまだセーフか？
+  english: "…Does that mean Shirasaka-san’s chastity is still safe?"
+- locator: P170
+  source_japanese: ……でも、休日が間に入ってるし。
+  english: "…But there was a day off in between, too."
+- locator: P171
+  source_japanese: ……って、野球部は日曜も練習か。
+  english: "…Wait, the baseball club practices on Sundays too."
+- locator: P172
+  source_japanese: ……そんなら、も、も、も、もしかしたら唇も無事？
+  english: "…Then, m-m-m-maybe her lips are still safe too?"
+- locator: P173
+  source_japanese: 「まあ、まだヤッてはいないだろーけれど」
+  english: "“Well, they probably haven’t done it yet, though.”"
+- locator: P174
+  source_japanese: ……そう、そう、してない、してないっちゅーの！ゼッタイにッ！
+  english: "…Right, right, they haven’t, they haven’t, I’m telling you! Absolutely not!"
+- locator: P175
+  source_japanese: 「えー、でも、チューはしてるんじゃないの？」
+  english: "“Eh? But haven’t they kissed, though?”"
+- locator: P176
+  source_japanese: ……し、し、し、してないッッ。
+  english: "…T-t-t-they haven’t!!"
+- locator: P177
+  source_japanese: 白坂さんはチューはしてない。
+  english: "Shirasaka-san hasn’t done any kissing."
+- locator: P178
+  source_japanese: チューはまだ。
+  english: "No kissing yet."
+- locator: P179
+  source_japanese: チューはしていないと信じさせてくれーっ！
+  english: "Please, let me believe they haven’t kissed yeeet!"
+- locator: P180
+  source_japanese: 「……キスはしたって、遠藤が野球部の先輩に報告したらしいぜ」
+  english: "“…I heard Endo told his senpai in the baseball club that they kissed.”"
+- locator: P181
+  source_japanese: ……し、したのか？してたのか、チュウゥッッー！！はじめてぇのチュウウウッ！
+  english: "…D-did they? They kissed? Kiiiiiiss!! Her fiiirst kiiiiiss!"
+- locator: P182
+  source_japanese: ……遠藤、ブッ殺す。最悪でも呪い殺す。
+  english: "…Endo, I’ll fucking kill you. If nothing else, I’ll curse you to death."
+- locator: P183
+  source_japanese: 「いずれにしても、そのうち遠藤にヤられちゃうんだろうなあ、白坂」
+  english: "“Either way, Shirasaka’s probably gonna end up getting fucked by Endo sooner or later.”"
+- locator: P184
+  source_japanese: 「はー、まあ、美人薄命と言いますか……綺麗な子から食われちゃうんだよなあ」
+  english: "“Hah, well, as they say, ‘beautiful women die young’… the pretty girls are always the first to get devoured.”"
+- locator: P185
+  source_japanese: 「まあ、めぼしいオンナは、入学してゴールデンウィークまでに誰かしらツバつけるもんだよなあ」
+  english: "“Well, any girl worth going after usually has someone calling dibs on her by [en=en-P185-01]Golden Week[/en].”"
+- locator: P186
+  source_japanese: し、知らんぞ、そんなルール。
+  english: "I-I’ve never heard of a rule like that!"
+- locator: P187
+  source_japanese: 「ある意味、先に動いたもん勝ちか」
+  english: "“In a way, whoever makes the first move wins.”"
+- locator: P188
+  source_japanese: 「ていうか、イケメン様は強いっていうか。今週の日曜辺りに一波乱あるんじゃねーの？」
+  english: "“I mean, an [en=en-P188-01]ikemen-sama[/en]’s got one hell of an advantage. Think something might happen around this Sunday?”"
+- locator: P189
+  source_japanese: 「いよいよ連休だし、まー、この週末が一つの山場でしょーね」
+  english: "“Golden Week’s finally here, so, well, this weekend’ll probably be a pretty big turning point.”"
+- locator: P190
+  source_japanese: 「ふー、白坂も大人の女になっちまうのかねぇ」
+  english: "“Phew… I guess Shirasaka’s gonna become a woman soon, huh.”"
+- locator: P191
+  source_japanese: 「はー……はかないもんですなぁ」
+  english: "“Hah… how fleeting it all is.”"
+- locator: P192
+  source_japanese: 「ほー……哲学だねぇ」
+  english: "“Hoh… that’s pretty philosophical.”"
+- locator: P193
+  source_japanese: ひー、白坂さんが遠藤と……！
+  english: "Eek, Shirasaka-san and Endo…!"
+- locator: P194
+  source_japanese: 白坂さんがヤられちゃう！破られちゃう！犯されちゃう！
+  english: "Shirasaka-san’s gonna get fucked! Her hymen’s gonna get torn! She’s gonna get raped!"
+- locator: P195
+  source_japanese: そ・ん・な・こ・と・は・ゆ・る・せ・ないーッッ！！！
+  english: "I・WILL・NOT・ALLOW・SUCH・A・THIIING!!!"
+- locator: P196
+  source_japanese: チクショウ！嫌だ！嫌だ！嫌だ！ゼッタイに嫌だぁぁっ！！ガッデームッ！！
+  english: "Dammit! No! No! No! Absolutely nooooo!! GODDAMNIT!!"
+- locator: P197
+  source_japanese: ……ＢＯＯＯ！！！ブリブリブリッッ！！
+  english: "[i]…[/i][b][i]BOOO!!![/i][/b][i] BRRRT-BRRT-BRRT!![/i]"
+- locator: P198
+  source_japanese: ……あ！
+  english: "…Ah!"
+- locator: P199
+  source_japanese: 怒りにまかせて腹に力を入れたら、オレのおケツから屁が漏れた…！
+  english: "When I tensed my stomach in a fit of anger, a fart slipped out of my ass…!"
+- locator: P200
+  source_japanese: ついでにウンコもブリブリと…！
+  english: "And some shit came out with it too—[i]BRRRT-BRRT…![/i]"
+- locator: P201
+  source_japanese: くっ、臭い～っ！！自分の排泄物とは思えないほど臭いッ！
+  english: "Ugh, it stiiinks!! It reeks so bad I can’t believe it’s my own excrement!"
+- locator: P202
+  source_japanese: 「なっ、何だよ、くせっ！誰だよ。そこにいるの？！」
+  english: "“Wh-what the hell, it stinks! Who’s in there?!”"
+- locator: P203
+  source_japanese: 「うえー、ホント、くっせーな！おい、出てこいよ！」
+  english: "“Ugh, seriously, it reeeeks! Hey, get out here!”"
+- locator: P204
+  source_japanese: うわっ、連れションマンたちが、こっちにやって来る！！
+  english: "Uwah, the Pee Buddies are coming this way!!"
+- locator: P205
+  source_japanese: ヤバイ！ヤバイぞ、オレ！どうする？！どうなる？！オレ？！！！
+  english: "Crap! This is bad! What do I do?! What’s gonna happen?! To me?!!!"
+- locator: P206
+  source_japanese: 「おい、そこの個室の中にいるヤツ！お前、今、屁したろ！判っているんだぞ！」
+  english: "“Hey, you in that stall! You just farted, didn’t you?! I know you did!”"
+- locator: P207
+  source_japanese: 「おい、こらぁぁ！！」
+  english: "“Hey, youuu!!”"
+- locator: P208
+  source_japanese: 連れションマンたちは、オレの入っている個室のドアをガンガン蹴飛ばしている！
+  english: "The Pee Buddies are kicking the door of my stall—[i]BANG! BANG! BANG![/i]"
+- locator: P209
+  source_japanese: どっ、どっ、どうしよう？！！！
+  english: "Wh-wh-what should I do?!!!"
+- locator: P210
+  source_japanese: ……とりあえず死んだふり。死んだふーり。
+  english: "…For now, play dead. Play deaaad."
+- locator: P211
+  source_japanese: オレはいない。
+  english: "I’m not here."
+- locator: P212
+  source_japanese: オレは空気だ。
+  english: "I’m air."
+- locator: P213
+  source_japanese: 透明になれぇぇぇっ！
+  english: "Turn invisibleeee!"
+- locator: P214
+  source_japanese: 気配を消すのでござるよッ、ニンニンッ！！
+  english: "I shall erase my presence, de gozaru! Nin-nin!!"
+- locator: P215
+  source_japanese: それでも連れションマンたちは諦めてくれる気配はなく……！
+  english: "Even so, the Pee Buddies showed no sign of giving up…!"
+- locator: P216
+  source_japanese: ……え？何？何？何？！！！
+  english: "…Eh? What? What? What?!!!"
+- locator: P217
+  source_japanese: 何かジャージャーと水の流れる音とか、何かを運ぶガシガシって音がするんですけど。
+  english: "I can hear water rushing—[i]whoosh-whoosh[/i]—and some kind of [i]scrape-clatter[/i], like they’re moving something around…"
+- locator: P218
+  source_japanese: 「おい、こっち見ろよッ！」
+  english: "“Hey, look over here!”"
+- locator: P219
+  source_japanese: と、突然上の方から声がする……？！
+  english: "Then, suddenly, I hear a voice from somewhere above…?!"
+- locator: P220
+  source_japanese: お？！……見上げると、個室のドアの上から、連れションマン１号、じゃなかった小林がウンコしている最中のオレを見下ろしているるるるーっ？？？！！！
+  english: "Oh?! …I look up, and over the top of the stall door, Pee Buddy No. 1—no, Kobayashi—is looking down at me while I’m right in the middle of shittingggg???!!!"
+- locator: P221
+  source_japanese: 「よう、元気かぁ？！……これでも食らえェッ！！！」
+  english: "“Yo, how ya doing?! …Take thiiis!!!”"
+- locator: P222
+  source_japanese: 便所の個室のドアの上から……ゲゲッ！
+  english: "From over the top of the restroom stall door… Geh!"
+- locator: P223
+  source_japanese: 水で満杯のバケツが降ってきたーッ！
+  english: "A bucket full of water came crashing dooown!"
+- locator: P224
+  source_japanese: ……じゃぱあああんっ！！
+  english: "[i]…Splaaaash!![/i]"
+- locator: P225
+  source_japanese: 便所の個室に雨が降るゥッ！降るゥッッ！！あ～、土砂降りの雨が…！
+  english: "It’s raining in the restroom stall! It’s rainiiing!! Ahh, a torrential downpour…!"
+- locator: P226
+  source_japanese: ……という感じで始まります。
+  english: "…And that’s how it begins."
+- locator: P227
+  source_japanese: どんな風に着地するかは、まだ判りません。
+  english: "I still don’t know how it’s going to land."
+- locator: P228
+  source_japanese: 小説の投稿は初めてなので、色々と勝手が判りません。
+  english: "This is my first time posting a novel, so I’m still not really sure how things work."
+- locator: P229
+  source_japanese: ご指導いただければ幸いです。（ゆだ）
+  english: "I’d greatly appreciate any guidance you can offer. (Yuda)"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

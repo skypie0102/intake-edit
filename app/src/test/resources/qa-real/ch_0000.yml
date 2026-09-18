@@ -1,0 +1,365 @@
+schema_version: 6
+volume: 1
+chapter: 0
+source_href: canonical/vol-01/ch_0000.xhtml
+source_sha256: 3e930a7998ee9687438927ed00b2d7b6113aab8c7fa859ce8c313104ebc71e51
+reader_file: reader/vol-01/ch_0000.xhtml
+english_title: Character List — Cast
+instructions: Supply authoritative English for every paragraph, add endnotes when useful, then explicitly mark the chapter reviewed.
+editor_review_complete: false
+entries:
+- locator: P1
+  source_japanese: 最新版に更新しました。
+  english: "Updated to the latest version."
+- locator: P2
+  source_japanese: ★メイン・キャラ
+  english: "★ Main Characters"
+- locator: P3
+  source_japanese: ◎　吉田　　（ヨシダ　　十五歳）
+  english: "◎ Yoshida (15 years old)"
+- locator: P4
+  source_japanese: 本編の主人公。下の名前は未定。高校一年生。中学の三年間を山奥の男子校の寮で過ごしたため、すっかり女の子が苦手になっていた。暗くて、ひねた困り者。白坂さんが好き。DNAレベルで好きらしい。妄執的に愛している。
+  english: "The protagonist of the main story. His given name has yet to be decided. A first-year high school student. Having spent all three years of middle school in a dorm at an all-boys school deep in the mountains, he’s become completely uncomfortable around girls. A gloomy, twisted misfit. He likes Shirasaka-san. Apparently, he likes her on a DNA level. He loves her obsessively."
+- locator: P5
+  source_japanese: ◎　白坂　雪乃　（シラサカ・ユキノ　十六歳）
+  english: "◎ Shirasaka Yukino (16 years old)"
+- locator: P6
+  source_japanese: 本編のヒロイン。高校一年生。明るくて優しくて成績優秀な美少女。正義感が強く、ごまかしや嘘が大嫌い。どんな相手にも、自分の意見をはきはきと述べる。実はプライドの高い、自分好きの女の子。
+  english: "The heroine of the main story. A first-year high school student. A bright, kind, beautiful girl with excellent grades. She has a strong sense of justice and hates deception and lies. No matter who she’s dealing with, she states her opinions clearly and directly. In truth, she’s a proud girl who’s quite fond of herself."
+- locator: P7
+  source_japanese: 普段の明るさや優しさも、自分の中の『みんなに愛される私』という像を守りたいだけ。
+  english: "Even her usual cheerfulness and kindness are just her way of preserving the image she has of herself as “the girl everyone loves.”"
+- locator: P8
+  source_japanese: 高校に入学して一月もたたないうちに遠藤ケンジに告白され、交際を始める。それさえ、本当に遠藤が好きになったからではなく、理想の自分の恋愛イメージに遠藤がたまたま合致したからだけである。恋に恋するお嬢さん。
+  english: "Not even a month after starting high school, Endo Kenji confessed to her, and they began dating. Even that wasn’t because she had genuinely fallen for Endo, but simply because he happened to fit the romantic image she had envisioned for her ideal self. A young lady in love with the idea of love."
+- locator: P9
+  source_japanese: 吉田から徹底的な陵辱を受ける。
+  english: "She is subjected to complete violation at Yoshida’s hands."
+- locator: P10
+  source_japanese: 身長163センチ。目が大きくて、肩までのストレートの黒髪。胸は小ぶりだが美乳、脚が細い。アイドル級の美少女であるが、寧には負ける。
+  english: "Height: 163 cm. She has large eyes and straight black hair that falls to her shoulders. Her breasts are on the small side but beautiful, and her legs are slender. She’s an idol-class beauty, though even she can’t match Nei."
+- locator: P11
+  source_japanese: 中学時代はバスケ部だったが、現在は何のクラブにも入っていない。
+  english: "She was in the basketball club in middle school, but she isn’t in any clubs right now."
+- locator: P12
+  source_japanese: ◎　遠藤　ケンジ　（エンドウ・ケンジ　十五歳）
+  english: "◎ Endo Kenji (15 years old)"
+- locator: P13
+  source_japanese: 高校一年生。雪乃と付き合い始めたばかり。イケメンで地元の名士の資産家の息子。一年生なのに野球部のレギュラー候補になっているという才能の持ち主。ただし、そんなに野球の強い学校ではないので、実際には中途半端な実力しか無い。本人も、別に甲子園を目指すような努力はしたくないと考えている。
+  english: "A first-year high school student. He has only just started dating Yukino. Handsome, and the son of a wealthy local notable. He’s talented enough to be considered for a starting spot on the baseball team despite being only a first-year. However, since the school isn’t particularly strong at baseball, his actual ability is fairly mediocre. He himself doesn’t particularly want to put in the kind of effort it would take to aim for [en=en-P13-01]Koshien[/en]."
+- locator: P14
+  source_japanese: 性格は、とても悪い。中学の野球部時代にも暴力イジメ事件を引き起こしたが、親父に泣きついてうやむやにしたという過去がある。
+  english: "His personality is terrible. Back in middle school, he caused a violent bullying incident in the baseball club, but went crying to his old man and got the whole thing swept under the rug."
+- locator: P15
+  source_japanese: 身長175センチ。当然、坊主頭。
+  english: "Height: 175 cm. Naturally, he sports a [en=en-P15-01]buzz cut[/en]."
+- locator: P16
+  source_japanese: ◎　山峰　恵美　（ヤマミネ・メグミ　十五歳）
+  english: "◎ Yamamine Megumi (15 years old)"
+- locator: P17
+  source_japanese: 高校一年生。吉田たちのクラスの女のクラス委員。陸上部員。身長173センチ。背が高くてスリムな体型。均整のとれた骨格。胸は無い。黒髪のボブ。日焼けした肌。切れ長の一重の瞳の美少女。
+  english: "A first-year high school student. The female class representative for Yoshida’s class. A member of the track and field club. Height: 173 cm. Tall, with a slim, well-proportioned frame. Flat-chested. Black bob-cut hair. Tanned skin. A beautiful girl with long, narrow, single-lidded eyes."
+- locator: P18
+  source_japanese: とても優しくて、面倒見が良い。
+  english: "She is very kind and caring."
+- locator: P19
+  source_japanese: 雪乃とは、何か因縁があるらしい。
+  english: "She seems to have some kind of history with Yukino."
+- locator: P20
+  source_japanese: ◎　白坂　舞夏　（シラサカ・マイカ　十四歳）
+  english: "◎ Shirasaka Maika (14 years old)"
+- locator: P21
+  source_japanese: 雪乃の妹。中学二年生。雪乃によく似ている。
+  english: "Yukino’s younger sister. A second-year middle school student. She looks very much like Yukino."
+- locator: P22
+  source_japanese: 髪の毛を三つ編みに結って、黄色いリボンで留めている。
+  english: "She wears her hair in a braid, tied with a yellow ribbon."
+- locator: P23
+  source_japanese: 眼が大きく、鼻筋がすっと通った美少女。
+  english: "A beautiful girl with large eyes and a straight, well-defined nose."
+- locator: P24
+  source_japanese: さすがにまだ胸は、ふくらみかけ……。
+  english: "Naturally, her breasts are still only beginning to bud…"
+- locator: P25
+  source_japanese: 大人の女に憧れている。
+  english: "She longs to become a grown woman."
+- locator: P26
+  source_japanese: 姉のことは好きではない。
+  english: "She doesn’t like her older sister."
+- locator: P27
+  source_japanese: ◎ 白坂　創介　（シラサカ・ソウスケ　四十二歳）
+  english: "◎ Shirasaka Sousuke (42 years old)"
+- locator: P28
+  source_japanese: 雪乃と舞夏の父。広告代理店勤務。部長待遇。
+  english: "Yukino and Maika’s father. Works at an advertising agency, with status equivalent to a department manager."
+- locator: P29
+  source_japanese: 祖父は大手新聞社の創業者で、生まれついてのお坊ちゃんである。
+  english: "His grandfather was the founder of a major newspaper company, and he was born into privilege as a rich young master."
+- locator: P30
+  source_japanese: 妻とは見合いで結婚した。
+  english: "He married his wife through an [en=en-P30-01][i]omiai[/i][/en]."
+- locator: P31
+  source_japanese: ★『黒い森』
+  english: "★ ‘Kuromori’"
+- locator: P32
+  source_japanese: ◎　弓槻　御名穂　（ユヅキ・ミナホ　二十八歳）
+  english: "◎ Yuzuki Minaho (28 years old)"
+- locator: P33
+  source_japanese: 高校教師。担当は英語。身長178センチ。痩せている。長い黒髪。黒縁眼鏡の下に冷たい美貌を隠している。自称・悪魔。
+  english: "A high school teacher. Teaches English. Height: 178 cm. Slim. Long black hair. Hides a cold beauty beneath her black-rimmed glasses. A self-proclaimed “Devil.”"
+- locator: P34
+  source_japanese: 徹底したサディストであるが、実はセックスに興味は無い。
+  english: "A complete sadist, though she actually has no interest in sex."
+- locator: P35
+  source_japanese: 彼女は、単に人が苦しむところを見るのが好きなだけで、レイプやハード・セックスはそのための手段でしか無い。
+  english: "She simply enjoys watching people suffer; rape and rough sex are merely means to that end."
+- locator: P36
+  source_japanese: 高校の車で五分の場所の大きな古い洋館に住んでいる。
+  english: "She lives in a large, old Western-style mansion five minutes by car from the high school."
+- locator: P37
+  source_japanese: 校内に盗撮・盗聴ネットワークを構築し、日々、生徒たちの動向を監視している。
+  english: "She has built a network of hidden cameras and wiretaps throughout the school and monitors the students’ activities day after day."
+- locator: P38
+  source_japanese: この学校に赴任して五年……旧校舎の取り壊しや、新校舎の建築にも彼女の意志が絡んでいるらしい……。
+  english: "Five years since taking up her post at this school… it seems her influence was behind both the demolition of the old school building and the construction of the new one…."
+- locator: P39
+  source_japanese: ◎　高梨　克子　（タカナシ・カツコ　二十一歳）
+  english: "◎ Takanashi Katsuko (21 years old)"
+- locator: P40
+  source_japanese: 弓槻先生の『一番目の玩具』。
+  english: "Yuzuki-sensei’s ‘First Toy’."
+- locator: P41
+  source_japanese: 現在は、弓槻家のメイドをしている。黒髪ロングの美人で爆乳だがウエストはキュッと締まっている。お尻はまたドバーン。パン作りが趣味で、将来はパン屋さんを開業するのが夢。
+  english: "Currently works as a maid for the Yuzuki household. A beauty with long black hair and huge breasts, but with a tightly cinched waist. Her butt is just as huge. Her hobby is baking bread, and her dream is to open her own bakery someday."
+- locator: P42
+  source_japanese: 普段は明るくて気さくなお姉さんだが、セックスモードになると『性獣』と化す。
+  english: "Usually a bright and friendly big-sister type, but when she goes into sex mode, she transforms into a “Sex Beast.”"
+- locator: P43
+  source_japanese: 弓槻先生の最初の生徒の一人。
+  english: "One of Yuzuki-sensei’s very first students."
+- locator: P44
+  source_japanese: ◎　片貝　渚　（カタガイ・ナギサ　二十一歳）
+  english: "◎ Katagai Nagisa (21 years old)"
+- locator: P45
+  source_japanese: 弓槻先生の『二番目の玩具』。
+  english: "Yuzuki-sensei’s ‘Second Toy’."
+- locator: P46
+  source_japanese: 克子の同級生で、親友だった。高一の時より調教を受け、『性獣パワーの克子』に対して『技巧派、渚』として『黒い森』に君臨していた。
+  english: "Katsuko's former classmate and best friend. Having undergone “training” since her first year of high school, she reigned over “Kuromori” as “Nagisa the Technician”—the counterpart to the “Sex Beast-powered Katsuko.”"
+- locator: P47
+  source_japanese: 出産を機に、弓槻先生の支配から脱する。現在は三歳の女の子、真緒ちゃんを育てながら、一人で花屋を経営している。
+  english: "She was released from Yuzuki-sensei’s control after giving birth. She now runs a flower shop on her own while raising her three-year-old daughter, Mao-chan."
+- locator: P48
+  source_japanese: 普段は、眼鏡を掛けた知的でクールな美人。背は克子ほど高くないが、巨乳。
+  english: "Usually an intelligent, cool beauty who wears glasses. She’s not as tall as Katsuko, but has huge breasts."
+- locator: P49
+  source_japanese: 弓槻先生の協力もあって、花屋の経営は順調。フラワー教室の講師もしている。
+  english: "With Yuzuki-sensei’s help, her flower shop is doing well. She also teaches flower arrangement classes."
+- locator: P50
+  source_japanese: 店員として、二十歳から十七歳までの五人の美少女を雇い入れているが、その全員が渚のペットである。真緒ちゃん、出産後はずっとレズだった。
+  english: "She employs five beautiful girls between the ages of 17 and 20 as staff, but every one of them is Nagisa’s [i]pet[/i]. Ever since giving birth to Mao-chan, she’s been a lesbian."
+- locator: P51
+  source_japanese: ○　片貝　真緒　（カタガイ・マオ　三歳）
+  english: "○ Katagai Mao (3 years old)"
+- locator: P52
+  source_japanese: 渚の娘。父親は、誰だか判らない。
+  english: "Nagisa’s daughter. No one knows who her father is."
+- locator: P53
+  source_japanese: とっても眼が大きい、妖精のような幼女。ふわふわの長い髪で、前髪だけパッツンと真っ直ぐに揃えられている。右の耳の横の毛を、結って垂らしている。
+  english: "A fairy-like little girl with huge eyes and long, fluffy hair. Her bangs alone are cut perfectly straight in a blunt fringe. A lock of hair beside her right ear is tied and left hanging down."
+- locator: P54
+  source_japanese: 名付け親は、マルゴ。
+  english: "She was named by Margo."
+- locator: P55
+  source_japanese: 弓槻先生は、本気で『猪』という名前にしようとしていた。
+  english: "Yuzuki-sensei was seriously planning to name her ‘Inoshishi’ (Boar)."
+- locator: P56
+  source_japanese: ◎　マルゴ・『ハイウェイ』・スタークウェザー　（十九歳）
+  english: "◎ Margo ‘Highway’ Starkweather (19 years old)"
+- locator: P57
+  source_japanese: 弓槻先生の『三番目の玩具』。
+  english: "Yuzuki-sensei’s ‘Third Toy’."
+- locator: P58
+  source_japanese: アメリカのインディアンの血を引く。貧困のインディアン居留地で育ち、十二歳でレイプされ保護施設に入れられていたところを、留学中の弓槻先生が拾われる。金髪・碧眼。マーシャル・アーツを徹底的に仕込まれていて、全身筋肉隆々であるが、スタイルは良い。強いが、絶対に相手と正面からは闘わない。隙をついた卑怯な戦い方を好む。武闘派の『野獣』。寧と仲が良い。
+  english: "Of Native American descent. Raised on a poverty-stricken reservation, she was raped at twelve and placed in a shelter, where she was taken in by Yuzuki-sensei, who was studying abroad at the time. Blonde hair and blue eyes. Thoroughly trained in martial arts, she is muscular all over but still has a great figure. Although strong, she never fights an opponent head-on. She prefers an underhanded fighting style that exploits openings. A combat-oriented ‘Beast’. She gets along well with Nei."
+- locator: P59
+  source_japanese: ◎　岩倉　幸代　（イワクラ・ユキヨ　十八歳）
+  english: "◎ Iwakura Yukiyo (18 years old)"
+- locator: P60
+  source_japanese: 弓槻先生の『四番目の玩具』。
+  english: "Yuzuki-sensei’s ‘Fourth Toy’."
+- locator: P61
+  source_japanese: 高校三年生。全校生徒に圧倒的な人気を誇る生徒会長。長いストレートの黒髪。眼鏡の似合う美少女。理知的で涼やかな印象がある。隠れ巨乳。
+  english: "A third-year high school student. The student council president, overwhelmingly popular with the entire student body. Long, straight black hair. A beautiful girl who looks great in glasses. She gives off an intelligent, composed impression. Secretly busty."
+- locator: P62
+  source_japanese: 一年前まで弓槻先生に強制的に売春させられていた。絶望のどん底に墜ちた彼女に、弓槻先生は徹底的な英才教育を施し、理想の生徒会長に仕立て上げられる。
+  english: "Until a year ago, she was forced into prostitution by Yuzuki-sensei. After she fell into the depths of despair, Yuzuki-sensei put her through an intensive elite education and molded her into the ideal student council president."
+- locator: P63
+  source_japanese: 性格はとても優しく、穏やかな性格なのだが……名前に反しての不幸体質なので、彼女が関わる人間をどんどん不幸に堕としていく。
+  english: "She has a very kind and gentle personality… but contrary to her name, she seems naturally prone to misfortune, dragging everyone she gets involved with deeper and deeper into misery."
+- locator: P64
+  source_japanese: また、弓槻先生に深く精神支配されている。
+  english: "Additionally, she is deeply under Yuzuki-sensei’s psychological control."
+- locator: P65
+  source_japanese: 本人は弓槻先生から脱したいと考え、抵抗も試みているが……それさえも、弓槻先生は自分の計画に利用している。
+  english: "She herself wants to break free from Yuzuki-sensei and has even tried to resist… but Yuzuki-sensei is exploiting even that resistance for her own plans."
+- locator: P66
+  source_japanese: ◎　奈島　寧　（ナトウ・ネイ　十八歳）
+  english: "◎ Natou Nei (18 years old)"
+- locator: P67
+  source_japanese: 弓槻先生の『五人目の玩具』。
+  english: "Yuzuki-sensei’s ‘Fifth Toy’."
+- locator: P68
+  source_japanese: 高校二年生。ただし、留年しているため、年齢は十八歳。
+  english: "A second-year high school student. However, because she was held back a year, she’s already 18."
+- locator: P69
+  source_japanese: 学校内では、とんでもない不良だと思われているが、ほんわかとした感じの明るい娘。目鼻立ちのはっきりした外人顔の美人。眼も大きいけれど、口も大きい。
+  english: "Though she’s seen as a terrible delinquent at school, she’s actually a cheerful girl with a soft, gentle air about her. A beauty with striking, well-defined, foreign-looking features. Her eyes are large, and she has a wide, expressive mouth."
+- locator: P70
+  source_japanese: 弓槻先生の命令で、普段から髪の毛を金髪（乳白色）に染め、ブルーのカラーコンタクトをしている。わざと、マルゴと外見を似せているらしい。
+  english: "Under Yuzuki-sensei’s orders, she regularly dyes her hair blond (milky white) and wears blue colored contacts. Apparently, she deliberately makes herself look like Margo."
+- locator: P71
+  source_japanese: 去年、半年近く学校を休んだ。その理由は、援助交際で妊娠し、堕胎したからだと噂されている。
+  english: "Last year, she was absent from school for nearly six months. Rumor has it that she got pregnant through [en=en-P71-01]compensated dating[/en] and had an abortion."
+- locator: P72
+  source_japanese: 巨乳でナイスバディ。ちなみに処女。
+  english: "Large breasts and a stunning figure. For the record, she’s a virgin."
+- locator: P73
+  source_japanese: ◎　アニエス　（十二歳）
+  english: "◎ Agnes (12 years old)"
+- locator: P74
+  source_japanese: 弓槻先生の『六人目の玩具』。
+  english: "Yuzuki-sensei’s ‘Sixth Toy’."
+- locator: P75
+  source_japanese: お屋敷の地下の監禁室に幽閉されている。
+  english: "Locked away in a confinement room in the mansion’s basement."
+- locator: P76
+  source_japanese: 「究極の玩具」を作るために産み出され、教育されている。
+  english: "She was brought into this world to create the “Ultimate Toy” and was being [i]trained[/i] for that purpose."
+- locator: P77
+  source_japanese: ○　香月　みすず　（コウヅキ・ミスズ　十七歳）
+  english: "○ Kouzuki Misuzu (17 years old)"
+- locator: P78
+  source_japanese: 渚のペットだったが、吉田くんにレンタルされた。
+  english: "She was Nagisa’s pet, but was loaned out to Yoshida-kun."
+- locator: P79
+  source_japanese: 名門の家系に生まれ、父は文部科学省の高級官僚。深窓の令嬢。
+  english: "Born into a prestigious family, her father is a high-ranking official at [en=en-P79-01]MEXT[/en]. A sheltered young lady of refined upbringing."
+- locator: P80
+  source_japanese: 子供の頃から、私立のお嬢様女子校に通い、全くの世間知らずだった。
+  english: "Having attended an exclusive private girls’ school since childhood, she was completely naive about the ways of the world."
+- locator: P81
+  source_japanese: 渚と同じ師匠に生け花を習っており、その教室で眼を付けられ、ペットとして調教される。
+  english: "She studied [en=en-P81-01]ikebana[/en] under the same master as Nagisa, was singled out in that class, and trained as a pet."
+- locator: P82
+  source_japanese: 両親は「社会勉強がしたい」という彼女の言葉を信じて、渚の店でのアルバイトを許可している。女性しかいない健全なアルバイト先だと、思い込んでいる。ただし、門限がある。
+  english: "Her parents believed her when she said she wanted to “learn how the world works” and allowed her to work part-time at Nagisa’s shop. They’re convinced it’s a safe, wholesome workplace staffed entirely by women. However, she still has a curfew."
+- locator: P83
+  source_japanese: 渚にレズ的な憧れを持っているが、吉田くんに処女を捧げる。
+  english: "She harbors a lesbian-like attraction toward Nagisa, but gives her virginity to Yoshida-kun."
+- locator: P84
+  source_japanese: ずっと文化系少女だったため、身体は華奢。足が長い。胸の発育は普通で、巨乳では無いが、出るところはしっかり出ている。
+  english: "Since she’s always been the cultural-club type, she has a delicate build and long legs. Her breast development is average, so she isn’t particularly busty, but she still has curves in all the right places."
+- locator: P85
+  source_japanese: 長い黒髪を後ろでエンジ色のリボンでまとめている。
+  english: "Her long black hair is tied back with a maroon ribbon."
+- locator: P86
+  source_japanese: 生まれたての子犬のような、愛くるしい可憐な少女。
+  english: "An adorable, delicate girl, like a newborn puppy."
+- locator: P87
+  source_japanese: ただし……よく、お漏らしする。
+  english: "However… she often wets herself."
+- locator: P88
+  source_japanese: ○　高橋　優花　　（タカハシ・ユウカ　三十八歳）
+  english: "○ Takahashi Yuuka (38 years old)"
+- locator: P89
+  source_japanese: 引退したお屋敷の女の一人。現在は美容室を経営している。
+  english: "One of the women who retired from the mansion. She currently runs a hair salon."
+- locator: P90
+  source_japanese: ○　杉本　秀美　　（スギモト・ヒデミ　三十歳）
+  english: "○ Sugimoto Hidemi (30 years old)"
+- locator: P91
+  source_japanese: 引退したお屋敷の女の一人。現在はエステサロンを経営している。
+  english: "One of the women who retired from the mansion. She currently runs a beauty spa."
+- locator: P92
+  source_japanese: ○　戸野内　珠代　　（トノウチ・タマヨ　二十七歳）
+  english: "○ Tonouchi Tamayo (27 years old)"
+- locator: P93
+  source_japanese: 引退したお屋敷の女の一人。現在はスタイリストをしている。
+  english: "One of the women who retired from the mansion. She currently works as a stylist."
+- locator: P94
+  source_japanese: ●　黒森　公之助　（クロモリ・コウノスケ　故人）
+  english: "● Kuromori Kounosuke (Deceased)"
+- locator: P95
+  source_japanese: 『黒い森』の創設者。すでに死んでいる。
+  english: "The founder of ‘Kuromori’. Already dead."
+- locator: P96
+  source_japanese: ●　黒森　公一郎　（クロモリ・コウイチロウ　六十歳）
+  english: "● Kuromori Koichiro (60 years old)"
+- locator: P97
+  source_japanese: 御名穂の父。現在、オーストラリアに逃亡中。
+  english: "Minaho’s father. Currently on the run in Australia."
+- locator: P98
+  source_japanese: ★吉田のクラスメイト（1年2組）
+  english: "★ Yoshida’s Classmates (Class 1-2)"
+- locator: P99
+  source_japanese: ◎富沢ケイ　テニス部。2年生の彼氏がいる。
+  english: "◎ Tomizawa Kei: Tennis club member. Has a boyfriend who’s a second-year."
+- locator: P100
+  source_japanese: ◎菊池聖子　中学時代からの彼氏がいる。
+  english: "◎ Kikuchi Seiko: Has had the same boyfriend since middle school."
+- locator: P101
+  source_japanese: ◎浜松英　　眼鏡をかけたグラマーな女の子。
+  english: "◎ Hamamatsu Ei: A curvy girl who wears glasses."
+- locator: P102
+  source_japanese: ◎小林　不良っぽい男子。馬鹿。
+  english: "◎ Kobayashi: A delinquent-looking guy. An idiot."
+- locator: P103
+  source_japanese: ◎大宮　不良っぽい男子。馬鹿。
+  english: "◎ Oomiya: A delinquent-looking guy. An idiot."
+- locator: P104
+  source_japanese: ◎合田　前の男のクラス委員。
+  english: "◎ Gouda. The former male class representative."
+- locator: P105
+  source_japanese: ★その他の登場人物
+  english: "★ Other Characters"
+- locator: P106
+  source_japanese: ◎安宅　３年生の野球部員。キャプテン。
+  english: "◎ Ataka: Third-year baseball club member. Captain."
+- locator: P107
+  source_japanese: ◎滝本　３年生の野球部員。エース。
+  english: "◎ Takimoto: Third-year baseball club member. Ace."
+- locator: P108
+  source_japanese: ◎杉山　２年生の野球部員。デブ。二軍。
+  english: "◎ Sugiyama: Second-year baseball club member. Fatty. Second string."
+- locator: P109
+  source_japanese: ◎鯉住　２年生の野球部員。ノッポ。二軍。
+  english: "◎ Koizumi: Second-year baseball club member. Beanpole. Second string."
+- locator: P110
+  source_japanese: ◎森下　弓槻家の執事。七十歳近そうな白髪の老人。度のきつそうな金縁の眼鏡。痩せていてるが、年の割には背筋がピンと伸びている。
+  english: "◎ Morishita: Butler of the Yuzuki household. A white-haired old man who looks nearly seventy. Wears gold-rimmed glasses with a strong prescription. He is thin, but stands remarkably straight for his age."
+- locator: P111
+  source_japanese: ◎ミユキ　渚さんの店のサブ・チーフ。ペット第一号。体育会系でいつも元気。ポニーテール。
+  english: "◎ Miyuki: Sub-chief at Nagisa-san’s shop. Nagisa’s very first pet. An athletic, always-energetic type. Wears a ponytail."
+- locator: P112
+  source_japanese: ※2012/01/09／更新
+  english: "※ Updated: 2012/01/09"
+endnotes:
+- id: en-P30-01
+  locator: P30
+  content: "Omiai is a formal Japanese matchmaking custom in which families or intermediaries introduce prospective marriage partners, who then decide whether to proceed with marriage."
+- id: en-P13-01
+  locator: P13
+  content: "Koshien is shorthand for Japan's national high-school baseball championship, played at Hanshin Koshien Stadium; reaching it is a major goal and cultural touchstone for school baseball teams."
+- id: en-P15-01
+  locator: P15
+  content: "Japanese school baseball teams have traditionally expected players to wear very short or shaved hair, which is why the narrator treats Kenji's buzz cut as 'natural.'"
+- id: en-P71-01
+  locator: P71
+  content: "Enjo kosai ('compensated dating') refers to paid dates, especially the Japanese phenomenon associated with teenage girls and older men; some such encounters involved sexual services."
+- id: en-P79-01
+  locator: P79
+  content: "MEXT is the ministry’s official English acronym for Japan’s Ministry of Education, Culture, Sports, Science and Technology."
+- id: en-P81-01
+  locator: P81
+  content: "Ikebana is the traditional Japanese art of flower arrangement, emphasizing form, balance, line, and the use of negative space."
