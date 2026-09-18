@@ -291,16 +291,42 @@ object QaFindingsParser {
 
     private fun canonicalJson(value: Any?): String = when (value) {
         null -> "null"
-        is String -> JSONObject.quote(value)
+        is String -> pythonJsonString(value)
         is Boolean, is Number -> value.toString()
         is Map<*, *> -> value.entries
             .map { (key, item) -> require(key is String); key to item }
             .sortedBy { it.first }
             .joinToString(prefix = "{", postfix = "}", separator = ",") { (key, item) ->
-                JSONObject.quote(key) + ":" + canonicalJson(item)
+                pythonJsonString(key) + ":" + canonicalJson(item)
             }
         is Iterable<*> -> value.joinToString(prefix = "[", postfix = "]", separator = ",") { canonicalJson(it) }
         else -> error("Unsupported canonical QA value: ${value::class.java.name}")
+    }
+
+    /**
+     * Match Python json.dumps(..., ensure_ascii=False, separators=(",", ":")).
+     *
+     * org.json's JSONObject.quote() additionally escapes several Unicode punctuation
+     * ranges. Those extra escapes change the UTF-8 bytes and therefore the SHA-256
+     * used by the authoritative Python QA workflow.
+     */
+    private fun pythonJsonString(value: String): String = buildString(value.length + 2) {
+        append('"')
+        value.forEach { ch ->
+            when (ch) {
+                '"' -> append("\\\"")
+                '\\' -> append("\\\\")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> {
+                    if (ch.code < 0x20) append("\\u%04x".format(ch.code)) else append(ch)
+                }
+            }
+        }
+        append('"')
     }
 
     fun sha256(text: String) = MessageDigest.getInstance("SHA-256")
