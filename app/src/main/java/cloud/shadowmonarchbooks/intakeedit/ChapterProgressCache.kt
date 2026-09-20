@@ -56,6 +56,7 @@ internal class SharedPreferencesChapterProgressCacheStore(context: Context) : Ch
                         approved = item.optBoolean("approved", false),
                         qaActive = item.optInt("qa_active", 0),
                         qaTotal = item.optInt("qa_total", 0),
+                        qaReusable = item.optBoolean("qa_reusable", false),
                     ),
                 )
             }
@@ -84,7 +85,8 @@ internal class SharedPreferencesChapterProgressCacheStore(context: Context) : Ch
                     .put("editor_review_complete", value.editorReviewComplete)
                     .put("approved", value.approved)
                     .put("qa_active", value.qaActive)
-                    .put("qa_total", value.qaTotal),
+                    .put("qa_total", value.qaTotal)
+                    .put("qa_reusable", value.qaReusable),
             )
         }
 
