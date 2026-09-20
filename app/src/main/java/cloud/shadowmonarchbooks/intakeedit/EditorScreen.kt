@@ -418,7 +418,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             AnimatedVisibility(visible = showWholeFile || showQa || headerExpanded) {
                 Text(
                     buildString {
-                        append(current.document.englishTitle.ifBlank { "Untitled chapter" })
+                        append(current.document.displayTitle)
                         append(
                             when {
                                 current.approved -> " • Approved"
@@ -977,7 +977,7 @@ LaunchedEffect(qaFindings) {
                         }
                     },
                     modifier = Modifier.size(40.dp),
-                    enabled = rich.hasSelection(),
+                    enabled = rich.hasSelection() && entry.locator.startsWith("P"),
                 ) { Text("N", textDecoration = TextDecoration.Underline) }
                 IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
                     Icon(Icons.Default.Undo, "Undo English edit")
