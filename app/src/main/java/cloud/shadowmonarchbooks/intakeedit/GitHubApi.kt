@@ -2,6 +2,7 @@ package cloud.shadowmonarchbooks.intakeedit
 
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -24,6 +25,17 @@ data class GitHubFileDeletion(
     val path: String,
     val expectedSha: String,
 )
+
+data class GitHubWorkflowRun(
+    val id: Long,
+    val displayTitle: String,
+    val status: String,
+    val conclusion: String?,
+    val htmlUrl: String?,
+) {
+    val completed: Boolean get() = status == "completed"
+    val successful: Boolean get() = completed && conclusion == "success"
+}
 
 class GitHubApi(private val settings: RepoSettings, private val token: String) {
     private val repoBase = "/repos/${encode(settings.owner)}/${encode(settings.repo)}"
@@ -95,6 +107,55 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
             "POST",
             "$repoBase/actions/workflows/${encode(workflowFileName)}/dispatches",
             payload,
+        )
+    }
+
+    suspend fun waitForWorkflowRun(
+        workflowFileName: String,
+        displayTitle: String,
+        timeoutMillis: Long = 15 * 60 * 1000L,
+        pollMillis: Long = 2_000L,
+    ): GitHubWorkflowRun {
+        require(workflowFileName.isNotBlank()) { "Workflow file name is required." }
+        require(displayTitle.isNotBlank()) { "Workflow run title is required." }
+        val deadline = System.currentTimeMillis() + timeoutMillis
+        var runId: Long? = null
+
+        while (System.currentTimeMillis() < deadline) {
+            if (runId == null) {
+                val response = request(
+                    "GET",
+                    "$repoBase/actions/workflows/${encode(workflowFileName)}/runs" +
+                        "?branch=${encode(settings.branch)}&event=workflow_dispatch&per_page=50",
+                )
+                val runs = response.optJSONArray("workflow_runs") ?: JSONArray()
+                for (i in 0 until runs.length()) {
+                    val item = runs.getJSONObject(i)
+                    if (item.optString("display_title") == displayTitle) {
+                        runId = item.optLong("id").takeIf { it > 0L }
+                        break
+                    }
+                }
+            }
+
+            if (runId != null) {
+                val item = request("GET", "$repoBase/actions/runs/$runId")
+                val run = GitHubWorkflowRun(
+                    id = item.getLong("id"),
+                    displayTitle = item.optString("display_title"),
+                    status = item.optString("status"),
+                    conclusion = item.optString("conclusion").takeIf { it.isNotBlank() && it != "null" },
+                    htmlUrl = item.optString("html_url").takeIf { it.isNotBlank() },
+                )
+                if (run.completed) return run
+            }
+
+            delay(pollMillis)
+        }
+
+        throw GitHubException(
+            "Timed out waiting for GitHub Actions run '$displayTitle' to finish. " +
+                "Bulk approval stopped so another finalizer is not started while this run may still be active.",
         )
     }
 
