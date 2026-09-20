@@ -100,11 +100,12 @@ private fun IntakeAppShell() {
     }
 }
 
-private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), PENDING_QA("Pending QA"), COMPLETED("Completed"), ALL("All") }
+private enum class ChapterListFilter(val label: String) { ACTIVE("Active"), PENDING_QA("Pending QA"), READY("Ready"), COMPLETED("Completed"), ALL("All") }
 
 internal enum class ChapterWorkflowState(val label: String) {
     PENDING_REVIEW("Pending Review"),
     PENDING_QA("Pending QA"),
+    READY_FOR_APPROVAL("Ready for Approval"),
     APPROVED("Approved"),
 }
 
@@ -115,10 +116,13 @@ internal data class ChapterProgress(
     val qaActive: Int = 0,
     val qaTotal: Int = 0,
     val approved: Boolean = false,
+    val qaReusable: Boolean = false,
 ) {
     val workflowState: ChapterWorkflowState
         get() = when {
             approved -> ChapterWorkflowState.APPROVED
+            editorReviewComplete && englishSupplied == englishTotal && qaReusable && qaActive == 0 ->
+                ChapterWorkflowState.READY_FOR_APPROVAL
             editorReviewComplete && englishSupplied == englishTotal -> ChapterWorkflowState.PENDING_QA
             else -> ChapterWorkflowState.PENDING_REVIEW
         }
@@ -203,6 +207,9 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
             onResolve = { next, findingId ->
                 editorViewModel.resolveQa(next, findingId, settings, token)
             },
+            onApprove = { next ->
+                editorViewModel.approve(next, settings, token)
+            },
         )
     } else {
         val openingPath = editorState.loadingPath
@@ -252,6 +259,7 @@ private fun ChapterListScreen(
         when (filter) {
             ChapterListFilter.ACTIVE -> progress == null || progress.workflowState == ChapterWorkflowState.PENDING_REVIEW
             ChapterListFilter.PENDING_QA -> progress?.workflowState == ChapterWorkflowState.PENDING_QA
+            ChapterListFilter.READY -> progress?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
             ChapterListFilter.COMPLETED -> progress?.workflowState == ChapterWorkflowState.APPROVED
             ChapterListFilter.ALL -> true
         }
