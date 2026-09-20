@@ -61,8 +61,9 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
                     Text("The chapter list keeps Active, Pending QA, Ready, and Completed filters visible across the top.")
                     Text("Ready contains chapters whose editor review is complete, whose semantic QA pass is still reusable, and whose active QA finding count is zero.")
                     Text("Open one Ready chapter to use Approve Chapter, or use the Approve all floating button in the Ready filter to start approval for every Ready chapter in the selected volume.")
-                    Text("Bulk approval reloads and validates each chapter independently before dispatch. A stale chapter can fail without blocking the others.")
-                    Text("Approval dispatches the trusted PureLove GitHub Actions finalizer. The finalizer verifies the exact editor-content hash and current reusable QA pass, then reconstructs reader XHTML/endnotes and writes the approval artifact.")
+                    Text("Bulk approval is sequential. Intake Edit dispatches one uniquely identified finalizer run, monitors that exact GitHub Actions run until it finishes, and only then starts the next Ready chapter.")
+                    Text("A completed failed or cancelled run is reported without creating overlap. If the app cannot confirm that a dispatched run has finished, it stops the remaining queue rather than risk starting another finalizer concurrently.")
+                    Text("Approval dispatches the trusted PureLove GitHub Actions finalizer. The finalizer verifies the exact editor-content hash and current reusable QA pass, then reconstructs reader XHTML/endnotes and writes the approval artifact. PureLove also serializes finalizers repository-wide as a second safety layer.")
                     Text("Your GitHub token therefore needs both Contents write access for editing and Actions write access to start approval.")
                 }
             }
