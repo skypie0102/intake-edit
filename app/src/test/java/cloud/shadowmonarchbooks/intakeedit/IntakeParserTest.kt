@@ -43,6 +43,21 @@ class IntakeParserTest {
     }
 
     @Test
+    fun parsesHeadingEntriesAndUsesH1AsDisplayTitle() {
+        val withHeading = yaml.replace(
+            "entries:\n",
+            "entries:\n- locator: H1-1\n  source_japanese: 原題\n  english: English Title\n",
+        )
+        val document = IntakeParser.parse(withHeading)
+
+        assertEquals(3, document.entries.size)
+        assertEquals("H1-1", document.entries.first().locator)
+        assertEquals("English Title", document.displayTitle)
+        assertEquals(2, document.englishSupplied)
+        assertEquals(3, document.englishTotal)
+    }
+
+    @Test
     fun patchesYamlEnglishAndReviewFlagWithoutConvertingTheDocument() {
         val original = IntakeParser.parse(yaml)
         val entries = original.entries.mapIndexed { index, entry ->
