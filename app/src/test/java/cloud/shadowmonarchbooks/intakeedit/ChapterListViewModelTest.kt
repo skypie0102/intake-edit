@@ -64,7 +64,7 @@ class ChapterListViewModelTest {
     }
 
     @Test
-    fun baseProgressPublishesBeforeQaCompletes() = runTest(dispatcher) {
+    fun workflowStateWaitsForQaBeforePublishing() = runTest(dispatcher) {
         val file = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
         val qaGate = CompletableDeferred<Unit>()
         val repository = FakeChapterRepository(
@@ -83,14 +83,15 @@ class ChapterListViewModelTest {
 
         var state = viewModel.uiState.value
         assertEquals(listOf(file), state.files)
-        assertEquals(ChapterProgress(3, 5, false), state.progressByPath[file.path])
-        assertFalse(state.refreshing)
+        assertNull(state.progressByPath[file.path])
+        assertTrue(state.refreshing)
 
         qaGate.complete(Unit)
         advanceUntilIdle()
 
         state = viewModel.uiState.value
         assertEquals(ChapterProgress(3, 5, false, qaActive = 2, qaTotal = 4), state.progressByPath[file.path])
+        assertFalse(state.refreshing)
     }
 
     @Test
