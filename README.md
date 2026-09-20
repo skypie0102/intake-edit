@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.8**.
+Current application version: **0.15.9**.
 
 ## Workspace sections
 
@@ -31,6 +31,8 @@ The agent proposes; the human editor decides what becomes authoritative.
 
 ## Chapter workflow and approval
 
+The chapter selection page keeps the four workflow filters **Active / Pending QA / Ready / Completed** visible in a horizontal bar at the top. Search and volume controls remain under the filter icon.
+
 The chapter editor follows four repository-backed states:
 
 - **Pending Review** — editing is still in progress; semantic QA ignores the chapter.
@@ -38,7 +40,7 @@ The chapter editor follows four repository-backed states:
 - **Ready for Approval** — a current reusable semantic QA pass exists with zero active findings.
 - **Approved** — the user explicitly approved the exact committed editor content and the repository finalizer produced matching reader XHTML plus a hash-bound approval artifact.
 
-Semantic QA does not itself approve a chapter and does not generate the final reader XHTML. When a chapter is **Ready for Approval**, Intake Edit shows **Approve Chapter**. The app reloads the latest editor document and QA record from GitHub, verifies that the QA pass is reusable with zero active findings, and dispatches PureLove's trusted `finalize-chapter.yml` workflow with the exact editor-content SHA-256 the user approved.
+Semantic QA does not itself approve a chapter and does not generate the final reader XHTML. When a chapter is **Ready for Approval**, Intake Edit shows **Approve Chapter**. In the **Ready** list, an **Approve all** floating button can start approval for every Ready chapter in the currently selected volume with one confirmation. Each chapter is reloaded and revalidated independently, so a stale chapter can fail without blocking other Ready chapters. The app dispatches PureLove's trusted `finalize-chapter.yml` workflow with the exact editor-content SHA-256 approved for each chapter.
 
 The finalizer performs deterministic XHTML/endnote materialization and repository validation. If the committed editor content changes after the approval request, the finalizer refuses the approval rather than materializing different content.
 
