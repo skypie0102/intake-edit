@@ -226,6 +226,7 @@ private class FakeChapterRepository(
     override suspend fun loadChapter(file: ChapterFile): OpenChapter = error("Not used in this test")
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
+    override suspend fun approveChapter(chapter: OpenChapter) = error("Not used in this test")
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
     override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
@@ -238,6 +239,7 @@ private class ThrowingChapterRepository(private val message: String) : ChapterRe
     override suspend fun loadChapter(file: ChapterFile): OpenChapter = error("Not used in this test")
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
+    override suspend fun approveChapter(chapter: OpenChapter) = error("Not used in this test")
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
     override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
