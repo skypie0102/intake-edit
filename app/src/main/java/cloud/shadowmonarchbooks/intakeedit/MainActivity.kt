@@ -19,14 +19,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -220,6 +223,8 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
             availableVolumes = chapterListState.availableVolumes,
             selectedVolume = chapterListState.selectedVolume,
             refreshing = chapterListState.refreshing,
+            bulkApproving = chapterListState.bulkApproving,
+            approvalRequestedPaths = chapterListState.approvalRequestedPaths,
             openingPath = openingPath,
             notice = editorState.notice ?: repoSettingsState.notice ?: chapterListState.notice,
             onBack = onExitToHome,
@@ -227,6 +232,7 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
             onSettings = repoSettingsViewModel::openSettings,
             onSelectVolume = { volume -> chapterListViewModel.selectVolume(volume, settings, token) },
             onOpen = { file -> editorViewModel.open(file, settings, token) },
+            onApproveAll = { chapterListViewModel.approveAllReady(settings, token) },
         )
     }
 }
@@ -239,6 +245,8 @@ private fun ChapterListScreen(
     availableVolumes: List<Int>,
     selectedVolume: Int?,
     refreshing: Boolean,
+    bulkApproving: Boolean,
+    approvalRequestedPaths: Set<String>,
     openingPath: String?,
     notice: String?,
     onBack: () -> Unit,
@@ -246,10 +254,12 @@ private fun ChapterListScreen(
     onSettings: () -> Unit,
     onSelectVolume: (Int) -> Unit,
     onOpen: (ChapterFile) -> Unit,
+    onApproveAll: () -> Unit,
 ) {
     var search by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(ChapterListFilter.ACTIVE) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
+    var showApproveAllConfirm by remember { mutableStateOf(false) }
     val searched = files.filter {
         val q = search.trim()
         q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q)
@@ -264,40 +274,74 @@ private fun ChapterListScreen(
             ChapterListFilter.ALL -> true
         }
     }
-    val activeFilterCount = (if (search.isNotBlank()) 1 else 0) + (if (filter != ChapterListFilter.ACTIVE) 1 else 0)
+    val readyForBulkApproval = files.filter { file ->
+        file.path !in approvalRequestedPaths &&
+            progressByPath[file.path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
+    }
+    val activeFilterCount = if (search.isNotBlank()) 1 else 0
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(selectedVolume?.let { "Chapter Intake • V$it" } ?: "Chapter Intake") },
-            navigationIcon = {
-                IconButton(onClick = onBack, enabled = openingPath == null) {
-                    Icon(Icons.Default.ArrowBack, "Back")
-                }
-            },
-            actions = {
-                BadgedBox(
-                    badge = {
-                        if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
-                    },
-                ) {
-                    IconButton(onClick = { showFilters = true }, enabled = openingPath == null) {
-                        Icon(Icons.Default.FilterList, "Chapter filters")
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(selectedVolume?.let { "Chapter Intake • V$it" } ?: "Chapter Intake") },
+                navigationIcon = {
+                    IconButton(onClick = onBack, enabled = openingPath == null && !bulkApproving) {
+                        Icon(Icons.Default.ArrowBack, "Back")
                     }
-                }
-                IconButton(onClick = onRefresh, enabled = !refreshing && openingPath == null) {
-                    Icon(Icons.Default.Refresh, "Refresh")
-                }
-                IconButton(onClick = onSettings, enabled = openingPath == null) {
-                    Icon(Icons.Default.Settings, "Settings")
-                }
-            },
-        )
-    }) { padding ->
+                },
+                actions = {
+                    BadgedBox(
+                        badge = {
+                            if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
+                        },
+                    ) {
+                        IconButton(onClick = { showFilters = true }, enabled = openingPath == null && !bulkApproving) {
+                            Icon(Icons.Default.FilterList, "Search and volume filters")
+                        }
+                    }
+                    IconButton(onClick = onRefresh, enabled = !refreshing && !bulkApproving && openingPath == null) {
+                        Icon(Icons.Default.Refresh, "Refresh")
+                    }
+                    IconButton(onClick = onSettings, enabled = openingPath == null && !bulkApproving) {
+                        Icon(Icons.Default.Settings, "Settings")
+                    }
+                },
+            )
+        },
+        floatingActionButton = {
+            if (filter == ChapterListFilter.READY && readyForBulkApproval.isNotEmpty()) {
+                ExtendedFloatingActionButton(
+                    onClick = { showApproveAllConfirm = true },
+                    icon = { Icon(Icons.Default.Check, "Approve all ready chapters") },
+                    text = { Text("Approve all (${readyForBulkApproval.size})") },
+                )
+            }
+        },
+    ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                listOf(
+                    ChapterListFilter.ACTIVE,
+                    ChapterListFilter.PENDING_QA,
+                    ChapterListFilter.READY,
+                    ChapterListFilter.COMPLETED,
+                ).forEach { item ->
+                    FilterChip(
+                        selected = filter == item,
+                        onClick = { filter = item },
+                        label = { Text(item.label) },
+                        enabled = !bulkApproving,
+                    )
+                }
+            }
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            if (bulkApproving) Text("Starting approval workflows…", style = MaterialTheme.typography.bodySmall)
             if (refreshing && files.isEmpty()) CircularProgressIndicator()
             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(visible, key = { it.path }) { file ->
@@ -316,6 +360,7 @@ private fun ChapterListScreen(
                                     buildString {
                                         append("${progress.englishSupplied}/${progress.englishTotal}")
                                         append(" • ${progress.workflowState.label}")
+                                        if (file.path in approvalRequestedPaths) append(" • Approval requested")
                                         if (progress.qaTotal > 0) append(" • QA ${progress.qaActive}/${progress.qaTotal}")
                                     }
                                 }
@@ -337,6 +382,32 @@ private fun ChapterListScreen(
         }
     }
 
+    if (showApproveAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showApproveAllConfirm = false },
+            title = { Text("Approve all Ready chapters?") },
+            text = {
+                Text(
+                    "This will start approval for ${readyForBulkApproval.size} Ready chapter(s) in the selected volume. Each chapter is reloaded and revalidated independently before its finalizer is dispatched; a stale chapter will fail without blocking the others.",
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showApproveAllConfirm = false
+                        onApproveAll()
+                    },
+                    enabled = !bulkApproving && readyForBulkApproval.isNotEmpty(),
+                ) { Text("Approve all") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApproveAllConfirm = false }, enabled = !bulkApproving) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     if (showFilters) {
         ModalBottomSheet(onDismissRequest = { showFilters = false }) {
             Column(
@@ -351,15 +422,6 @@ private fun ChapterListScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
-                Text("Status", style = MaterialTheme.typography.labelLarge)
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    ChapterListFilter.entries.forEach { item ->
-                        FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.label) })
-                    }
-                }
                 if (availableVolumes.isNotEmpty()) {
                     Text("Volume", style = MaterialTheme.typography.labelLarge)
                     Row(
@@ -376,12 +438,9 @@ private fun ChapterListScreen(
                     }
                 }
                 TextButton(
-                    onClick = {
-                        search = ""
-                        filter = ChapterListFilter.ACTIVE
-                    },
-                    enabled = activeFilterCount > 0,
-                ) { Text("Reset filters") }
+                    onClick = { search = "" },
+                    enabled = search.isNotBlank(),
+                ) { Text("Clear search") }
             }
         }
     }
