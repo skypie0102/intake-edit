@@ -128,6 +128,7 @@ internal class GitHubChapterRepository(
         IntakeParser.validate(raw).getOrThrow()
         val message = when {
             tagForQa && reusablePass -> "edit: mark ch_${chapter.file.chapter.toString().padStart(4, '0')} ready for approval"
+            tagForQa && currentQa?.qaPass != null -> "edit: retag ch_${chapter.file.chapter.toString().padStart(4, '0')} for fresh QA"
             tagForQa -> "edit: tag ch_${chapter.file.chapter.toString().padStart(4, '0')} for QA"
             else -> "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English"
         }
