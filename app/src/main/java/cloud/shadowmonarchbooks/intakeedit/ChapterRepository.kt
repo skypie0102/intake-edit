@@ -11,6 +11,7 @@ internal data class LoadedChapterProgress(
 internal data class QaProgressCounts(
     val active: Int,
     val total: Int,
+    val reusable: Boolean,
 )
 
 internal data class ChapterCommitResult(
@@ -26,6 +27,7 @@ internal interface ChapterRepository {
     suspend fun loadChapter(file: ChapterFile): OpenChapter
     fun restoreRaw(base: OpenChapter, raw: String): OpenChapter
     suspend fun commitChapter(chapter: OpenChapter, tagForQa: Boolean): ChapterCommitResult
+    suspend fun approveChapter(chapter: OpenChapter)
     suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter
     suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter
 }
@@ -71,10 +73,12 @@ internal class GitHubChapterRepository(
         document: EditorDocument,
         editorContentSha256: String,
     ): QaProgressCounts {
-        val qa = loadQa(file) ?: return QaProgressCounts(active = 0, total = 0)
+        val qa = loadQa(file) ?: return QaProgressCounts(active = 0, total = 0, reusable = false)
+        val reusable = qa.document.qaPassReusable(document)
         return QaProgressCounts(
-            active = qa.document.active(document, editorContentSha256).size,
+            active = if (reusable) qa.document.active(document, editorContentSha256).size else qa.document.findings.size,
             total = qa.document.findings.size,
+            reusable = reusable,
         )
     }
 
@@ -173,6 +177,42 @@ internal class GitHubChapterRepository(
         return ChapterCommitResult(
             remote = FileSnapshot(chapter.file.path, sha.ifBlank { chapter.remote.sha }, raw),
             endnoteProposals = proposals,
+        )
+    }
+
+    override suspend fun approveChapter(chapter: OpenChapter) {
+        require(!chapter.approved) { "This chapter is already approved." }
+        require(chapter.raw == chapter.remote.content && chapter.endnoteProposals?.changed != true) {
+            "Commit all local chapter and endnote-suggestion changes before approval."
+        }
+        require(chapter.document.editorReviewComplete) {
+            "This chapter is not Ready for Approval."
+        }
+        require(chapter.document.englishSupplied == chapter.document.englishTotal) {
+            "Supply English for every entry before approval."
+        }
+
+        val latestEditor = client.getFile(chapter.file.path)
+        require(latestEditor.sha == chapter.remote.sha) {
+            "This chapter changed on GitHub after it was opened. Refresh before approving."
+        }
+        val latestDocument = IntakeParser.parse(latestEditor.content)
+        val latestEditorHash = QaFindingsParser.editorContentSha256(latestEditor.content)
+        val latestQa = loadQa(chapter.file)
+            ?: error("No completed semantic QA pass is recorded for this chapter.")
+        require(latestQa.document.qaPassReusable(latestDocument)) {
+            "The semantic QA pass is stale. Tag the chapter for fresh QA before approving."
+        }
+        require(latestQa.document.active(latestDocument, latestEditorHash).isEmpty()) {
+            "Active QA findings remain. Resolve or Override every finding before approving."
+        }
+
+        client.dispatchWorkflow(
+            workflowFileName = "finalize-chapter.yml",
+            inputs = mapOf(
+                "editor_path" to chapter.file.path,
+                "expected_editor_content_sha256" to latestEditorHash,
+            ),
         )
     }
 
