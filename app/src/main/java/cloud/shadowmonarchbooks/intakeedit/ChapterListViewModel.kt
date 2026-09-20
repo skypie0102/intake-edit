@@ -139,12 +139,15 @@ internal class ChapterListViewModel(
         _uiState.update { state ->
             state.copy(
                 files = listed,
-                progressByPath = state.progressByPath.filterKeys { it in listedPaths },
+                // Once the remote file list is current, discard cached workflow states for
+                // these chapters. A base editor fetch without its QA record can only tell us
+                // that the chapter is editor-complete; publishing that partial state would
+                // temporarily and incorrectly classify Ready-for-Approval chapters as Pending QA.
+                progressByPath = state.progressByPath.filterKeys { it !in listedPaths },
                 selectedVolume = volume,
-                refreshing = false,
+                refreshing = true,
             )
         }
-        scheduleCacheSave(settings)
 
         coroutineScope {
             listed.forEach { file ->
@@ -154,31 +157,30 @@ internal class ChapterListViewModel(
                             repository.loadBaseProgress(file)
                         } catch (t: Throwable) {
                             if (t is CancellationException) throw t
+                            _uiState.update { state ->
+                                state.copy(notice = "Could not load Chapter ${file.chapter} status: ${t.message ?: "editor fetch failed"}")
+                            }
                             null
                         }
                     } ?: return@launch
-
-                    if (_uiState.value.selectedVolume != volume) return@launch
-                    _uiState.update { state ->
-                        state.copy(progressByPath = state.progressByPath + (file.path to loaded.progress))
-                    }
-                    scheduleCacheSave(settings)
 
                     val qaCounts = progressConcurrency.withPermit {
                         try {
                             repository.loadQaCounts(file, loaded.document, loaded.editorContentSha256)
                         } catch (t: Throwable) {
                             if (t is CancellationException) throw t
+                            _uiState.update { state ->
+                                state.copy(notice = "Could not load Chapter ${file.chapter} QA status: ${t.message ?: "QA fetch failed"}")
+                            }
                             null
                         }
                     } ?: return@launch
 
                     if (_uiState.value.selectedVolume != volume) return@launch
                     _uiState.update { state ->
-                        val current = state.progressByPath[file.path] ?: loaded.progress
                         state.copy(
                             progressByPath = state.progressByPath + (
-                                file.path to current.copy(
+                                file.path to loaded.progress.copy(
                                     qaActive = qaCounts.active,
                                     qaTotal = qaCounts.total,
                                     qaReusable = qaCounts.reusable,
@@ -189,6 +191,11 @@ internal class ChapterListViewModel(
                     scheduleCacheSave(settings)
                 }
             }
+        }
+
+        if (_uiState.value.selectedVolume == volume) {
+            _uiState.update { it.copy(refreshing = false) }
+            scheduleCacheSave(settings)
         }
     }
 
