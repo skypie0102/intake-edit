@@ -155,6 +155,38 @@ internal class EditorViewModel(
         }
     }
 
+    fun approve(next: OpenChapter, settings: RepoSettings, token: String) {
+        if (token.isBlank() || _uiState.value.actionInProgress) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(actionInProgress = true, notice = null) }
+            try {
+                draftSaveJob?.cancelAndJoin()
+                draftSaveJob = null
+                draftFlushJob?.join()
+                val repository = repositoryFactory.create(settings, token)
+                repository.approveChapter(next)
+                draftRepository.delete(next.file.path)
+                latest = null
+                touched = false
+                _uiState.update {
+                    it.copy(
+                        open = null,
+                        actionInProgress = false,
+                        notice = "Approval workflow started. Refresh to check when the chapter becomes Approved.",
+                    )
+                }
+                eventChannel.send(EditorEvent.ReturnChapterList)
+            } catch (t: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        actionInProgress = false,
+                        notice = t.message ?: "Could not start chapter approval.",
+                    )
+                }
+            }
+        }
+    }
+
     fun overrideQa(next: OpenChapter, findingId: String, reason: String, settings: RepoSettings, token: String) {
         if (next.qa == null || token.isBlank() || _uiState.value.actionInProgress) return
         viewModelScope.launch {
