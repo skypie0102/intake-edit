@@ -93,6 +93,7 @@ internal fun EditorScreen(
     onCommit: (OpenChapter, Boolean) -> Unit,
     onOverride: (OpenChapter, String, String) -> Unit,
     onResolve: (OpenChapter, String) -> Unit,
+    onApprove: (OpenChapter) -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -109,6 +110,7 @@ internal fun EditorScreen(
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
+    var showApprove by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
     var showRemoveAllConfirm by remember { mutableStateOf(false) }
     var editorNotice by remember { mutableStateOf<String?>(null) }
@@ -325,8 +327,18 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val hasLocalChanges = current.raw != current.remote.content || current.endnoteProposals?.changed == true
     val qaPassReusable = current.qa?.document?.qaPassReusable(current.document) == true
     val qaPassStale = current.qa?.document?.qaPass != null && !qaPassReusable
-    val finalizingExistingQaPass = qaPassReusable && current.qa?.document?.active(current.document, editorContentSha).orEmpty().isEmpty()
-    val primaryCommitLabel = if (finalizingExistingQaPass) "Finalize & Commit" else "Tag for QA & Commit"
+    val closedReusableQaPass = qaPassReusable &&
+        current.qa?.document?.active(current.document, editorContentSha).orEmpty().isEmpty()
+    val readyForApproval = !current.approved &&
+        !hasLocalChanges &&
+        current.document.editorReviewComplete &&
+        current.document.englishSupplied == current.document.englishTotal &&
+        closedReusableQaPass
+    val primaryCommitLabel = when {
+        readyForApproval -> "Approve Chapter"
+        closedReusableQaPass -> "Commit for Approval"
+        else -> "Tag for QA & Commit"
+    }
 
     LaunchedEffect(jumpRequestId, filter, showQa, showWholeFile) {
         val locator = jumpLocator
@@ -422,6 +434,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         append(
                             when {
                                 current.approved -> " • Approved"
+                                readyForApproval -> " • Ready for Approval"
                                 current.document.editorReviewComplete -> " • Pending QA"
                                 else -> " • Pending Review"
                             },
@@ -549,7 +562,10 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { showCommit = true }, enabled = !busy && !importBusy) { Text(primaryCommitLabel) }
+                Button(
+                    onClick = { if (readyForApproval) showApprove = true else showCommit = true },
+                    enabled = !busy && !importBusy && !current.approved,
+                ) { Text(primaryCommitLabel) }
             }
         }
     }
@@ -665,8 +681,8 @@ fun stageProposalDecision(proposalId: String, status: String) {
             text = {
                 Text(
                     buildString {
-                        if (finalizingExistingQaPass) {
-                            append("All findings from the recorded semantic QA pass are closed. Finalize commits the corrected/accepted chapter for deterministic materialization and approval without running semantic QA again. If protected or unflagged content changed, finalization will refuse and require fresh QA.")
+                        if (closedReusableQaPass) {
+                            append("All findings from the recorded semantic QA pass are closed. Commit the corrected/accepted chapter as Ready for Approval without running semantic QA again. Reader XHTML is not created until you explicitly approve the committed chapter.")
                         } else {
                             append("Tag for QA only after checking the full chapter. Tagging moves the chapter to Pending QA for one full semantic QA pass. Every English field must be supplied first. Any QA finding returns it to Pending Review for Resolve or Override.")
                         }
@@ -678,6 +694,27 @@ fun stageProposalDecision(proposalId: String, status: String) {
             },
             confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy && missingEnglish.isEmpty()) { Text(primaryCommitLabel) } },
             dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit as Pending Review") } },
+        )
+    }
+
+    if (showApprove) {
+        AlertDialog(
+            onDismissRequest = { showApprove = false },
+            title = { Text("Approve this chapter?") },
+            text = {
+                Text(
+                    "This authorizes the exact committed chapter you reviewed. GitHub Actions will re-check the editor-content hash and QA pass, then deterministically materialize the reader XHTML/endnotes and create the approval artifact. If the chapter changed, approval will be refused.",
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showApprove = false; onApprove(current) },
+                    enabled = !busy && !importBusy && readyForApproval,
+                ) { Text("Approve Chapter") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApprove = false }, enabled = !busy && !importBusy) { Text("Cancel") }
+            },
         )
     }
 }
