@@ -176,6 +176,40 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun approveAllReadyDispatchesOnlyReadyChapters() = runTest(dispatcher) {
+        val ready = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val pendingQa = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
+        val repository = FakeChapterRepository(
+            files = listOf(ready, pendingQa),
+            progress = mapOf(
+                ready.path to ChapterProgress(5, 5, true),
+                pendingQa.path to ChapterProgress(5, 5, true),
+            ),
+            qaProgress = mapOf(
+                ready.path to QaProgressCounts(active = 0, total = 2, reusable = true),
+                pendingQa.path to QaProgressCounts(active = 1, total = 1, reusable = true),
+            ),
+        )
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheDispatcher = dispatcher,
+        )
+
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        assertEquals(ChapterWorkflowState.READY_FOR_APPROVAL, viewModel.uiState.value.progressByPath[ready.path]?.workflowState)
+        assertEquals(ChapterWorkflowState.PENDING_QA, viewModel.uiState.value.progressByPath[pendingQa.path]?.workflowState)
+
+        viewModel.approveAllReady(RepoSettings(), "token")
+        advanceUntilIdle()
+
+        assertEquals(listOf(ready), repository.approvedFiles)
+        assertEquals(setOf(ready.path), viewModel.uiState.value.approvalRequestedPaths)
+        assertFalse(viewModel.uiState.value.bulkApproving)
+        assertEquals("Approval started for 1 Ready chapter.", viewModel.uiState.value.notice)
+    }
+
+    @Test
     fun refreshSurfacesRepositoryFailure() = runTest(dispatcher) {
         val viewModel = ChapterListViewModel(
             repositoryFactory = ChapterRepositoryFactory { _, _ -> ThrowingChapterRepository("network unavailable") },
@@ -199,6 +233,7 @@ private class FakeChapterRepository(
     private val beforeQa: suspend () -> Unit = {},
 ) : ChapterRepository {
     val requestedVolumes = mutableListOf<Int>()
+    val approvedFiles = mutableListOf<ChapterFile>()
 
     override suspend fun listVolumes(): List<Int> = files.map { it.volume }.distinct().sorted()
 
@@ -224,10 +259,32 @@ private class FakeChapterRepository(
         return requireNotNull(qaProgress[file.path])
     }
 
-    override suspend fun loadChapter(file: ChapterFile): OpenChapter = error("Not used in this test")
+    override suspend fun loadChapter(file: ChapterFile): OpenChapter {
+        val document = EditorDocument(
+            schemaVersion = 6,
+            volume = file.volume,
+            chapter = file.chapter,
+            sourceHref = "source.xhtml",
+            sourceSha256 = "source-sha",
+            readerFile = "reader.xhtml",
+            englishTitle = "Chapter ${file.chapter}",
+            instructions = "",
+            editorReviewComplete = true,
+            entries = listOf(EditorEntry("P1", "一", "One")),
+        )
+        return OpenChapter(
+            file = file,
+            remote = FileSnapshot(file.path, "sha-${file.chapter}", "raw"),
+            raw = "raw",
+            document = document,
+            qa = null,
+        )
+    }
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
-    override suspend fun approveChapter(chapter: OpenChapter) = error("Not used in this test")
+    override suspend fun approveChapter(chapter: OpenChapter) {
+        approvedFiles += chapter.file
+    }
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
     override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
