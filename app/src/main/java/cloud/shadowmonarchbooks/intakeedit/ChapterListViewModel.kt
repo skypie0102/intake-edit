@@ -181,6 +181,7 @@ internal class ChapterListViewModel(
                                 file.path to current.copy(
                                     qaActive = qaCounts.active,
                                     qaTotal = qaCounts.total,
+                                    qaReusable = qaCounts.reusable,
                                 )
                             ),
                         )
