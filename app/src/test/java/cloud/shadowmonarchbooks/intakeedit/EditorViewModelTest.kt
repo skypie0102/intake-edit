@@ -118,6 +118,29 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun approveDispatchReturnsToChapterList() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
+        val draftRepository = FakeDraftRepository()
+        val chapterRepository = FakeEditorChapterRepository(remote)
+        val viewModel = EditorViewModel(
+            draftRepository = draftRepository,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
+        )
+        val event = async { viewModel.events.first() }
+
+        viewModel.approve(remote, RepoSettings(), "token")
+        advanceUntilIdle()
+
+        assertSame(EditorEvent.ReturnChapterList, event.await())
+        assertSame(remote, chapterRepository.approvedChapter)
+        assertNull(viewModel.chapterForDisplay())
+        assertEquals(
+            "Approval workflow started. Refresh to check when the chapter becomes Approved.",
+            viewModel.uiState.value.notice,
+        )
+    }
+
+    @Test
     fun closeEditorFlushesLatestDraftBeforeDebounceFires() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
         val draftRepository = FakeDraftRepository()
@@ -166,6 +189,8 @@ private class FakeEditorChapterRepository(
         private set
     var committedMarkReviewed: Boolean? = null
         private set
+    var approvedChapter: OpenChapter? = null
+        private set
 
     override suspend fun listVolumes(): List<Int> = error("Not used in this test")
     override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
@@ -187,7 +212,9 @@ private class FakeEditorChapterRepository(
         )
     }
 
-    override suspend fun approveChapter(chapter: OpenChapter) = Unit
+    override suspend fun approveChapter(chapter: OpenChapter) {
+        approvedChapter = chapter
+    }
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
     override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
