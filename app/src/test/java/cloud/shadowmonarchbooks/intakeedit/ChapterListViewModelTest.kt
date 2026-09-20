@@ -41,7 +41,7 @@ class ChapterListViewModelTest {
         )
         val qaProgress = mapOf(
             first.path to QaProgressCounts(0, 0),
-            second.path to QaProgressCounts(1, 2),
+            second.path to QaProgressCounts(1, 2, reusable = true),
         )
         val repository = FakeChapterRepository(listOf(first, second), baseProgress, qaProgress)
         val viewModel = ChapterListViewModel(
@@ -58,7 +58,7 @@ class ChapterListViewModelTest {
         assertEquals(1, state.selectedVolume)
         assertEquals(listOf(1), repository.requestedVolumes)
         assertEquals(ChapterProgress(4, 5, false), state.progressByPath[first.path])
-        assertEquals(ChapterProgress(8, 8, true, qaActive = 1, qaTotal = 2), state.progressByPath[second.path])
+        assertEquals(ChapterProgress(8, 8, true, qaActive = 1, qaTotal = 2, qaReusable = true), state.progressByPath[second.path])
         assertFalse(state.refreshing)
         assertNull(state.notice)
     }
