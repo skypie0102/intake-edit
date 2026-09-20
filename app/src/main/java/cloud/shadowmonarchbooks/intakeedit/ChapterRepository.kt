@@ -11,7 +11,7 @@ internal data class LoadedChapterProgress(
 internal data class QaProgressCounts(
     val active: Int,
     val total: Int,
-    val reusable: Boolean,
+    val reusable: Boolean = false,
 )
 
 internal data class ChapterCommitResult(
