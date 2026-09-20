@@ -19,18 +19,29 @@ class QaWorkflowStateTest {
             englishTotal = 10,
             editorReviewComplete = true,
         )
+        val ready = ChapterProgress(
+            englishSupplied = 10,
+            englishTotal = 10,
+            editorReviewComplete = true,
+            qaActive = 0,
+            qaTotal = 0,
+            qaReusable = true,
+        )
         val approved = ChapterProgress(
             englishSupplied = 10,
             englishTotal = 10,
             editorReviewComplete = true,
             approved = true,
+            qaReusable = true,
         )
 
         assertEquals(ChapterWorkflowState.PENDING_REVIEW, pendingReview.workflowState)
         assertEquals(ChapterWorkflowState.PENDING_QA, pendingQa.workflowState)
+        assertEquals(ChapterWorkflowState.READY_FOR_APPROVAL, ready.workflowState)
         assertEquals(ChapterWorkflowState.APPROVED, approved.workflowState)
         assertFalse(pendingReview.complete)
         assertFalse(pendingQa.complete)
+        assertFalse(ready.complete)
         assertTrue(approved.complete)
     }
 
