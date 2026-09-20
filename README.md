@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.7**.
+Current application version: **0.15.8**.
 
 ## Workspace sections
 
