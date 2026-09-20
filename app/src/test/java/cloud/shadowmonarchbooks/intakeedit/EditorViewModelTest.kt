@@ -187,6 +187,7 @@ private class FakeEditorChapterRepository(
         )
     }
 
+    override suspend fun approveChapter(chapter: OpenChapter) = Unit
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
     override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
