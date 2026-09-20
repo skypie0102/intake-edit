@@ -337,6 +337,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val primaryCommitLabel = when {
         readyForApproval -> "Approve Chapter"
         closedReusableQaPass -> "Commit for Approval"
+        qaPassStale -> "Commit for Fresh QA"
         else -> "Tag for QA & Commit"
     }
 
@@ -425,7 +426,10 @@ fun stageProposalDecision(proposalId: String, status: String) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             if (qaPassStale) {
-                Text("Previous QA pass is stale because protected/unflagged content changed. Fresh semantic QA is required.", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Previous QA pass is stale because protected/unflagged content changed. This chapter cannot be committed for approval; commit it for Fresh QA instead.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             AnimatedVisibility(visible = showWholeFile || showQa || headerExpanded) {
                 Text(
@@ -683,6 +687,8 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     buildString {
                         if (closedReusableQaPass) {
                             append("All findings from the recorded semantic QA pass are closed. Commit the corrected/accepted chapter as Ready for Approval without running semantic QA again. Reader XHTML is not created until you explicitly approve the committed chapter.")
+                        } else if (qaPassStale) {
+                            append("This is not an approval commit. Protected or unflagged chapter content changed after the recorded semantic QA pass, so that pass is stale. Committing now will move the chapter to Pending QA for a fresh full-chapter semantic QA pass.")
                         } else {
                             append("Tag for QA only after checking the full chapter. Tagging moves the chapter to Pending QA for one full semantic QA pass. Every English field must be supplied first. Any QA finding returns it to Pending Review for Resolve or Override.")
                         }
