@@ -41,18 +41,26 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                HelpCard("The three chapter states") {
+                HelpCard("The four chapter states") {
                     HelpLine("Pending Review", "You are still editing/reviewing it. QA ignores this chapter.")
                     HelpLine("Pending QA", "You used Tag for QA & Commit. The chapter is waiting for full-chapter QA.")
-                    HelpLine("Approved", "QA finished with zero active findings and a current approval matches this exact chapter and reader output. Only Approved chapters are Completed.")
+                    HelpLine("Ready for Approval", "A current reusable semantic QA pass exists and there are zero active findings. The chapter still needs your explicit approval.")
+                    HelpLine("Approved", "You approved the chapter and a current approval matches this exact chapter and reader output. Only Approved chapters are Completed.")
                 }
             }
             item {
                 HelpCard("What happens after Tag for QA") {
                     Text("Pending QA → one full semantic QA pass. After that, the recorded pass is reused while you address only the flagged paragraphs:")
-                    HelpLine("No findings", "The chapter can go straight through deterministic materialization/validation to Approved.")
+                    HelpLine("No findings", "The chapter becomes Ready for Approval. QA does not create the reader XHTML or approve the chapter by itself.")
                     HelpLine("Any finding", "The chapter returns to Pending Review. Correct it and press Resolve, or press Override when the finding allows it.")
-                    Text("After a return, cards needing attention show a ! button. It combines QA findings and endnote suggestions. Resolve requires that the flagged paragraph was actually changed. Override means you intentionally accept it as-is and requires a reason when allowed. Once every QA finding is closed, the main action becomes Finalize & Commit; semantic QA does not run again.")
+                    Text("After a return, cards needing attention show a ! button. It combines QA findings and endnote suggestions. Resolve requires that the flagged paragraph was actually changed. Override means you intentionally accept it as-is and requires a reason when allowed. Once every QA finding is closed, commit the corrected chapter for approval; semantic QA does not run again.")
+                }
+            }
+            item {
+                HelpCard("Approve Chapter") {
+                    Text("When a committed chapter is Ready for Approval, the main action becomes Approve Chapter.")
+                    Text("Approval dispatches the trusted PureLove GitHub Actions finalizer. The finalizer verifies the exact editor-content hash you approved and the current reusable QA pass, then reconstructs reader XHTML/endnotes and writes the approval artifact.")
+                    Text("Your GitHub token therefore needs both Contents write access for editing and Actions write access to start approval.")
                 }
             }
             item {
