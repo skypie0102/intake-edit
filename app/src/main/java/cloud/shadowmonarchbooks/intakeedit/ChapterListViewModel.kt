@@ -25,6 +25,8 @@ internal data class ChapterListUiState(
     val availableVolumes: List<Int> = emptyList(),
     val selectedVolume: Int? = null,
     val refreshing: Boolean = false,
+    val bulkApproving: Boolean = false,
+    val approvalRequestedPaths: Set<String> = emptySet(),
     val notice: String? = null,
 )
 
@@ -94,6 +96,56 @@ internal class ChapterListViewModel(
                         notice = t.message ?: "Could not refresh chapter list.",
                     )
                 }
+            }
+        }
+    }
+
+    fun approveAllReady(settings: RepoSettings, token: String) {
+        if (token.isBlank() || _uiState.value.bulkApproving) return
+        val snapshot = _uiState.value
+        val ready = snapshot.files.filter { file ->
+            file.path !in snapshot.approvalRequestedPaths &&
+                snapshot.progressByPath[file.path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
+        }
+        if (ready.isEmpty()) {
+            _uiState.update { it.copy(notice = "No Ready chapters are waiting for approval.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(bulkApproving = true, notice = null) }
+            val repository = repositoryFactory.create(settings, token)
+            val approved = mutableListOf<ChapterFile>()
+            val failures = mutableListOf<String>()
+
+            ready.sortedBy { it.chapter }.forEach { file ->
+                try {
+                    val chapter = repository.loadChapter(file)
+                    repository.approveChapter(chapter)
+                    approved += file
+                    _uiState.update { state ->
+                        state.copy(approvalRequestedPaths = state.approvalRequestedPaths + file.path)
+                    }
+                } catch (t: Throwable) {
+                    if (t is CancellationException) throw t
+                    failures += "Ch ${file.chapter}: ${t.message ?: "approval dispatch failed"}"
+                }
+            }
+
+            _uiState.update { state ->
+                val summary = buildString {
+                    if (approved.isNotEmpty()) {
+                        append("Approval started for ${approved.size} Ready chapter")
+                        if (approved.size != 1) append("s")
+                        append(".")
+                    }
+                    if (failures.isNotEmpty()) {
+                        if (isNotEmpty()) append(" ")
+                        append("Failed: ")
+                        append(failures.joinToString("; "))
+                    }
+                }.ifBlank { "No chapter approvals were started." }
+                state.copy(bulkApproving = false, notice = summary)
             }
         }
     }
@@ -194,7 +246,14 @@ internal class ChapterListViewModel(
         }
 
         if (_uiState.value.selectedVolume == volume) {
-            _uiState.update { it.copy(refreshing = false) }
+            _uiState.update { state ->
+                state.copy(
+                    refreshing = false,
+                    approvalRequestedPaths = state.approvalRequestedPaths.filterTo(mutableSetOf()) { path ->
+                        state.progressByPath[path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
+                    },
+                )
+            }
             scheduleCacheSave(settings)
         }
     }
