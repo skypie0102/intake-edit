@@ -176,17 +176,20 @@ class ChapterListViewModelTest {
     }
 
     @Test
-    fun approveAllReadyDispatchesOnlyReadyChapters() = runTest(dispatcher) {
-        val ready = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
-        val pendingQa = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
+    fun approveAllReadyWaitsForEachWorkflowBeforeDispatchingNext() = runTest(dispatcher) {
+        val readyOne = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val readyTwo = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
+        val pendingQa = ChapterFile("editor_input/vol-01/chapters/ch_0003.yml", 1, 3)
         val repository = FakeChapterRepository(
-            files = listOf(ready, pendingQa),
+            files = listOf(readyOne, readyTwo, pendingQa),
             progress = mapOf(
-                ready.path to ChapterProgress(5, 5, true),
+                readyOne.path to ChapterProgress(5, 5, true),
+                readyTwo.path to ChapterProgress(5, 5, true),
                 pendingQa.path to ChapterProgress(5, 5, true),
             ),
             qaProgress = mapOf(
-                ready.path to QaProgressCounts(active = 0, total = 2, reusable = true),
+                readyOne.path to QaProgressCounts(active = 0, total = 2, reusable = true),
+                readyTwo.path to QaProgressCounts(active = 0, total = 1, reusable = true),
                 pendingQa.path to QaProgressCounts(active = 1, total = 1, reusable = true),
             ),
         )
@@ -197,16 +200,20 @@ class ChapterListViewModelTest {
 
         viewModel.refresh(RepoSettings(), "token")
         advanceUntilIdle()
-        assertEquals(ChapterWorkflowState.READY_FOR_APPROVAL, viewModel.uiState.value.progressByPath[ready.path]?.workflowState)
-        assertEquals(ChapterWorkflowState.PENDING_QA, viewModel.uiState.value.progressByPath[pendingQa.path]?.workflowState)
 
         viewModel.approveAllReady(RepoSettings(), "token")
         advanceUntilIdle()
 
-        assertEquals(listOf(ready), repository.approvedFiles)
-        assertEquals(setOf(ready.path), viewModel.uiState.value.approvalRequestedPaths)
+        assertEquals(
+            listOf("dispatch:1", "wait:1", "dispatch:2", "wait:2"),
+            repository.approvalEvents,
+        )
+        assertEquals(emptySet<String>(), viewModel.uiState.value.approvalRequestedPaths)
+        assertEquals(ChapterWorkflowState.APPROVED, viewModel.uiState.value.progressByPath[readyOne.path]?.workflowState)
+        assertEquals(ChapterWorkflowState.APPROVED, viewModel.uiState.value.progressByPath[readyTwo.path]?.workflowState)
+        assertEquals(ChapterWorkflowState.PENDING_QA, viewModel.uiState.value.progressByPath[pendingQa.path]?.workflowState)
         assertFalse(viewModel.uiState.value.bulkApproving)
-        assertEquals("Approval started for 1 Ready chapter.", viewModel.uiState.value.notice)
+        assertEquals("Approved 2 chapters sequentially.", viewModel.uiState.value.notice)
     }
 
     @Test
@@ -233,7 +240,7 @@ private class FakeChapterRepository(
     private val beforeQa: suspend () -> Unit = {},
 ) : ChapterRepository {
     val requestedVolumes = mutableListOf<Int>()
-    val approvedFiles = mutableListOf<ChapterFile>()
+    val approvalEvents = mutableListOf<String>()
 
     override suspend fun listVolumes(): List<Int> = files.map { it.volume }.distinct().sorted()
 
@@ -282,9 +289,26 @@ private class FakeChapterRepository(
     }
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
-    override suspend fun approveChapter(chapter: OpenChapter) {
-        approvedFiles += chapter.file
+    override suspend fun approveChapter(chapter: OpenChapter): ApprovalDispatch {
+        approvalEvents += "dispatch:${chapter.file.chapter}"
+        return ApprovalDispatch(
+            requestId = "request-${chapter.file.chapter}",
+            workflowRunTitle = "run-${chapter.file.chapter}",
+        )
     }
+
+    override suspend fun waitForApproval(dispatch: ApprovalDispatch): GitHubWorkflowRun {
+        val chapter = dispatch.workflowRunTitle.removePrefix("run-").toInt()
+        approvalEvents += "wait:$chapter"
+        return GitHubWorkflowRun(
+            id = chapter.toLong(),
+            displayTitle = dispatch.workflowRunTitle,
+            status = "completed",
+            conclusion = "success",
+            htmlUrl = null,
+        )
+    }
+
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
     override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
@@ -297,7 +321,8 @@ private class ThrowingChapterRepository(private val message: String) : ChapterRe
     override suspend fun loadChapter(file: ChapterFile): OpenChapter = error("Not used in this test")
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter = error("Not used in this test")
     override suspend fun commitChapter(chapter: OpenChapter, markReviewed: Boolean) = error("Not used in this test")
-    override suspend fun approveChapter(chapter: OpenChapter) = error("Not used in this test")
+    override suspend fun approveChapter(chapter: OpenChapter): ApprovalDispatch = error("Not used in this test")
+    override suspend fun waitForApproval(dispatch: ApprovalDispatch): GitHubWorkflowRun = error("Not used in this test")
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter = error("Not used in this test")
     override suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter = error("Not used in this test")
 }
