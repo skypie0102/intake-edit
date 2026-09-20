@@ -1,6 +1,7 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import java.time.Instant
+import java.util.UUID
 
 internal data class LoadedChapterProgress(
     val progress: ChapterProgress,
@@ -19,6 +20,11 @@ internal data class ChapterCommitResult(
     val endnoteProposals: EndnoteProposalSnapshot?,
 )
 
+internal data class ApprovalDispatch(
+    val requestId: String,
+    val workflowRunTitle: String,
+)
+
 internal interface ChapterRepository {
     suspend fun listVolumes(): List<Int>
     suspend fun listFiles(volume: Int): List<ChapterFile>
@@ -27,7 +33,8 @@ internal interface ChapterRepository {
     suspend fun loadChapter(file: ChapterFile): OpenChapter
     fun restoreRaw(base: OpenChapter, raw: String): OpenChapter
     suspend fun commitChapter(chapter: OpenChapter, tagForQa: Boolean): ChapterCommitResult
-    suspend fun approveChapter(chapter: OpenChapter)
+    suspend fun approveChapter(chapter: OpenChapter): ApprovalDispatch
+    suspend fun waitForApproval(dispatch: ApprovalDispatch): GitHubWorkflowRun
     suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter
     suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter
 }
@@ -181,7 +188,7 @@ internal class GitHubChapterRepository(
         )
     }
 
-    override suspend fun approveChapter(chapter: OpenChapter) {
+    override suspend fun approveChapter(chapter: OpenChapter): ApprovalDispatch {
         require(!chapter.approved) { "This chapter is already approved." }
         require(chapter.raw == chapter.remote.content && chapter.endnoteProposals?.changed != true) {
             "Commit all local chapter and endnote-suggestion changes before approval."
@@ -208,14 +215,27 @@ internal class GitHubChapterRepository(
             "Active QA findings remain. Resolve or Override every finding before approving."
         }
 
+        val requestId = UUID.randomUUID().toString().lowercase()
+        val workflowRunTitle = "Finalize approval · $requestId · ${chapter.file.path}"
         client.dispatchWorkflow(
             workflowFileName = "finalize-chapter.yml",
             inputs = mapOf(
                 "editor_path" to chapter.file.path,
                 "expected_editor_content_sha256" to latestEditorHash,
+                "approval_request_id" to requestId,
             ),
         )
+        return ApprovalDispatch(
+            requestId = requestId,
+            workflowRunTitle = workflowRunTitle,
+        )
     }
+
+    override suspend fun waitForApproval(dispatch: ApprovalDispatch): GitHubWorkflowRun =
+        client.waitForWorkflowRun(
+            workflowFileName = "finalize-chapter.yml",
+            displayTitle = dispatch.workflowRunTitle,
+        )
 
     override suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter {
         val snapshot = requireNotNull(chapter.qa) { "No QA findings are loaded for this chapter." }
