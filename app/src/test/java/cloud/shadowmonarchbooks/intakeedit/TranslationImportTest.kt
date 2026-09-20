@@ -6,7 +6,7 @@ import org.junit.Test
 
 class TranslationImportTest {
     private fun document(vararg source: String) = EditorDocument(
-        schemaVersion = 5,
+        schemaVersion = 6,
         volume = 1,
         chapter = 1,
         sourceHref = "canonical/vol-01/ch_0001.xhtml",
@@ -32,6 +32,32 @@ class TranslationImportTest {
         assertEquals(2, result.matchedCount)
         assertEquals("First rough", result.translationFor("P1"))
         assertEquals("Second rough", result.translationFor("P2"))
+    }
+
+    @Test
+    fun importsH1H2AndParagraphsFromWholeXhtmlSdlxliffUnit() {
+        val sourceHtml = """<html xmlns="http://www.w3.org/1999/xhtml"><body>
+            <h1 class="chapter-title chapter-numbered"><a class="chapter-number" href="toc.xhtml">1</a><span class="chapter-title-text">第一話</span></h1>
+            <section><h2 class="note-title">前書き</h2><p>本文です。</p></section>
+        </body></html>"""
+        val targetHtml = """<html xmlns="http://www.w3.org/1999/xhtml"><body>
+            <h1 class="chapter-title chapter-numbered"><a class="chapter-number" href="toc.xhtml">1</a><span class="chapter-title-text">Chapter One</span></h1>
+            <section><h2 class="note-title">Preface</h2><p>Body text.</p></section>
+        </body></html>"""
+        val xliff = """<?xml version="1.0"?><xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2"><file><body><trans-unit id="1"><source>${escape(sourceHtml)}</source><target>${escape(targetHtml)}</target></trans-unit></body></file></xliff>"""
+        val editor = documentWithEntries(
+            "H1-1" to "第一話",
+            "H2-1" to "前書き",
+            "P1" to "本文です。",
+        )
+
+        val result = XliffTranslationImporter.parse(xliff, "chapter.sdlxliff", "path/ch.yml", editor)
+
+        assertEquals("Exact", result.alignment)
+        assertEquals(3, result.matchedCount)
+        assertEquals("Chapter One", result.translationFor("H1-1"))
+        assertEquals("Preface", result.translationFor("H2-1"))
+        assertEquals("Body text.", result.translationFor("P1"))
     }
 
     @Test
@@ -68,6 +94,19 @@ class TranslationImportTest {
         val result = XliffTranslationImporter.parse(xliff, "chapter.xlf", "path/ch.yml", document("白坂雪乃", "第二"))
         assertEquals("Shirasaka Yukino", result.translationFor("P1"))
     }
+
+    private fun documentWithEntries(vararg entries: Pair<String, String>) = EditorDocument(
+        schemaVersion = 6,
+        volume = 1,
+        chapter = 1,
+        sourceHref = "canonical/vol-01/ch_0001.xhtml",
+        sourceSha256 = "a".repeat(64),
+        readerFile = "reader/vol-01/ch_0001.xhtml",
+        englishTitle = "Test",
+        instructions = "",
+        editorReviewComplete = false,
+        entries = entries.map { (locator, source) -> EditorEntry(locator, source, "") },
+    )
 
     private fun escape(value: String): String = value
         .replace("&", "&amp;")
