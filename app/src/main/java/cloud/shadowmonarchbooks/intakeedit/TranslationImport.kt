@@ -114,8 +114,8 @@ object XliffTranslationImporter {
         val sourceParagraphs = mutableListOf<String>()
         val targetParagraphs = mutableListOf<String>()
         pairs.forEach { pair ->
-            val sourceParts = extractParagraphsOrSegment(pair.source)
-            val targetParts = extractParagraphsOrSegment(pair.target)
+            val sourceParts = extractBlocksOrSegment(pair.source)
+            val targetParts = extractBlocksOrSegment(pair.target)
             if (sourceParts.size == targetParts.size) {
                 sourceParagraphs += sourceParts
                 targetParagraphs += targetParts
@@ -170,7 +170,7 @@ object XliffTranslationImporter {
         val total = document.entries.size
         val minimumCredible = if (total <= 2) 1 else ceil(total * 0.60).toInt()
         require(matched >= minimumCredible) {
-            "This file does not appear to match this chapter: only $matched/$total source paragraphs matched exactly."
+            "This file does not appear to match this chapter: only $matched/$total source blocks matched exactly."
         }
 
         val exact = matched == total && sourceParagraphs.size == total && targetParagraphs.size == total
@@ -208,24 +208,37 @@ object XliffTranslationImporter {
         return pairs
     }
 
-    private fun extractParagraphsOrSegment(text: String): List<String> {
+    private fun extractBlocksOrSegment(text: String): List<String> {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return emptyList()
-        if (!Regex("(?i)<p(?:\\s|>)").containsMatchIn(trimmed)) return listOf(cleanSegmentText(trimmed)).filter { it.isNotBlank() }
+        val blockTag = Regex("(?i)<(?:h1|h2|p)(?:\\s|>)")
+        if (!blockTag.containsMatchIn(trimmed)) {
+            return listOf(cleanSegmentText(trimmed)).filter { it.isNotBlank() }
+        }
 
         val xml = sanitizeEmbeddedXml(trimmed)
-        val parsed = runCatching { parseXml(xml) }.getOrNull()
+        val parsed = runCatching { parseXml(xml) }
+            .recoverCatching { parseXml("<root>$xml</root>") }
+            .getOrNull()
         if (parsed != null) {
-            return elementsByLocalName(parsed.documentElement, "p")
-                .map { cleanSegmentText(it.textContent.orEmpty()) }
+            return translatableBlockElements(parsed.documentElement)
+                .map { blockText(it) }
                 .filter { it.isNotBlank() }
         }
 
         // Fallback for HTML-ish targets that are not perfectly XML-well-formed.
-        return Regex("(?is)<p\\b[^>]*>(.*?)</p>").findAll(trimmed)
+        return Regex("(?is)<(h1|h2|p)\\b[^>]*>(.*?)</\\1>").findAll(trimmed)
             .map { match ->
+                val tag = match.groupValues[1].lowercase()
+                var inner = match.groupValues[2]
+                if (tag == "h1") {
+                    inner = inner.replace(
+                        Regex("(?is)<(?:a|span)\\b[^>]*class\\s*=\\s*[\"'][^\"']*chapter-number[^\"']*[\"'][^>]*>.*?</(?:a|span)>"),
+                        "",
+                    )
+                }
                 cleanSegmentText(
-                    match.groupValues[1]
+                    inner
                         .replace(Regex("(?is)<br\\s*/?>"), "\n")
                         .replace(Regex("(?is)<[^>]+>"), ""),
                 )
@@ -233,6 +246,70 @@ object XliffTranslationImporter {
             .filter { it.isNotBlank() }
             .toList()
     }
+
+    private fun translatableBlockElements(root: Element): List<Element> {
+        val out = mutableListOf<Element>()
+        fun visit(node: Node) {
+            if (node is Element) {
+                val name = localName(node)
+                if (name == "h1" || name == "h2" || name == "p") out += node
+            }
+            var child = node.firstChild
+            while (child != null) {
+                visit(child)
+                child = child.nextSibling
+            }
+        }
+        visit(root)
+        return out
+    }
+
+    private fun blockText(element: Element): String {
+        if (localName(element) != "h1") return cleanSegmentText(element.textContent.orEmpty())
+
+        val badges = descendantsWithClass(element, "chapter-kind-badge")
+        val titles = descendantsWithClass(element, "chapter-title-text")
+        if (badges.isNotEmpty() || titles.isNotEmpty()) {
+            return (badges + titles)
+                .map { cleanSegmentText(it.textContent.orEmpty()) }
+                .filter { it.isNotBlank() }
+                .joinToString(" ")
+        }
+
+        val out = StringBuilder()
+        fun collect(node: Node, skip: Boolean) {
+            val skipHere = skip || (node is Element && hasClass(node, "chapter-number"))
+            if (!skipHere && node.nodeType == Node.TEXT_NODE) out.append(node.nodeValue.orEmpty())
+            var child = node.firstChild
+            while (child != null) {
+                collect(child, skipHere)
+                child = child.nextSibling
+            }
+        }
+        collect(element, false)
+        return cleanSegmentText(out.toString())
+    }
+
+    private fun descendantsWithClass(root: Element, className: String): List<Element> =
+        buildList {
+            fun visit(node: Node) {
+                if (node is Element && hasClass(node, className)) add(node)
+                var child = node.firstChild
+                while (child != null) {
+                    visit(child)
+                    child = child.nextSibling
+                }
+            }
+            visit(root)
+        }
+
+    private fun hasClass(element: Element, className: String): Boolean =
+        element.getAttribute("class")
+            .split(Regex("\\s+"))
+            .any { it == className }
+
+    private fun localName(element: Element): String =
+        (element.localName ?: element.nodeName.substringAfter(':')).lowercase()
 
     private fun cleanSegmentText(value: String): String = value
         .replace("&nbsp;", " ")
