@@ -112,13 +112,13 @@ internal class GitHubChapterRepository(
 
         if (tagForQa && reusablePass) {
             require(activeFindings.isEmpty()) {
-                "Close all active QA findings with Resolve or Override before finalizing this QA pass."
+                "Close all active QA findings with Resolve or Override before committing for approval."
             }
         }
 
         val document = if (tagForQa) {
             require(chapter.document.englishSupplied == chapter.document.englishTotal) {
-                "Supply English for every paragraph before tagging the chapter for QA."
+                "Supply English for every entry before tagging the chapter for QA."
             }
             chapter.document.copy(editorReviewComplete = true)
         } else {
@@ -127,7 +127,7 @@ internal class GitHubChapterRepository(
         val raw = IntakeParser.patchDocument(chapter.raw, document)
         IntakeParser.validate(raw).getOrThrow()
         val message = when {
-            tagForQa && reusablePass -> "edit: finalize ch_${chapter.file.chapter.toString().padStart(4, '0')} for approval"
+            tagForQa && reusablePass -> "edit: mark ch_${chapter.file.chapter.toString().padStart(4, '0')} ready for approval"
             tagForQa -> "edit: tag ch_${chapter.file.chapter.toString().padStart(4, '0')} for QA"
             else -> "edit: revise ch_${chapter.file.chapter.toString().padStart(4, '0')} English"
         }
