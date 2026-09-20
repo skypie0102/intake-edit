@@ -84,6 +84,20 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
         if (e.statusCode == 404) null else throw e
     }
 
+    suspend fun dispatchWorkflow(workflowFileName: String, inputs: Map<String, String>) {
+        require(workflowFileName.isNotBlank()) { "Workflow file name is required." }
+        val inputJson = JSONObject()
+        inputs.forEach { (key, value) -> inputJson.put(key, value) }
+        val payload = JSONObject()
+            .put("ref", settings.branch)
+            .put("inputs", inputJson)
+        requestText(
+            "POST",
+            "$repoBase/actions/workflows/${encode(workflowFileName)}/dispatches",
+            payload,
+        )
+    }
+
     suspend fun updateFile(path: String, sha: String, content: String, message: String): String {
         GitHubCredentialGuard.requireSafeForCommit(content)
         val payload = JSONObject()
@@ -233,7 +247,11 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                     val apiMessage = json.optString("message")
                     val friendly = when (status) {
                         401 -> "GitHub returned 401 Bad credentials. This token is invalid, expired, or revoked on GitHub; reinstalling Intake Edit does not consume or rotate personal access tokens."
-                        403 -> "GitHub denied this operation. Check repository access and Contents permissions."
+                        403 -> if (path.contains("/actions/workflows/")) {
+                            "GitHub denied workflow dispatch. Check repository access and grant this token Actions: write permission."
+                        } else {
+                            "GitHub denied this operation. Check repository access and Contents permissions."
+                        }
                         409, 422 -> "GitHub rejected the update, usually because the repository changed after you opened it. Refresh before editing again."
                         else -> if (apiMessage.isNotBlank()) {
                             "GitHub request failed with HTTP $status. $apiMessage"
