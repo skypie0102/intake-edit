@@ -38,6 +38,16 @@ data class EditorDocument(
     val englishSupplied get() = entries.count { it.isSupplied }
     val englishTotal get() = entries.size
     val complete get() = editorReviewComplete && englishSupplied == englishTotal
+    val displayTitle: String
+        get() {
+            val heading = entries.firstOrNull { it.locator.startsWith("H1-") }
+            return when {
+                heading?.isSupplied == true -> InlineMarkup.visibleText(heading.english)
+                heading != null -> heading.sourceJapanese
+                englishTitle.isNotBlank() -> englishTitle
+                else -> "Untitled chapter"
+            }
+        }
 }
 
 object IntakeParser {
