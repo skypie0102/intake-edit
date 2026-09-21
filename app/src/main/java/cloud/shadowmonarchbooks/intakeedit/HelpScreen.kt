@@ -59,6 +59,7 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
             item {
                 HelpCard("Ready filter and approval") {
                     Text("The chapter list keeps Active, Pending QA, Ready, and Completed filters visible across the top.")
+                    Text("For large series, the list is loaded from one derived per-volume workflow index instead of downloading every chapter and QA file. Cached rows stay visible while the index refreshes; opening or approving a chapter still reloads the authoritative GitHub files. If the index is unavailable or stale, Intake Edit safely falls back to the slower compatibility loader.")
                     Text("Ready contains chapters whose editor review is complete, whose semantic QA pass is still reusable, and whose active QA finding count is zero.")
                     Text("Open one Ready chapter to use Approve Chapter, or use the Approve all floating button in the Ready filter to start approval for every Ready chapter in the selected volume.")
                     Text("Bulk approval is sequential. Intake Edit dispatches one uniquely identified finalizer run, monitors that exact GitHub Actions run until it finishes, and only then starts the next Ready chapter.")
