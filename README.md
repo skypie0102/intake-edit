@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.10**.
+Current application version: **0.15.11**.
 
 ## Workspace sections
 
@@ -32,6 +32,8 @@ The agent proposes; the human editor decides what becomes authoritative.
 ## Chapter workflow and approval
 
 The chapter selection page keeps the four workflow filters **Active / Pending QA / Ready / Completed** visible in a horizontal bar at the top. Search and volume controls remain under the filter icon.
+
+For scale, the chapter list no longer loads every editor YAML and QA file during a normal refresh. PureLove publishes a derived `workflow_status/vol-NN.json` file per volume, and Intake Edit fetches one selected-volume index plus the branch head to populate the whole list. The cached list remains visible while refreshing. The app verifies that the index matches the current repository status-refresh commit; if the index is missing, malformed, or still catching up, it falls back to the older bounded-concurrency per-chapter loader. Opening and approving chapters always reload authoritative GitHub files, so the index is only a list cache, never an approval authority.
 
 The chapter editor follows four repository-backed states:
 
