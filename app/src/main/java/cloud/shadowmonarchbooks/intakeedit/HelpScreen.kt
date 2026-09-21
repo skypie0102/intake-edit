@@ -52,7 +52,7 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
                 HelpCard("What happens after Tag for QA") {
                     Text("Pending QA → one full semantic QA pass. After that, the recorded pass is reused while you address only the flagged paragraphs:")
                     HelpLine("No findings", "The chapter becomes Ready for Approval. QA does not create the reader XHTML or approve the chapter by itself.")
-                    HelpLine("Any finding", "The chapter returns to Pending Review. Correct it and press Resolve, or press Override when the finding allows it.")
+                    HelpLine("Any finding", "The chapter returns to Pending Review. Correct it and press Resolve, or press Override for any WARNING or ERROR finding. BLOCKING findings must be corrected.")
                     Text("After a return, cards needing attention show a ! button. It combines QA findings and endnote suggestions. Resolve requires that the flagged paragraph was actually changed. Override means you intentionally accept it as-is and requires a reason when allowed. Once every QA finding is closed, commit the corrected chapter for approval; semantic QA does not run again.")
                 }
             }
@@ -78,9 +78,9 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
             }
             item {
                 HelpCard("QA severity") {
-                    HelpLine("WARNING", "Needs a human look, but the intended meaning is usually still understandable. Normally overrideable when the wording is intentional.")
-                    HelpLine("ERROR", "A clear translation, continuity, attribution, or terminology defect that normally should be corrected.")
-                    HelpLine("BLOCKING", "A severe or systemic problem that makes the chapter unsafe to approve as-is. Normally not overrideable.")
+                    HelpLine("WARNING", "Needs a human look, but the intended meaning is usually still understandable. Overrideable.")
+                    HelpLine("ERROR", "A clear translation, continuity, attribution, or terminology defect that normally should be corrected. Overrideable.")
+                    HelpLine("BLOCKING", "A severe or systemic problem that makes the chapter unsafe to approve as-is. Not overrideable.")
                     Text("Severity describes seriousness. Every active finding returns the chapter to Pending Review.")
                 }
             }
@@ -102,7 +102,7 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
             item {
                 HelpCard("Resolve and Override") {
                     HelpLine("Resolve", "Use this after correcting the flagged paragraph. Resolve is accepted only when that paragraph differs from the QA-reviewed baseline.")
-                    HelpLine("Override", "Use this when you intentionally accept the finding as-is. It is available only when the finding is overrideable and requires a reason.")
+                    HelpLine("Override", "Use this when you intentionally accept a WARNING or ERROR finding as-is. BLOCKING findings cannot be overridden. A reason is required.")
                     Text("Both are paragraph-scoped audit records. Editing that same paragraph again makes its closure stale; editing another flagged paragraph does not.")
                     Text("If you edit a paragraph that QA did not flag, or other protected chapter content, the recorded QA pass becomes stale and a fresh semantic QA pass is required.")
                 }
