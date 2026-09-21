@@ -230,6 +230,28 @@ internal class ChapterListViewModel(
         settings: RepoSettings,
         volume: Int,
     ) {
+        val indexed = runCatching { repository.loadVolumeStatus(volume) }.getOrNull()
+        if (indexed != null) {
+            if (_uiState.value.selectedVolume != volume) return
+            _uiState.update { state ->
+                state.copy(
+                    files = indexed.files,
+                    progressByPath = indexed.progressByPath,
+                    refreshing = false,
+                    approvalRequestedPaths = state.approvalRequestedPaths.filterTo(mutableSetOf()) { path ->
+                        indexed.progressByPath[path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
+                    },
+                    notice = null,
+                )
+            }
+            scheduleCacheSave(settings)
+            return
+        }
+
+        _uiState.update { state ->
+            state.copy(notice = "Workflow index unavailable; using slower compatibility refresh for Volume $volume.")
+        }
+
         val listed = repository.listFiles(volume)
         val listedPaths = listed.mapTo(hashSetOf()) { it.path }
         _uiState.update { state ->
