@@ -60,7 +60,10 @@ class ChapterListViewModelTest {
         assertEquals(ChapterProgress(4, 5, false), state.progressByPath[first.path])
         assertEquals(ChapterProgress(8, 8, true, qaActive = 1, qaTotal = 2, qaReusable = true), state.progressByPath[second.path])
         assertFalse(state.refreshing)
-        assertNull(state.notice)
+        assertEquals(
+            "Workflow index unavailable; using slower compatibility refresh for Volume 1.",
+            state.notice,
+        )
     }
 
     @Test
