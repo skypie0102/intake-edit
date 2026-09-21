@@ -302,7 +302,7 @@ internal class GitHubChapterRepository(
         }
         val finding = snapshot.document.findings.firstOrNull { it.id == findingId }
             ?: error("QA finding not found: $findingId")
-        require(finding.overridable) { "This QA finding cannot be overridden." }
+        require(finding.canOverride) { "Blocking QA findings cannot be overridden." }
         require(reason.isNotBlank()) { "Override reason is required." }
         val editorSha = QaFindingsParser.editorContentSha256(chapter.raw)
         require(snapshot.document.disposition(finding, chapter.document, editorSha) == QaFindingDisposition.ACTIVE) {
