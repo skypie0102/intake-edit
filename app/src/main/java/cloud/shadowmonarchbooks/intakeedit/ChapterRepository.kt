@@ -101,6 +101,11 @@ internal class GitHubChapterRepository(
                 files += file
                 progress[chapterPath] = item
             }
+            val head = client.getBranchHead()
+            val current = head.sha == sourceCommitSha ||
+                (head.parentSha == sourceCommitSha && head.message.startsWith("status: refresh workflow indexes"))
+            require(current) { "Workflow status index is stale." }
+
             IndexedVolumeStatus(
                 sourceCommitSha = sourceCommitSha,
                 files = files.sortedBy { it.chapter },
