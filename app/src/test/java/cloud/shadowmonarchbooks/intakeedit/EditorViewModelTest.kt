@@ -193,6 +193,7 @@ private class FakeEditorChapterRepository(
         private set
 
     override suspend fun listVolumes(): List<Int> = error("Not used in this test")
+    override suspend fun loadVolumeStatus(volume: Int): IndexedVolumeStatus? = error("Not used in this test")
     override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress = error("Not used in this test")
     override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
