@@ -217,6 +217,38 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun indexedRefreshAvoidsPerChapterRequests() = runTest(dispatcher) {
+        val first = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val second = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
+        val firstProgress = ChapterProgress(5, 5, true, qaActive = 0, qaTotal = 2, qaReusable = true)
+        val secondProgress = ChapterProgress(3, 5, false)
+        val repository = FakeChapterRepository(
+            files = listOf(first, second),
+            progress = emptyMap(),
+            qaProgress = emptyMap(),
+            indexedStatus = IndexedVolumeStatus(
+                sourceCommitSha = "a".repeat(40),
+                files = listOf(first, second),
+                progressByPath = mapOf(first.path to firstProgress, second.path to secondProgress),
+            ),
+        )
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheDispatcher = dispatcher,
+        )
+
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf(first, second), state.files)
+        assertEquals(firstProgress, state.progressByPath[first.path])
+        assertEquals(secondProgress, state.progressByPath[second.path])
+        assertTrue(repository.requestedVolumes.isEmpty())
+        assertFalse(state.refreshing)
+    }
+
+    @Test
     fun refreshSurfacesRepositoryFailure() = runTest(dispatcher) {
         val viewModel = ChapterListViewModel(
             repositoryFactory = ChapterRepositoryFactory { _, _ -> ThrowingChapterRepository("network unavailable") },
@@ -238,11 +270,13 @@ private class FakeChapterRepository(
     private val qaProgress: Map<String, QaProgressCounts>,
     private val beforeList: suspend () -> Unit = {},
     private val beforeQa: suspend () -> Unit = {},
+    private val indexedStatus: IndexedVolumeStatus? = null,
 ) : ChapterRepository {
     val requestedVolumes = mutableListOf<Int>()
     val approvalEvents = mutableListOf<String>()
 
     override suspend fun listVolumes(): List<Int> = files.map { it.volume }.distinct().sorted()
+    override suspend fun loadVolumeStatus(volume: Int): IndexedVolumeStatus? = indexedStatus?.takeIf { it.files.firstOrNull()?.volume == volume }
 
     override suspend fun listFiles(volume: Int): List<ChapterFile> {
         requestedVolumes += volume
@@ -315,6 +349,7 @@ private class FakeChapterRepository(
 
 private class ThrowingChapterRepository(private val message: String) : ChapterRepository {
     override suspend fun listVolumes(): List<Int> = error(message)
+    override suspend fun loadVolumeStatus(volume: Int): IndexedVolumeStatus? = error("Not used in this test")
     override suspend fun listFiles(volume: Int): List<ChapterFile> = error("Not used in this test")
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress = error("Not used in this test")
     override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts = error("Not used in this test")
