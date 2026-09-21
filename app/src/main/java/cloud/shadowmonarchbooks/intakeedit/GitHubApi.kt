@@ -32,6 +32,11 @@ data class GitHubBranchHead(
     val message: String,
 )
 
+data class GitHubChangedFile(
+    val path: String,
+    val status: String,
+)
+
 data class GitHubWorkflowRun(
     val id: Long,
     val displayTitle: String,
@@ -106,6 +111,30 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
             parentSha = parentSha,
             message = commit.optJSONObject("commit")?.optString("message").orEmpty(),
         )
+    }
+
+    suspend fun compareChangedFiles(baseSha: String, headSha: String): List<GitHubChangedFile>? {
+        val comparison = request(
+            "GET",
+            "$repoBase/compare/${encode(baseSha)}...${encode(headSha)}",
+        )
+        val status = comparison.optString("status")
+        if (status !in setOf("ahead", "identical")) return null
+        val files = comparison.optJSONArray("files") ?: JSONArray()
+        // GitHub caps compare responses at 300 files. At the cap we cannot prove
+        // that the returned set is complete, so force the compatibility path.
+        if (files.length() >= 300) return null
+        return buildList {
+            for (i in 0 until files.length()) {
+                val item = files.getJSONObject(i)
+                add(
+                    GitHubChangedFile(
+                        path = item.getString("filename"),
+                        status = item.optString("status"),
+                    ),
+                )
+            }
+        }
     }
 
     suspend fun getFile(path: String): FileSnapshot = getFileAtRef(path, settings.branch)

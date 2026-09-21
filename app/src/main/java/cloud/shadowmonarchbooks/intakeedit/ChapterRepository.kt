@@ -30,7 +30,70 @@ internal data class IndexedVolumeStatus(
     val sourceCommitSha: String,
     val files: List<ChapterFile>,
     val progressByPath: Map<String, ChapterProgress>,
+    val refreshFiles: List<ChapterFile> = emptyList(),
 )
+
+internal fun workflowStatusCoversHead(
+    sourceCommitSha: String,
+    head: GitHubBranchHead,
+): Boolean =
+    head.sha == sourceCommitSha ||
+        (
+            head.parentSha == sourceCommitSha &&
+                (
+                    head.message.startsWith("status: refresh workflow indexes") ||
+                        head.message.startsWith("approve: finalize ")
+                )
+        )
+
+internal fun changedChapterFilesForVolume(
+    volume: Int,
+    intakeRoot: String,
+    indexedFiles: List<ChapterFile>,
+    changedFiles: List<GitHubChangedFile>,
+): List<ChapterFile>? {
+    val volumeDir = "vol-${volume.toString().padStart(2, '0')}"
+    val root = intakeRoot.trim('/').ifBlank { "editor_input" }
+    val editorRegex = Regex("""^${Regex.escape(root)}/${Regex.escape(volumeDir)}/chapters/ch_(\d+)\.yml$""")
+    val qaRegex = Regex("""^qa/${Regex.escape(volumeDir)}/ch_(\d+)\.findings\.json$""")
+    val approvalRegex = Regex("""^approvals/${Regex.escape(volumeDir)}/ch_(\d+)\.approved\.json$""")
+    val readerRegex = Regex("""^reader/${Regex.escape(volumeDir)}/ch_(\d+)\.xhtml$""")
+    val indexedByChapter = indexedFiles.associateBy { it.chapter }
+    val dirty = linkedMapOf<Int, ChapterFile>()
+
+    for (change in changedFiles) {
+        val path = change.path
+        if (
+            path == "pyproject.toml" ||
+            path.startsWith("scripts/") ||
+            path.startsWith("schema/") ||
+            path.startsWith("schemas/") ||
+            path == "workflow_status/$volumeDir.json"
+        ) {
+            return null
+        }
+
+        val editor = editorRegex.matchEntire(path)
+        val chapterMatch = editor
+            ?: qaRegex.matchEntire(path)
+            ?: approvalRegex.matchEntire(path)
+            ?: readerRegex.matchEntire(path)
+            ?: continue
+
+        if (change.status == "removed" || change.status == "renamed") return null
+
+        val chapter = chapterMatch.groupValues[1].toInt()
+        val existing = indexedByChapter[chapter]
+        val file = existing ?: if (editor != null) {
+            ChapterFile(path = path, volume = volume, chapter = chapter)
+        } else {
+            // A status-side file for a chapter absent from the index is ambiguous.
+            return null
+        }
+        dirty[chapter] = file
+    }
+    return dirty.values.sortedBy { it.chapter }
+}
 
 internal interface ChapterRepository {
     suspend fun listVolumes(): List<Int>
@@ -57,7 +120,7 @@ internal object DefaultChapterRepositoryFactory : ChapterRepositoryFactory {
 }
 
 internal class GitHubChapterRepository(
-    settings: RepoSettings,
+    private val settings: RepoSettings,
     token: String,
 ) : ChapterRepository {
     private val client = GitHubApi(settings, token)
@@ -101,15 +164,26 @@ internal class GitHubChapterRepository(
                 files += file
                 progress[chapterPath] = item
             }
+            val sortedFiles = files.sortedBy { it.chapter }
             val head = client.getBranchHead()
-            val current = head.sha == sourceCommitSha ||
-                (head.parentSha == sourceCommitSha && head.message.startsWith("status: refresh workflow indexes"))
-            require(current) { "Workflow status index is stale." }
+            val refreshFiles = if (workflowStatusCoversHead(sourceCommitSha, head)) {
+                emptyList()
+            } else {
+                val changedFiles = client.compareChangedFiles(sourceCommitSha, head.sha)
+                    ?: error("Workflow status index is too stale to refresh incrementally.")
+                changedChapterFilesForVolume(
+                    volume = volume,
+                    intakeRoot = settings.intakeRoot,
+                    indexedFiles = sortedFiles,
+                    changedFiles = changedFiles,
+                ) ?: error("Workflow status index needs a full regeneration.")
+            }
 
             IndexedVolumeStatus(
                 sourceCommitSha = sourceCommitSha,
-                files = files.sortedBy { it.chapter },
+                files = (sortedFiles + refreshFiles).distinctBy { it.path }.sortedBy { it.chapter },
                 progressByPath = progress,
+                refreshFiles = refreshFiles,
             )
         }.getOrNull()
     }

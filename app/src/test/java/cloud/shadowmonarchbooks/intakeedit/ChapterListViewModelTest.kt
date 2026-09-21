@@ -252,6 +252,89 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun indexedRefreshReloadsOnlyChangedChapters() = runTest(dispatcher) {
+        val first = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val second = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
+        val indexedFirst = ChapterProgress(5, 5, true, qaActive = 0, qaTotal = 2, qaReusable = true)
+        val indexedSecond = ChapterProgress(1, 5, false)
+        val refreshedSecond = ChapterProgress(5, 5, true)
+        val repository = FakeChapterRepository(
+            files = listOf(first, second),
+            progress = mapOf(second.path to refreshedSecond),
+            qaProgress = mapOf(second.path to QaProgressCounts(active = 0, total = 1, reusable = true)),
+            indexedStatus = IndexedVolumeStatus(
+                sourceCommitSha = "a".repeat(40),
+                files = listOf(first, second),
+                progressByPath = mapOf(first.path to indexedFirst, second.path to indexedSecond),
+                refreshFiles = listOf(second),
+            ),
+        )
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheDispatcher = dispatcher,
+        )
+
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(repository.requestedVolumes.isEmpty())
+        assertEquals(listOf(second.path), repository.baseProgressRequests)
+        assertEquals(listOf(second.path), repository.qaProgressRequests)
+        assertEquals(indexedFirst, state.progressByPath[first.path])
+        assertEquals(
+            refreshedSecond.copy(qaActive = 0, qaTotal = 1, qaReusable = true),
+            state.progressByPath[second.path],
+        )
+        assertFalse(state.refreshing)
+    }
+
+    @Test
+    fun workflowStatusFreshnessAcceptsBundledApprovalCommitOnly() {
+        val source = "a".repeat(40)
+        assertTrue(
+            workflowStatusCoversHead(
+                source,
+                GitHubBranchHead("b".repeat(40), source, "approve: finalize ch_0001"),
+            ),
+        )
+        assertTrue(
+            workflowStatusCoversHead(
+                source,
+                GitHubBranchHead("c".repeat(40), source, "status: refresh workflow indexes"),
+            ),
+        )
+        assertFalse(
+            workflowStatusCoversHead(
+                source,
+                GitHubBranchHead("d".repeat(40), source, "edit: revise ch_0001 English"),
+            ),
+        )
+    }
+
+    @Test
+    fun changedChapterDeltaRejectsGlobalStatusLogicChanges() {
+        val file = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        assertNull(
+            changedChapterFilesForVolume(
+                volume = 1,
+                intakeRoot = "editor_input",
+                indexedFiles = listOf(file),
+                changedFiles = listOf(GitHubChangedFile("scripts/workflow_status.py", "modified")),
+            ),
+        )
+        assertEquals(
+            listOf(file),
+            changedChapterFilesForVolume(
+                volume = 1,
+                intakeRoot = "editor_input",
+                indexedFiles = listOf(file),
+                changedFiles = listOf(GitHubChangedFile("qa/vol-01/ch_0001.findings.json", "modified")),
+            ),
+        )
+    }
+
+    @Test
     fun refreshSurfacesRepositoryFailure() = runTest(dispatcher) {
         val viewModel = ChapterListViewModel(
             repositoryFactory = ChapterRepositoryFactory { _, _ -> ThrowingChapterRepository("network unavailable") },
@@ -276,6 +359,8 @@ private class FakeChapterRepository(
     private val indexedStatus: IndexedVolumeStatus? = null,
 ) : ChapterRepository {
     val requestedVolumes = mutableListOf<Int>()
+    val baseProgressRequests = mutableListOf<String>()
+    val qaProgressRequests = mutableListOf<String>()
     val approvalEvents = mutableListOf<String>()
 
     override suspend fun listVolumes(): List<Int> = files.map { it.volume }.distinct().sorted()
@@ -287,8 +372,9 @@ private class FakeChapterRepository(
         return files.filter { it.volume == volume }
     }
 
-    override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress =
-        LoadedChapterProgress(
+    override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress {
+        baseProgressRequests += file.path
+        return LoadedChapterProgress(
             progress = requireNotNull(progress[file.path]),
             editorContentSha256 = "editor-sha-${file.chapter}",
             document = EditorDocument(
@@ -297,8 +383,10 @@ private class FakeChapterRepository(
                 englishTitle = "Chapter ${file.chapter}", instructions = "", editorReviewComplete = false, entries = emptyList(),
             ),
         )
+    }
 
     override suspend fun loadQaCounts(file: ChapterFile, document: EditorDocument, editorContentSha256: String): QaProgressCounts {
+        qaProgressRequests += file.path
         beforeQa()
         return requireNotNull(qaProgress[file.path])
     }

@@ -237,7 +237,7 @@ internal class ChapterListViewModel(
                 state.copy(
                     files = indexed.files,
                     progressByPath = indexed.progressByPath,
-                    refreshing = false,
+                    refreshing = indexed.refreshFiles.isNotEmpty(),
                     approvalRequestedPaths = state.approvalRequestedPaths.filterTo(mutableSetOf()) { path ->
                         indexed.progressByPath[path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
                     },
@@ -245,6 +245,9 @@ internal class ChapterListViewModel(
                 )
             }
             scheduleCacheSave(settings)
+            if (indexed.refreshFiles.isNotEmpty()) {
+                refreshChapterProgress(repository, settings, volume, indexed.refreshFiles)
+            }
             return
         }
 
@@ -267,8 +270,17 @@ internal class ChapterListViewModel(
             )
         }
 
+        refreshChapterProgress(repository, settings, volume, listed)
+    }
+
+    private suspend fun refreshChapterProgress(
+        repository: ChapterRepository,
+        settings: RepoSettings,
+        volume: Int,
+        files: List<ChapterFile>,
+    ) {
         coroutineScope {
-            listed.forEach { file ->
+            files.forEach { file ->
                 launch {
                     val loaded = progressConcurrency.withPermit {
                         try {
