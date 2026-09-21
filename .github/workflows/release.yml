@@ -60,8 +60,14 @@ jobs:
           echo "RELEASE_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "APP_VERSION_CODE=$APP_VERSION_CODE" >> "$GITHUB_ENV"
           if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
-            echo "release_needed=false" >> "$GITHUB_OUTPUT"
-            echo "$RELEASE_TAG already exists; no release needed."
+            TAG_COMMIT="$(git rev-list -n 1 "$RELEASE_TAG")"
+            if [ "$TAG_COMMIT" = "$GITHUB_SHA" ]; then
+              echo "release_needed=false" >> "$GITHUB_OUTPUT"
+              echo "$RELEASE_TAG already publishes this exact commit; no release needed."
+            else
+              echo "::error::$RELEASE_TAG already points to $TAG_COMMIT, but main is $GITHUB_SHA. Bump versionName and versionCode before publishing new app changes."
+              exit 1
+            fi
           else
             echo "release_needed=true" >> "$GITHUB_OUTPUT"
             echo "Preparing $RELEASE_TAG from $GITHUB_SHA."
