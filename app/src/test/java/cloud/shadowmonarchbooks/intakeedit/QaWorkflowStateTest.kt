@@ -89,4 +89,39 @@ entries:
         assertEquals("reader-hash", approval.readerContentSha256)
         assertEquals("approvals/vol-01/ch_0007.approved.json", ApprovalParser.path(1, 7))
     }
+
+    @Test
+    fun overrideAccessibilityFollowsSeverity() {
+        val raw = """
+            {
+              "schema_version": 1,
+              "findings": [
+                {
+                  "id": "error",
+                  "locator": "P1",
+                  "category": "translation_accuracy",
+                  "severity": "error",
+                  "message": "Error",
+                  "overridable": false
+                },
+                {
+                  "id": "blocking",
+                  "locator": "P2",
+                  "category": "chapter_alignment",
+                  "severity": "blocking",
+                  "message": "Blocking",
+                  "overridable": true
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val findings = QaFindingsParser.parse(raw).findings
+
+        assertTrue(findings.first { it.id == "error" }.canOverride)
+        assertTrue(findings.first { it.id == "error" }.overridable)
+        assertFalse(findings.first { it.id == "blocking" }.canOverride)
+        assertFalse(findings.first { it.id == "blocking" }.overridable)
+    }
+
 }
