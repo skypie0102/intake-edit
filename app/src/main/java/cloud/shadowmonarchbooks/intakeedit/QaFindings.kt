@@ -36,7 +36,9 @@ data class QaFinding(
     val baselineContentSha256: String? = null,
     val resolution: QaResolution? = null,
     val override: QaOverride? = null,
-)
+) {
+    val canOverride: Boolean get() = severity != "blocking"
+}
 
 enum class QaFindingDisposition { ACTIVE, RESOLVED, OVERRIDDEN }
 
@@ -143,7 +145,7 @@ object QaFindingsParser {
                         category = item.getString("category"),
                         severity = severity,
                         message = item.getString("message"),
-                        overridable = item.optBoolean("overridable", false),
+                        overridable = severity != "blocking",
                         baselineContentSha256 = item.optString("baseline_content_sha256").takeIf(String::isNotBlank),
                         resolution = resolution,
                         override = override,
@@ -184,7 +186,7 @@ object QaFindingsParser {
                 .put("category", finding.category)
                 .put("severity", finding.severity)
                 .put("message", finding.message)
-                .put("overridable", finding.overridable)
+                .put("overridable", finding.canOverride)
             finding.baselineContentSha256?.let { obj.put("baseline_content_sha256", it) }
             finding.resolution?.let { resolution ->
                 obj.put(
