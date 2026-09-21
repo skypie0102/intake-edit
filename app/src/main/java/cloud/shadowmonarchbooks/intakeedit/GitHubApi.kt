@@ -26,6 +26,12 @@ data class GitHubFileDeletion(
     val expectedSha: String,
 )
 
+data class GitHubBranchHead(
+    val sha: String,
+    val parentSha: String?,
+    val message: String,
+)
+
 data class GitHubWorkflowRun(
     val id: Long,
     val displayTitle: String,
@@ -86,6 +92,20 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                 )
             }
         }.sortedBy { it.chapter }
+    }
+
+    suspend fun getBranchHead(): GitHubBranchHead {
+        val branch = request("GET", "$repoBase/branches/${encode(settings.branch)}")
+        val commit = branch.getJSONObject("commit")
+        val parents = commit.optJSONArray("parents") ?: JSONArray()
+        val parentSha = if (parents.length() > 0) {
+            parents.getJSONObject(0).optString("sha").takeIf { it.isNotBlank() }
+        } else null
+        return GitHubBranchHead(
+            sha = commit.getString("sha"),
+            parentSha = parentSha,
+            message = commit.optJSONObject("commit")?.optString("message").orEmpty(),
+        )
     }
 
     suspend fun getFile(path: String): FileSnapshot = getFileAtRef(path, settings.branch)
