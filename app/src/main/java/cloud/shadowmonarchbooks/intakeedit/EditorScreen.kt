@@ -1089,7 +1089,7 @@ LaunchedEffect(qaFindings) {
                                             onClick = { onResolveFinding(finding.id) },
                                             enabled = qaCanResolveById[finding.id] == true,
                                         ) { Text("Resolve") }
-                                        if (finding.overridable) {
+                                        if (finding.canOverride) {
                                             TextButton(onClick = {
                                                 pendingQaOverride = finding
                                                 qaOverrideReason = ""
@@ -1329,7 +1329,7 @@ private fun QaFindingsView(
                                 onClick = { onResolve(finding.id) },
                                 enabled = !busy && snapshot.document.canResolve(finding, editor),
                             ) { Text("Resolve") }
-                            if (finding.overridable) TextButton(onClick = { pending = finding }, enabled = !busy) { Text("Override") }
+                            if (finding.canOverride) TextButton(onClick = { pending = finding }, enabled = !busy) { Text("Override") }
                         }
                     }
                 }
