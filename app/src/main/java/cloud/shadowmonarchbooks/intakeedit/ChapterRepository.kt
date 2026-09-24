@@ -63,12 +63,15 @@ internal fun changedChapterFilesForVolume(
 
     for (change in changedFiles) {
         val path = change.path
+        // workflow_status is derived output. A healthy repository normally has a
+        // status-only commit between the index's source commit and the next app
+        // edit, so treating that file as source drift defeats delta refresh.
+        if (path.startsWith("workflow_status/")) continue
         if (
             path == "pyproject.toml" ||
             path.startsWith("scripts/") ||
             path.startsWith("schema/") ||
-            path.startsWith("schemas/") ||
-            path == "workflow_status/$volumeDir.json"
+            path.startsWith("schemas/")
         ) {
             return null
         }

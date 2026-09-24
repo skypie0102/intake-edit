@@ -332,6 +332,27 @@ class ChapterListViewModelTest {
                 changedFiles = listOf(GitHubChangedFile("qa/vol-01/ch_0001.findings.json", "modified")),
             ),
         )
+        assertEquals(
+            listOf(file),
+            changedChapterFilesForVolume(
+                volume = 1,
+                intakeRoot = "editor_input",
+                indexedFiles = listOf(file),
+                changedFiles = listOf(
+                    GitHubChangedFile("workflow_status/vol-01.json", "modified"),
+                    GitHubChangedFile("editor_input/vol-01/chapters/ch_0001.yml", "modified"),
+                ),
+            ),
+        )
+        assertEquals(
+            emptyList<ChapterFile>(),
+            changedChapterFilesForVolume(
+                volume = 1,
+                intakeRoot = "editor_input",
+                indexedFiles = listOf(file),
+                changedFiles = listOf(GitHubChangedFile("workflow_status/vol-01.json", "modified")),
+            ),
+        )
     }
 
     @Test
