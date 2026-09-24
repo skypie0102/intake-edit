@@ -113,83 +113,73 @@ internal class ChapterListViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(bulkApproving = true, notice = null) }
             val repository = repositoryFactory.create(settings, token)
             val ordered = ready.sortedBy { it.chapter }
-            val approved = mutableListOf<ChapterFile>()
-            val failures = mutableListOf<String>()
-            var monitoringStopped = false
+            val paths = ordered.mapTo(linkedSetOf()) { it.path }
+            var dispatch: ApprovalDispatch? = null
 
-            for ((index, file) in ordered.withIndex()) {
-                var dispatch: ApprovalDispatch? = null
-                try {
-                    _uiState.update {
-                        it.copy(
-                            notice = "Approving Chapter ${file.chapter} (${index + 1}/${ordered.size}): validating and dispatching…",
-                        )
-                    }
-                    val chapter = repository.loadChapter(file)
-                    dispatch = repository.approveChapter(chapter)
-                    _uiState.update { state ->
-                        state.copy(
-                            approvalRequestedPaths = state.approvalRequestedPaths + file.path,
-                            notice = "Approving Chapter ${file.chapter} (${index + 1}/${ordered.size}): waiting for GitHub Actions…",
-                        )
-                    }
-
-                    val run = repository.waitForApproval(dispatch)
-                    if (run.successful) {
-                        approved += file
-                        _uiState.update { state ->
-                            val current = state.progressByPath[file.path]
-                            state.copy(
-                                progressByPath = if (current == null) {
-                                    state.progressByPath
-                                } else {
-                                    state.progressByPath + (file.path to current.copy(approved = true))
-                                },
-                                approvalRequestedPaths = state.approvalRequestedPaths - file.path,
-                                notice = "Chapter ${file.chapter} approved. Continuing bulk approval…",
-                            )
-                        }
-                    } else {
-                        val conclusion = run.conclusion ?: run.status
-                        failures += "Ch ${file.chapter}: workflow $conclusion"
-                        _uiState.update { state ->
-                            state.copy(approvalRequestedPaths = state.approvalRequestedPaths - file.path)
-                        }
-                    }
-                } catch (t: Throwable) {
-                    if (t is CancellationException) throw t
-                    val message = t.message ?: "approval failed"
-                    failures += "Ch ${file.chapter}: $message"
-                    if (dispatch != null) {
-                        // Once a workflow was dispatched, an observation failure means it may
-                        // still be running. Do not start another finalizer until its state is known.
-                        monitoringStopped = true
-                        break
-                    }
-                }
+            _uiState.update {
+                it.copy(
+                    bulkApproving = true,
+                    notice = "Validating ${ordered.size} chapter(s) for one batch approval…",
+                )
             }
 
-            _uiState.update { state ->
-                val summary = buildString {
-                    if (approved.isNotEmpty()) {
-                        append("Approved ${approved.size} chapter")
-                        if (approved.size != 1) append("s")
-                        append(" sequentially.")
+            try {
+                dispatch = repository.approveBatch(ordered)
+                _uiState.update { state ->
+                    state.copy(
+                        approvalRequestedPaths = state.approvalRequestedPaths + paths,
+                        notice = "Batch approval started for ${ordered.size} chapter(s). Waiting for one GitHub Actions run…",
+                    )
+                }
+
+                val run = repository.waitForApproval(dispatch)
+                if (run.successful) {
+                    _uiState.update { state ->
+                        val updatedProgress = state.progressByPath.toMutableMap()
+                        ordered.forEach { file ->
+                            val current = updatedProgress[file.path]
+                            if (current != null) {
+                                updatedProgress[file.path] = current.copy(approved = true)
+                            }
+                        }
+                        state.copy(
+                            progressByPath = updatedProgress,
+                            approvalRequestedPaths = state.approvalRequestedPaths - paths,
+                            notice = "Approved ${ordered.size} chapter(s) in one batch workflow.",
+                        )
                     }
-                    if (failures.isNotEmpty()) {
-                        if (isNotEmpty()) append(" ")
-                        append("Failed: ")
-                        append(failures.joinToString("; "))
+                } else {
+                    val conclusion = run.conclusion ?: run.status
+                    _uiState.update { state ->
+                        state.copy(
+                            approvalRequestedPaths = state.approvalRequestedPaths - paths,
+                            notice = "Batch approval failed: workflow $conclusion.",
+                        )
                     }
-                    if (monitoringStopped) {
-                        if (isNotEmpty()) append(" ")
-                        append("Remaining approvals were not started because the current workflow run could not be confirmed finished.")
-                    }
-                }.ifBlank { "No chapter approvals were completed." }
-                state.copy(bulkApproving = false, notice = summary)
+                }
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                val message = t.message ?: "batch approval failed"
+                _uiState.update { state ->
+                    state.copy(
+                        // If dispatch succeeded but monitoring failed, keep the paths reserved
+                        // until a refresh confirms the run result so a duplicate batch is not sent.
+                        approvalRequestedPaths = if (dispatch == null) {
+                            state.approvalRequestedPaths - paths
+                        } else {
+                            state.approvalRequestedPaths + paths
+                        },
+                        notice = if (dispatch == null) {
+                            "Batch approval was not started: $message"
+                        } else {
+                            "Batch approval was dispatched, but its result could not be confirmed: $message Refresh before retrying."
+                        },
+                    )
+                }
+            } finally {
+                _uiState.update { it.copy(bulkApproving = false) }
             }
         }
     }

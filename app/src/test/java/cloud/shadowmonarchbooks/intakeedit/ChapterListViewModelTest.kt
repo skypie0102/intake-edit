@@ -179,7 +179,7 @@ class ChapterListViewModelTest {
     }
 
     @Test
-    fun approveAllReadyWaitsForEachWorkflowBeforeDispatchingNext() = runTest(dispatcher) {
+    fun approveAllReadyDispatchesOneBatchWorkflowForAllReadyChapters() = runTest(dispatcher) {
         val readyOne = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
         val readyTwo = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
         val pendingQa = ChapterFile("editor_input/vol-01/chapters/ch_0003.yml", 1, 3)
@@ -208,7 +208,7 @@ class ChapterListViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf("dispatch:1", "wait:1", "dispatch:2", "wait:2"),
+            listOf("batch-dispatch:1,2", "wait:batch-run"),
             repository.approvalEvents,
         )
         assertEquals(emptySet<String>(), viewModel.uiState.value.approvalRequestedPaths)
@@ -216,7 +216,7 @@ class ChapterListViewModelTest {
         assertEquals(ChapterWorkflowState.APPROVED, viewModel.uiState.value.progressByPath[readyTwo.path]?.workflowState)
         assertEquals(ChapterWorkflowState.PENDING_QA, viewModel.uiState.value.progressByPath[pendingQa.path]?.workflowState)
         assertFalse(viewModel.uiState.value.bulkApproving)
-        assertEquals("Approved 2 chapters sequentially.", viewModel.uiState.value.notice)
+        assertEquals("Approved 2 chapter(s) in one batch workflow.", viewModel.uiState.value.notice)
     }
 
     @Test
@@ -443,11 +443,19 @@ private class FakeChapterRepository(
         )
     }
 
+    override suspend fun approveBatch(files: List<ChapterFile>): ApprovalDispatch {
+        approvalEvents += "batch-dispatch:" + files.joinToString(",") { it.chapter.toString() }
+        return ApprovalDispatch(
+            requestId = "batch-request",
+            workflowRunTitle = "batch-run",
+            workflowFileName = "finalize-chapters.yml",
+        )
+    }
+
     override suspend fun waitForApproval(dispatch: ApprovalDispatch): GitHubWorkflowRun {
-        val chapter = dispatch.workflowRunTitle.removePrefix("run-").toInt()
-        approvalEvents += "wait:$chapter"
+        approvalEvents += "wait:${dispatch.workflowRunTitle}"
         return GitHubWorkflowRun(
-            id = chapter.toLong(),
+            id = 999L,
             displayTitle = dispatch.workflowRunTitle,
             status = "completed",
             conclusion = "success",

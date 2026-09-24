@@ -2,6 +2,7 @@ package cloud.shadowmonarchbooks.intakeedit
 
 import java.time.Instant
 import java.util.UUID
+import org.json.JSONArray
 import org.json.JSONObject
 
 internal data class LoadedChapterProgress(
@@ -24,6 +25,7 @@ internal data class ChapterCommitResult(
 internal data class ApprovalDispatch(
     val requestId: String,
     val workflowRunTitle: String,
+    val workflowFileName: String = "finalize-chapter.yml",
 )
 
 internal data class IndexedVolumeStatus(
@@ -108,6 +110,10 @@ internal interface ChapterRepository {
     fun restoreRaw(base: OpenChapter, raw: String): OpenChapter
     suspend fun commitChapter(chapter: OpenChapter, tagForQa: Boolean): ChapterCommitResult
     suspend fun approveChapter(chapter: OpenChapter): ApprovalDispatch
+    suspend fun approveBatch(files: List<ChapterFile>): ApprovalDispatch {
+        require(files.size == 1) { "This repository does not support batch approval." }
+        return approveChapter(loadChapter(files.single()))
+    }
     suspend fun waitForApproval(dispatch: ApprovalDispatch): GitHubWorkflowRun
     suspend fun overrideQa(chapter: OpenChapter, findingId: String, reason: String): OpenChapter
     suspend fun resolveQa(chapter: OpenChapter, findingId: String): OpenChapter
@@ -366,9 +372,65 @@ internal class GitHubChapterRepository(
         )
     }
 
+    override suspend fun approveBatch(files: List<ChapterFile>): ApprovalDispatch {
+        require(files.isNotEmpty()) { "No chapters were selected for batch approval." }
+        val ordered = files
+            .distinctBy { it.path }
+            .sortedWith(compareBy<ChapterFile>({ it.volume }, { it.chapter }))
+        require(ordered.size == files.size) { "Batch approval contains duplicate chapters." }
+
+        val items = JSONArray()
+        for (file in ordered) {
+            val latestEditor = client.getFile(file.path)
+            val latestDocument = IntakeParser.parse(latestEditor.content)
+            val latestEditorHash = QaFindingsParser.editorContentSha256(latestEditor.content)
+
+            require(latestDocument.editorReviewComplete) {
+                "Chapter ${file.chapter} is no longer Ready for Approval."
+            }
+            require(latestDocument.englishSupplied == latestDocument.englishTotal) {
+                "Chapter ${file.chapter} no longer has complete English."
+            }
+
+            val latestQa = loadQa(file)
+                ?: error("Chapter ${file.chapter} has no completed semantic QA pass.")
+            require(latestQa.document.qaPassReusable(latestDocument)) {
+                "Chapter ${file.chapter} has a stale semantic QA pass."
+            }
+            require(latestQa.document.active(latestDocument, latestEditorHash).isEmpty()) {
+                "Chapter ${file.chapter} still has active QA findings."
+            }
+            require(!isApprovalCurrent(file, latestEditorHash, latestDocument.readerFile)) {
+                "Chapter ${file.chapter} is already approved. Refresh the chapter list before batching."
+            }
+
+            items.put(
+                JSONObject()
+                    .put("editor_path", file.path)
+                    .put("expected_editor_content_sha256", latestEditorHash),
+            )
+        }
+
+        val requestId = UUID.randomUUID().toString().lowercase()
+        val workflowFileName = "finalize-chapters.yml"
+        val workflowRunTitle = "Finalize approval batch · $requestId"
+        client.dispatchWorkflow(
+            workflowFileName = workflowFileName,
+            inputs = mapOf(
+                "approval_batch_json" to items.toString(),
+                "approval_request_id" to requestId,
+            ),
+        )
+        return ApprovalDispatch(
+            requestId = requestId,
+            workflowRunTitle = workflowRunTitle,
+            workflowFileName = workflowFileName,
+        )
+    }
+
     override suspend fun waitForApproval(dispatch: ApprovalDispatch): GitHubWorkflowRun =
         client.waitForWorkflowRun(
-            workflowFileName = "finalize-chapter.yml",
+            workflowFileName = dispatch.workflowFileName,
             displayTitle = dispatch.workflowRunTitle,
         )
 
