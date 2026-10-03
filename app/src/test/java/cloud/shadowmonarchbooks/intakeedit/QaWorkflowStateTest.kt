@@ -91,7 +91,7 @@ entries:
     }
 
     @Test
-    fun overrideAccessibilityFollowsSeverity() {
+    fun allSemanticFindingsAreOverrideableAndBlockingRequiresWarning() {
         val raw = """
             {
               "schema_version": 1,
@@ -110,18 +110,22 @@ entries:
                   "category": "chapter_alignment",
                   "severity": "blocking",
                   "message": "Blocking",
-                  "overridable": true
+                  "overridable": false
                 }
               ]
             }
         """.trimIndent()
 
         val findings = QaFindingsParser.parse(raw).findings
+        val error = findings.first { it.id == "error" }
+        val blocking = findings.first { it.id == "blocking" }
 
-        assertTrue(findings.first { it.id == "error" }.canOverride)
-        assertTrue(findings.first { it.id == "error" }.overridable)
-        assertFalse(findings.first { it.id == "blocking" }.canOverride)
-        assertFalse(findings.first { it.id == "blocking" }.overridable)
+        assertTrue(error.canOverride)
+        assertTrue(error.overridable)
+        assertFalse(error.requiresOverrideWarning)
+        assertTrue(blocking.canOverride)
+        assertTrue(blocking.overridable)
+        assertTrue(blocking.requiresOverrideWarning)
     }
 
 }

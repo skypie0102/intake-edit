@@ -52,18 +52,18 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
                 HelpCard("What happens after Tag for QA") {
                     Text("Pending QA → one full semantic QA pass. After that, the recorded pass is reused while you address only the flagged paragraphs:")
                     HelpLine("No findings", "The chapter becomes Ready for Approval. QA does not create the reader XHTML or approve the chapter by itself.")
-                    HelpLine("Any finding", "The chapter returns to Pending Review. Correct it and press Resolve, or press Override for any WARNING or ERROR finding. BLOCKING findings must be corrected.")
+                    HelpLine("Any finding", "The chapter returns to Pending Review. Correct it and press Resolve, or press Override with a reason. BLOCKING overrides require an additional high-risk warning confirmation.")
                     Text("After a return, cards needing attention show a ! button. It combines QA findings and endnote suggestions. Resolve requires that the flagged paragraph was actually changed. Override means you intentionally accept it as-is and requires a reason when allowed. Once every QA finding is closed, commit the corrected chapter for approval; semantic QA does not run again.")
                 }
             }
             item {
                 HelpCard("Ready filter and approval") {
                     Text("The chapter list keeps Active, Pending QA, Ready, and Completed filters visible across the top.")
-                    Text("For large series, the list is loaded from one derived per-volume workflow index instead of downloading every chapter and QA file. Cached rows stay visible while the index refreshes; opening or approving a chapter still reloads the authoritative GitHub files. If the index is unavailable or stale, Intake Edit safely falls back to the slower compatibility loader.")
+                    Text("For large series, the list is loaded from one derived per-volume workflow index instead of downloading every chapter and QA file. Cached rows stay visible while the index refreshes; if the index is briefly behind, Intake Edit keeps it as a baseline and refreshes only changed chapters. Opening or approving a chapter still reloads authoritative GitHub files.")
                     Text("Ready contains chapters whose editor review is complete, whose semantic QA pass is still reusable, and whose active QA finding count is zero.")
                     Text("Open one Ready chapter to use Approve Chapter, or use the Approve all floating button in the Ready filter to start approval for every Ready chapter in the selected volume.")
-                    Text("Bulk approval is sequential. Intake Edit dispatches one uniquely identified finalizer run, monitors that exact GitHub Actions run until it finishes, and only then starts the next Ready chapter.")
-                    Text("A completed failed or cancelled run is reported without creating overlap. If the app cannot confirm that a dispatched run has finished, it stops the remaining queue rather than risk starting another finalizer concurrently.")
+                    Text("Approve all dispatches one uniquely identified batch-finalizer run containing the complete selected Ready set. The workflow validates/materializes the chapters sequentially inside that single run, then publishes one batch approval commit plus current workflow-status indexes.")
+                    Text("If any selected chapter fails validation or materialization, the batch stops before publishing partial approval outputs. Single-chapter and batch finalizers share repository-wide concurrency so they cannot race each other.")
                     Text("Approval dispatches the trusted PureLove GitHub Actions finalizer. The finalizer verifies the exact editor-content hash and current reusable QA pass, then reconstructs reader XHTML/endnotes and writes the approval artifact. PureLove also serializes finalizers repository-wide as a second safety layer.")
                     Text("Your GitHub token therefore needs both Contents write access for editing and Actions write access to start approval.")
                 }
@@ -80,7 +80,7 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
                 HelpCard("QA severity") {
                     HelpLine("WARNING", "Needs a human look, but the intended meaning is usually still understandable. Overrideable.")
                     HelpLine("ERROR", "A clear translation, continuity, attribution, or terminology defect that normally should be corrected. Overrideable.")
-                    HelpLine("BLOCKING", "A severe or systemic problem that makes the chapter unsafe to approve as-is. Not overrideable.")
+                    HelpLine("BLOCKING", "A severe or systemic problem that makes the chapter unsafe to approve as-is. Overrideable only after an explicit high-risk warning confirmation.")
                     Text("Severity describes seriousness. Every active finding returns the chapter to Pending Review.")
                 }
             }
@@ -102,7 +102,7 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
             item {
                 HelpCard("Resolve and Override") {
                     HelpLine("Resolve", "Use this after correcting the flagged paragraph. Resolve is accepted only when that paragraph differs from the QA-reviewed baseline.")
-                    HelpLine("Override", "Use this when you intentionally accept a WARNING or ERROR finding as-is. BLOCKING findings cannot be overridden. A reason is required.")
+                    HelpLine("Override", "Use this when you intentionally accept a QA finding as-is. A reason is always required. BLOCKING findings add an explicit warning confirmation before the override is committed.")
                     Text("Both are paragraph-scoped audit records. Editing that same paragraph again makes its closure stale; editing another flagged paragraph does not.")
                     Text("If you edit a paragraph that QA did not flag, or other protected chapter content, the recorded QA pass becomes stale and a fresh semantic QA pass is required.")
                 }

@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.11**.
+Current application version: **0.15.16**.
 
 ## Workspace sections
 
@@ -33,7 +33,7 @@ The agent proposes; the human editor decides what becomes authoritative.
 
 The chapter selection page keeps the four workflow filters **Active / Pending QA / Ready / Completed** visible in a horizontal bar at the top. Search and volume controls remain under the filter icon.
 
-For scale, the chapter list no longer loads every editor YAML and QA file during a normal refresh. PureLove publishes a derived `workflow_status/vol-NN.json` file per volume, and Intake Edit fetches one selected-volume index plus the branch head to populate the whole list. The cached list remains visible while refreshing. The app verifies that the index matches the current repository status-refresh commit; if the index is missing, malformed, or still catching up, it falls back to the older bounded-concurrency per-chapter loader. Opening and approving chapters always reload authoritative GitHub files, so the index is only a list cache, never an approval authority.
+For scale, the chapter list no longer loads every editor YAML and QA file during a normal refresh. PureLove publishes a derived `workflow_status/vol-NN.json` file per volume, and Intake Edit fetches one selected-volume index plus the branch head to populate the whole list. The cached list remains visible while refreshing. The app verifies the index against repository history; when it is briefly behind, it keeps the index as a baseline and reloads only chapters changed since that source commit. The full compatibility loader is reserved for missing/malformed indexes or repository-wide status-logic changes. Opening and approving chapters always reload authoritative GitHub files, so the index is only a list cache, never an approval authority.
 
 The chapter editor follows four repository-backed states:
 
@@ -42,7 +42,7 @@ The chapter editor follows four repository-backed states:
 - **Ready for Approval** — a current reusable semantic QA pass exists with zero active findings.
 - **Approved** — the user explicitly approved the exact committed editor content and the repository finalizer produced matching reader XHTML plus a hash-bound approval artifact.
 
-Semantic QA does not itself approve a chapter and does not generate the final reader XHTML. When a chapter is **Ready for Approval**, Intake Edit shows **Approve Chapter**. In the **Ready** list, an **Approve all** floating button processes every Ready chapter in the currently selected volume with one confirmation. Bulk approval is strictly sequential: the app reloads and validates the first chapter, dispatches its uniquely identified `finalize-chapter.yml` run, monitors that exact GitHub Actions run until it completes, and only then dispatches the next chapter. A completed failed/cancelled run is reported and the queue may continue; if the app cannot confirm that a dispatched run has finished, the remaining queue stops so finalizers cannot overlap.
+Semantic QA does not itself approve a chapter and does not generate the final reader XHTML. Every semantic QA finding can be overridden with an audit reason; BLOCKING findings require an additional explicit high-risk warning confirmation in Intake Edit. When a chapter is **Ready for Approval**, Intake Edit shows **Approve Chapter**. In the **Ready** list, an **Approve all** floating button processes every Ready chapter in the currently selected volume with one confirmation. Bulk approval is one real batch: the app validates the selected Ready set and dispatches one uniquely identified `finalize-chapters.yml` run containing every selected chapter and approved content hash. That workflow materializes the chapters sequentially inside one run, validates the complete workspace, and publishes one batch approval commit plus current status indexes. A failure stops the batch before partial approval outputs are pushed.
 
 The finalizer performs deterministic XHTML/endnote materialization and repository validation. If the committed editor content changes after the approval request, the finalizer refuses the approval rather than materializing different content.
 

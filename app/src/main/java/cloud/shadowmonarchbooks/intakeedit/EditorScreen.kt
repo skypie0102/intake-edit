@@ -1155,14 +1155,32 @@ LaunchedEffect(qaFindings) {
     pendingQaOverride?.let { finding ->
         AlertDialog(
             onDismissRequest = { pendingQaOverride = null },
-            title = { Text("Override QA finding?") },
-            text = {
-                OutlinedTextField(
-                    qaOverrideReason,
-                    { qaOverrideReason = it },
-                    label = { Text("Override reason") },
-                    modifier = Modifier.fillMaxWidth(),
+            title = {
+                Text(
+                    if (finding.requiresOverrideWarning) {
+                        "Override BLOCKING QA finding?"
+                    } else {
+                        "Override QA finding?"
+                    },
                 )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (finding.requiresOverrideWarning) {
+                        Text(
+                            "WARNING: This finding is marked BLOCKING because QA considers the issue severe or systemic. Overriding it will allow this exact flagged content to proceed toward approval without correcting the finding.",
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text("Confirm only when you intentionally accept this blocking issue. The reason is retained in the QA audit record.")
+                    }
+                    OutlinedTextField(
+                        qaOverrideReason,
+                        { qaOverrideReason = it },
+                        label = { Text("Override reason") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             },
             confirmButton = {
                 Button(
@@ -1172,7 +1190,7 @@ LaunchedEffect(qaFindings) {
                         qaOverrideReason = ""
                     },
                     enabled = qaOverrideReason.isNotBlank(),
-                ) { Text("Override") }
+                ) { Text(if (finding.requiresOverrideWarning) "Override blocking finding" else "Override") }
             },
             dismissButton = {
                 TextButton(onClick = { pendingQaOverride = null }) { Text("Cancel") }
@@ -1339,13 +1357,38 @@ private fun QaFindingsView(
     pending?.let { finding ->
         AlertDialog(
             onDismissRequest = { pending = null },
-            title = { Text("Override QA finding?") },
-            text = { OutlinedTextField(reason, { reason = it }, label = { Text("Override reason") }, modifier = Modifier.fillMaxWidth()) },
+            title = {
+                Text(
+                    if (finding.requiresOverrideWarning) {
+                        "Override BLOCKING QA finding?"
+                    } else {
+                        "Override QA finding?"
+                    },
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (finding.requiresOverrideWarning) {
+                        Text(
+                            "WARNING: This finding is marked BLOCKING because QA considers the issue severe or systemic. Overriding it will allow this exact flagged content to proceed toward approval without correcting the finding.",
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text("Confirm only when you intentionally accept this blocking issue. The reason is retained in the QA audit record.")
+                    }
+                    OutlinedTextField(
+                        reason,
+                        { reason = it },
+                        label = { Text("Override reason") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = { pending = null; onOverride(finding.id, reason.trim()); reason = "" },
                     enabled = reason.isNotBlank() && !busy,
-                ) { Text("Override") }
+                ) { Text(if (finding.requiresOverrideWarning) "Override blocking finding" else "Override") }
             },
             dismissButton = { TextButton(onClick = { pending = null }, enabled = !busy) { Text("Cancel") } },
         )

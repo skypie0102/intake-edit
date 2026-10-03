@@ -4,6 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +56,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -72,9 +80,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private val OledDarkColorScheme = darkColorScheme(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceVariant = Color(0xFF121212),
+    onBackground = Color.White,
+    onSurface = Color.White,
+    onSurfaceVariant = Color(0xFFE0E0E0),
+)
+
 @Composable
 private fun IntakeEditTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(), content = content)
+    MaterialTheme(
+        colorScheme = if (isSystemInDarkTheme()) OledDarkColorScheme else lightColorScheme(),
+        content = content,
+    )
 }
 
 @Composable
@@ -279,6 +299,16 @@ private fun ChapterListScreen(
             progressByPath[file.path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
     }
     val activeFilterCount = if (search.isNotBlank()) 1 else 0
+    val refreshTransition = rememberInfiniteTransition(label = "chapter-list-refresh")
+    val refreshRotation by refreshTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "chapter-list-refresh-rotation",
+    )
 
     Scaffold(
         topBar = {
@@ -300,7 +330,13 @@ private fun ChapterListScreen(
                         }
                     }
                     IconButton(onClick = onRefresh, enabled = !refreshing && !bulkApproving && openingPath == null) {
-                        Icon(Icons.Default.Refresh, "Refresh")
+                        Icon(
+                            Icons.Default.Refresh,
+                            "Refresh",
+                            modifier = Modifier.graphicsLayer {
+                                rotationZ = if (refreshing) refreshRotation else 0f
+                            },
+                        )
                     }
                     IconButton(onClick = onSettings, enabled = openingPath == null && !bulkApproving) {
                         Icon(Icons.Default.Settings, "Settings")
@@ -388,7 +424,7 @@ private fun ChapterListScreen(
             title = { Text("Approve all Ready chapters?") },
             text = {
                 Text(
-                    "This will start approval for ${readyForBulkApproval.size} Ready chapter(s) in the selected volume. Each chapter is reloaded and revalidated independently before its finalizer is dispatched; a stale chapter will fail without blocking the others.",
+                    "This will validate ${readyForBulkApproval.size} Ready chapter(s), then dispatch one batch finalizer for the complete set. If any selected chapter is stale or fails finalization, the batch stops without publishing a partial approval commit.",
                 )
             },
             confirmButton = {

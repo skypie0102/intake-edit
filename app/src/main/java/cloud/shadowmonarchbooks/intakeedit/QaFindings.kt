@@ -37,7 +37,8 @@ data class QaFinding(
     val resolution: QaResolution? = null,
     val override: QaOverride? = null,
 ) {
-    val canOverride: Boolean get() = severity != "blocking"
+    val canOverride: Boolean get() = true
+    val requiresOverrideWarning: Boolean get() = severity == "blocking"
 }
 
 enum class QaFindingDisposition { ACTIVE, RESOLVED, OVERRIDDEN }
@@ -145,7 +146,10 @@ object QaFindingsParser {
                         category = item.getString("category"),
                         severity = severity,
                         message = item.getString("message"),
-                        overridable = severity != "blocking",
+                        // Older records may still carry overridable=false for BLOCKING.
+                        // Every semantic finding is now overrideable; BLOCKING adds
+                        // a mandatory warning confirmation in the editor.
+                        overridable = true,
                         baselineContentSha256 = item.optString("baseline_content_sha256").takeIf(String::isNotBlank),
                         resolution = resolution,
                         override = override,
