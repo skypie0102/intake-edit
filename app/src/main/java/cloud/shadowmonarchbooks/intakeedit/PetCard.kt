@@ -103,10 +103,16 @@ private fun AnimatedBookSpirit(mood: PetMood, description: String) {
     var blinking by remember(mood) { mutableStateOf(false) }
     LaunchedEffect(mood) {
         while (true) {
-            delay(3800)
+            delay(kotlin.random.Random.nextLong(3200L, 5400L))
             blinking = true
-            delay(180)
+            delay(150)
             blinking = false
+            if (mood == PetMood.HAPPY && kotlin.random.Random.nextInt(3) == 0) {
+                delay(130)
+                blinking = true
+                delay(150)
+                blinking = false
+            }
         }
     }
     val image = when {

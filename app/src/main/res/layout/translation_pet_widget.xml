@@ -10,14 +10,20 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:autoStart="true"
-        android:flipInterval="1200"
-        android:inAnimation="@android:anim/fade_in"
-        android:outAnimation="@android:anim/fade_out"
+        android:flipInterval="300"
         android:visibility="invisible"
         android:contentDescription="@string/pet_widget_description">
         <ImageView android:id="@+id/pet_widget_frame_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
         <ImageView android:id="@+id/pet_widget_frame_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
         <ImageView android:id="@+id/pet_widget_frame_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
-        <ImageView android:id="@+id/pet_widget_frame_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_blink" />
+        <ImageView android:id="@+id/pet_widget_frame_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_4" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_5" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_6" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_7" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_8" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting" />
+        <ImageView android:id="@+id/pet_widget_frame_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_blink" />
     </ViewFlipper>
 </FrameLayout>
