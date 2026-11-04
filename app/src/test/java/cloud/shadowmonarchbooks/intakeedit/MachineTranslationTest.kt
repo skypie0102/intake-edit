@@ -55,6 +55,50 @@ class MachineTranslationTest {
         assertEquals(true, chunks.all { it.codePointCount(0, it.length) <= 100 })
     }
 
+    @Test fun rateLimitsHonorRetryAfterAndAvoidLongAutomaticWaits() {
+        assertEquals(3000L, googleRetryDelayMillis(null, 0, 0L))
+        assertEquals(6000L, googleRetryDelayMillis(null, 1, 0L))
+        assertEquals(10000L, googleRetryDelayMillis("10", 0, 0L))
+        assertEquals(null, googleRetryDelayMillis("60", 0, 0L))
+        assertEquals(10000L, googleRetryDelayMillis("Thu, 01 Jan 1970 00:00:10 GMT", 0, 0L))
+    }
+
+    @Test fun resumedTranslationSkipsSavedEntriesAndCheckpointsNewOnes() = runTest {
+        val calls = mutableListOf<String>()
+        val checkpoints = mutableListOf<Map<String, String>>()
+        val result = translateChapterReference("chapter.yml", document(),
+            alreadyTranslated = mapOf("H1-1" to "Saved title"),
+            translate = { calls += it; "translated:$it" },
+            onCheckpoint = { checkpoints += it })
+        assertEquals(listOf("本文", "最後"), calls)
+        assertEquals("Saved title", result.translationFor("H1-1"))
+        assertEquals(2, checkpoints.size)
+        assertEquals(3, checkpoints.last().size)
+    }
+
+    @Test fun google429WaitsBeforeRetryAndCanRecover() = runTest {
+        var requests = 0
+        val waits = mutableListOf<Long>()
+        val result = googleTextWithBackoff(onRetry = { waits += it }) {
+            requests++
+            if (requests == 1) throw GoogleRateLimit("4")
+            "Success"
+        }
+        assertEquals("Success", result)
+        assertEquals(2, requests)
+        assertEquals(listOf(4000L), waits)
+    }
+
+    @Test fun google429WithLongRetryAfterStopsWithoutAnotherRequest() = runTest {
+        var requests = 0
+        var caught: Exception? = null
+        try {
+            googleTextWithBackoff(onRetry = {}) { requests++; throw GoogleRateLimit("60") }
+        } catch (error: IllegalStateException) { caught = error }
+        assertEquals(1, requests)
+        assertEquals(true, caught?.message?.contains("HTTP 429"))
+    }
+
     @Test fun failedEntryDoesNotReturnAPartialReference() = runTest {
         var caught: Exception? = null
         try {
