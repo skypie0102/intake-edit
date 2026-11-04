@@ -7,13 +7,13 @@ import java.time.temporal.ChronoUnit
 
 internal enum class PetMood { NEW, HAPPY, WAITING, HUNGRY, SAD }
 
-internal data class PetStatus(val mood: PetMood, val fedDays: Int, val fedToday: Boolean) {
-    val level: Int get() = fedDays / 5 + 1
-    val levelProgress: Int get() = fedDays % 5
+internal data class PetStatus(val mood: PetMood, val fedDays: Int, val fedToday: Boolean, val completed: Int = 0) {
+    val level: Int get() = completed / 5 + 1
+    val levelProgress: Int get() = completed % 5
 }
 
 /** Each chapter can feed the pet once, even if QA sends it back for corrections. */
-internal fun petStatus(feedingDates: Collection<LocalDate>, today: LocalDate, started: LocalDate = today): PetStatus {
+internal fun petStatus(feedingDates: Collection<LocalDate>, today: LocalDate, started: LocalDate = today, completed: Int = 0): PetStatus {
     val dates = feedingDates.filter { !it.isAfter(today) }.toSet()
     val latest = dates.maxOrNull()
     val age = ChronoUnit.DAYS.between(latest ?: minOf(started, today), today)
@@ -24,7 +24,7 @@ internal fun petStatus(feedingDates: Collection<LocalDate>, today: LocalDate, st
         age < 4L -> PetMood.HUNGRY
         else -> PetMood.SAD
     }
-    return PetStatus(mood, dates.size, latest != null && age == 0L)
+    return PetStatus(mood, dates.size, latest != null && age == 0L, completed.coerceAtLeast(0))
 }
 
 internal class PetStore(context: Context) {
@@ -43,14 +43,16 @@ internal class PetStore(context: Context) {
         }
     }
 
-    fun status(today: LocalDate = LocalDate.now()): PetStatus {
+    fun status(settings: RepoSettings, completed: Int, today: LocalDate = LocalDate.now()): PetStatus {
         val entries = feedings()
-        val dates = entries.keys().asSequence().mapNotNull { key ->
+        val prefix = listOf(settings.owner, settings.repo, settings.branch).joinToString("/") + "/"
+        val dates = entries.keys().asSequence().filter { it.startsWith(prefix) }.mapNotNull { key ->
             runCatching { LocalDate.parse(entries.getString(key)) }.getOrNull()
         }.toList()
-        val started = runCatching { LocalDate.parse(prefs.getString("started", null)) }.getOrElse {
-            today.also { prefs.edit().putString("started", it.toString()).apply() }
+        val startedKey = "started_" + petProjectKey(settings, "")
+        val started = runCatching { LocalDate.parse(prefs.getString(startedKey, null)) }.getOrElse {
+            today.also { prefs.edit().putString(startedKey, it.toString()).apply() }
         }
-        return petStatus(dates, today, started)
+        return petStatus(dates, today, started, completed)
     }
 }
