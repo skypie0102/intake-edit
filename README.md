@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.18**.
+Current application version: **0.15.19**.
 
 ## Workspace sections
 
@@ -15,7 +15,7 @@ The launcher opens a small workspace home with two sections:
 
 The workspace includes a companion that is fed when a chapter is successfully tagged for QA and committed. Each chapter feeds it once, including if the chapter is later returned for correction. The companion is available after a GitHub token and the selected project repository are verified. Its level is based on the selected repository’s approved/completed chapters: every five completed chapters increase its level. Mood and feeding history remain on this device and are kept separate for each project and branch. The companion uses the latest verified project count when offline; a new project needs a successful sync before its companion appears.
 
-To add the companion to your Android home screen, touch and hold an empty area, choose **Widgets**, then find **Translation companion** under Intake Edit. It is designed for a 2×2 space and can be resized where supported. Tap it to open Intake Edit. The widget refreshes after successful feedings and around the next local day; it periodically syncs project progress in the background. Android may delay background work when the device is idle. The home screen companion blinks on supported launchers; the in-app companion also floats and sways. Widget size and placement depend on the launcher.
+To add the companion to your Android home screen, touch and hold an empty area, choose **Widgets**, then find **Translation companion** under Intake Edit. It is designed for a 2×2 space and can be resized where supported. Tap it to open the earliest Pending Review chapter with missing English; if none are missing English, it opens the earliest Pending Review chapter. When the project is not connected, it opens the connection screen. The widget refreshes after successful feedings and around the next local day; it periodically syncs project progress in the background. Android may delay background work when the device is idle. The home screen companion blinks on supported launchers, with its mood conveyed visually on a transparent background. The in-app companion also floats and sways. Widget size and placement depend on the launcher.
 
 ## Glossary governance
 

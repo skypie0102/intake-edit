@@ -34,6 +34,30 @@ class PetProjectSyncTest {
     fun missingIndexDoesNotPretendItsChaptersAreIncomplete() = runTest {
         countProjectCompletions(FakePetRepository(emptyMap(), emptyMap()), listOf(1))
     }
+
+    @Test fun widgetChoosesFirstPendingReviewChapterWithMissingEnglish() = runTest {
+        val chapter1 = ChapterFile("a", 1, 1)
+        val chapter2 = ChapterFile("b", 1, 2)
+        val chapter3 = ChapterFile("c", 1, 3)
+        val approved = ChapterProgress(1, 1, true, approved = true)
+        val needsQa = ChapterProgress(1, 1, true)
+        val needsTranslation = ChapterProgress(0, 1, false)
+        val index = IndexedVolumeStatus("sha", listOf(chapter1, chapter2, chapter3),
+            mapOf("a" to approved, "b" to needsQa, "c" to needsTranslation))
+        assertEquals(chapter3, findNextTranslationChapter(FakePetRepository(mapOf(1 to index), emptyMap())))
+    }
+
+    @Test fun widgetReloadsStaleIndexEntriesBeforeChoosing() = runTest {
+        val chapter1 = ChapterFile("a", 1, 1)
+        val chapter2 = ChapterFile("b", 1, 2)
+        val pending = ChapterProgress(0, 1, false)
+        val approved = ChapterProgress(1, 1, true, approved = true)
+        val index = IndexedVolumeStatus("sha", listOf(chapter1, chapter2),
+            mapOf("a" to pending, "b" to pending), listOf(chapter1))
+        val repository = FakePetRepository(mapOf(1 to index), mapOf("a" to approved))
+        assertEquals(chapter2, findNextTranslationChapter(repository))
+        assertEquals(listOf("a"), repository.loaded)
+    }
 }
 
 private class FakePetRepository(
