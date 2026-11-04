@@ -13,18 +13,18 @@ internal data class PetStatus(val mood: PetMood, val fedDays: Int, val fedToday:
 }
 
 /** Each chapter can feed the pet once, even if QA sends it back for corrections. */
-internal fun petStatus(feedingDates: Collection<LocalDate>, today: LocalDate): PetStatus {
+internal fun petStatus(feedingDates: Collection<LocalDate>, today: LocalDate, started: LocalDate = today): PetStatus {
     val dates = feedingDates.filter { !it.isAfter(today) }.toSet()
     val latest = dates.maxOrNull()
-    val age = latest?.let { ChronoUnit.DAYS.between(it, today) }
+    val age = ChronoUnit.DAYS.between(latest ?: minOf(started, today), today)
     val mood = when {
-        age == null -> PetMood.NEW
-        age == 0L -> PetMood.HAPPY
+        latest == null && age == 0L -> PetMood.NEW
+        latest != null && age == 0L -> PetMood.HAPPY
         age == 1L -> PetMood.WAITING
         age < 4L -> PetMood.HUNGRY
         else -> PetMood.SAD
     }
-    return PetStatus(mood, dates.size, age == 0L)
+    return PetStatus(mood, dates.size, latest != null && age == 0L)
 }
 
 internal class PetStore(context: Context) {
@@ -48,6 +48,9 @@ internal class PetStore(context: Context) {
         val dates = entries.keys().asSequence().mapNotNull { key ->
             runCatching { LocalDate.parse(entries.getString(key)) }.getOrNull()
         }.toList()
-        return petStatus(dates, today)
+        val started = runCatching { LocalDate.parse(prefs.getString("started", null)) }.getOrElse {
+            today.also { prefs.edit().putString("started", it.toString()).apply() }
+        }
+        return petStatus(dates, today, started)
     }
 }

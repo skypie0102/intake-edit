@@ -26,4 +26,13 @@ class TranslationPetTest {
         assertEquals(2, status.level)
         assertEquals(0, status.levelProgress)
     }
+
+    @Test fun companionGetsHungryEvenIfNeverFed() {
+        val started = today.minusDays(4)
+        assertEquals(PetMood.NEW, petStatus(emptyList(), started, started).mood)
+        assertEquals(PetMood.WAITING, petStatus(emptyList(), started.plusDays(1), started).mood)
+        assertEquals(PetMood.HUNGRY, petStatus(emptyList(), started.plusDays(2), started).mood)
+        assertEquals(PetMood.SAD, petStatus(emptyList(), today, started).mood)
+        assertFalse(petStatus(emptyList(), today, started).fedToday)
+    }
 }

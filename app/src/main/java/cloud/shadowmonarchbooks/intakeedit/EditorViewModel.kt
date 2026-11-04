@@ -251,7 +251,10 @@ internal class EditorViewModelFactory(context: Context) : ViewModelProvider.Fact
         return EditorViewModel(
             draftRepository = LocalDraftRepository(applicationContext),
             repositoryFactory = DefaultChapterRepositoryFactory,
-            onTaggedForQa = { settings, file -> PetStore(applicationContext).feed(settings, file) },
+            onTaggedForQa = { settings, file ->
+                PetStore(applicationContext).feed(settings, file)
+                TranslationPetWidget.refreshAll(applicationContext)
+            },
         ) as T
     }
 }
