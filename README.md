@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.17**.
+Current application version: **0.15.18**.
 
 ## Workspace sections
 
@@ -13,9 +13,9 @@ The launcher opens a small workspace home with two sections:
 
 ## Translation companion
 
-The workspace includes a companion that is fed when a chapter is successfully tagged for QA and committed. Each chapter feeds it once, including if the chapter is later returned for correction. A fed day counts towards its level; five distinct fed days increase the level. Its mood changes as local calendar days pass without a feeding, including before the first feeding. Progress is stored on this device and starts when the companion is first shown.
+The workspace includes a companion that is fed when a chapter is successfully tagged for QA and committed. Each chapter feeds it once, including if the chapter is later returned for correction. The companion is available after a GitHub token and the selected project repository are verified. Its level is based on the selected repository’s approved/completed chapters: every five completed chapters increase its level. Mood and feeding history remain on this device and are kept separate for each project and branch. The companion uses the latest verified project count when offline; a new project needs a successful sync before its companion appears.
 
-To add the companion to your Android home screen, touch and hold an empty area, choose **Widgets**, then find **Translation companion** under Intake Edit. It is designed for a 2×2 space and can be resized where supported. Tap it to open Intake Edit. The widget refreshes after successful feedings and around the next local day; Android may delay background updates when the device is idle. Widget size and placement depend on the launcher.
+To add the companion to your Android home screen, touch and hold an empty area, choose **Widgets**, then find **Translation companion** under Intake Edit. It is designed for a 2×2 space and can be resized where supported. Tap it to open Intake Edit. The widget refreshes after successful feedings and around the next local day; it periodically syncs project progress in the background. Android may delay background work when the device is idle. The home screen companion blinks on supported launchers; the in-app companion also floats and sways. Widget size and placement depend on the launcher.
 
 ## Glossary governance
 

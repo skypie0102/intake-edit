@@ -19,12 +19,14 @@ class TranslationPetTest {
         assertFalse(petStatus(listOf(today.minusDays(1)), today).fedToday)
     }
 
-    @Test fun levelCountsDistinctDaysAndIgnoresFutureDates() {
+    @Test fun levelCountsCompletedChaptersRatherThanFedDays() {
         val days = (0L..4L).map(today::minusDays) + listOf(today, today.plusDays(1))
-        val status = petStatus(days, today)
+        val status = petStatus(days, today, completed = 5)
         assertEquals(5, status.fedDays)
         assertEquals(2, status.level)
         assertEquals(0, status.levelProgress)
+        assertEquals(1, petStatus(days, today, completed = 4).level)
+        assertEquals(4, petStatus(days, today, completed = 4).levelProgress)
     }
 
     @Test fun companionGetsHungryEvenIfNeverFed() {

@@ -51,10 +51,13 @@ internal class RepoSettingsViewModel(application: Application) : AndroidViewMode
             try {
                 val candidate = GitHubApi(next, nextToken)
                 val login = candidate.verifyUser()
+                candidate.listIntakeVolumes() // Verify the configured repository and branch too.
                 withContext(Dispatchers.IO) {
                     settingsStore.save(next)
                     tokenStore.save(nextToken)
                 }
+                syncPetProject(getApplication<Application>())
+                schedulePetProjectSync(getApplication<Application>())
                 _uiState.update {
                     it.copy(
                         settings = next,
@@ -75,3 +78,4 @@ internal class RepoSettingsViewModel(application: Application) : AndroidViewMode
         }
     }
 }
+

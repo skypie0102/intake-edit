@@ -17,15 +17,41 @@
         android:textStyle="bold"
         android:textSize="12sp"
         android:maxLines="1" />
-    <ImageView
+    <ViewFlipper
         android:id="@+id/pet_widget_portrait"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:adjustViewBounds="true"
-        android:scaleType="fitCenter"
-        android:src="@drawable/pet_widget_happy"
-        android:contentDescription="@string/pet_widget_description" />
+        android:autoStart="true"
+        android:flipInterval="1200"
+        android:inAnimation="@android:anim/fade_in"
+        android:outAnimation="@android:anim/fade_out"
+        android:contentDescription="@string/pet_widget_description">
+        <ImageView
+            android:id="@+id/pet_widget_frame_0"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:src="@drawable/book_spirit_waiting" />
+        <ImageView
+            android:id="@+id/pet_widget_frame_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:src="@drawable/book_spirit_waiting" />
+        <ImageView
+            android:id="@+id/pet_widget_frame_2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:src="@drawable/book_spirit_waiting" />
+        <ImageView
+            android:id="@+id/pet_widget_frame_3"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:src="@drawable/book_spirit_waiting" />
+    </ViewFlipper>
     <TextView
         android:id="@+id/pet_widget_status"
         android:layout_width="match_parent"

@@ -16,6 +16,7 @@ class TranslationPetWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         render(context, manager, appWidgetIds)
         scheduleNextDay(context)
+        schedulePetProjectSync(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -42,13 +43,33 @@ class TranslationPetWidget : AppWidgetProvider() {
         }
 
         private fun render(context: Context, manager: AppWidgetManager, ids: IntArray) {
-            val status = PetStore(context).status()
+            val settings = SettingsStore(context).load()
+            val token = SecureTokenStore(context).load()
+            val snapshot = PetProjectCache(context).get(settings, token)
+            val count = snapshot?.completed
+            if (count == null) {
+                val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                for (id in ids) {
+                    val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
+                        setTextViewText(R.id.pet_widget_level, "Translation companion")
+                        setTextViewText(R.id.pet_widget_status, if (snapshot == null) "Connect your project" else "Syncing progress…")
+                        setTextViewText(R.id.pet_widget_progress_text, "Open Intake Edit")
+                        setViewVisibility(R.id.pet_widget_portrait, android.view.View.INVISIBLE)
+                        setViewVisibility(R.id.pet_widget_progress, android.view.View.INVISIBLE)
+                        setOnClickPendingIntent(R.id.pet_widget_root, open)
+                    }
+                    manager.updateAppWidget(id, views)
+                }
+                return
+            }
+            val status = PetStore(context).status(settings, count)
             val (portrait, message) = when (status.mood) {
-                PetMood.NEW -> R.drawable.pet_widget_waiting to "Ready for a chapter!"
-                PetMood.HAPPY -> R.drawable.pet_widget_happy to "Fed today!"
-                PetMood.WAITING -> R.drawable.pet_widget_waiting to "Time to feed me!"
-                PetMood.HUNGRY -> R.drawable.pet_widget_hungry to "I'm hungry..."
-                PetMood.SAD -> R.drawable.pet_widget_sad to "I miss you..."
+                PetMood.NEW -> R.drawable.book_spirit_waiting to "Ready for a chapter!"
+                PetMood.HAPPY -> R.drawable.book_spirit_happy to "Fed today!"
+                PetMood.WAITING -> R.drawable.book_spirit_waiting to "Time to feed me!"
+                PetMood.HUNGRY -> R.drawable.book_spirit_hungry to "I'm hungry..."
+                PetMood.SAD -> R.drawable.book_spirit_sad to "I miss you..."
             }
             val open = PendingIntent.getActivity(
                 context, 0, Intent(context, MainActivity::class.java),
@@ -58,9 +79,17 @@ class TranslationPetWidget : AppWidgetProvider() {
                 val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
                     setTextViewText(R.id.pet_widget_level, "Level ${status.level}")
                     setTextViewText(R.id.pet_widget_status, message)
-                    setTextViewText(R.id.pet_widget_progress_text, "${status.levelProgress}/5 days to next level")
+                    setTextViewText(R.id.pet_widget_progress_text, "${status.levelProgress}/5 chapters to next level")
                     setProgressBar(R.id.pet_widget_progress, 5, status.levelProgress, false)
-                    setImageViewResource(R.id.pet_widget_portrait, portrait)
+                    setImageViewResource(R.id.pet_widget_frame_0, portrait)
+                    setImageViewResource(R.id.pet_widget_frame_1, portrait)
+                    setImageViewResource(R.id.pet_widget_frame_2, portrait)
+                    val blink = when (status.mood) {
+                        PetMood.HAPPY -> R.drawable.book_spirit_happy_blink
+                        PetMood.NEW, PetMood.WAITING -> R.drawable.book_spirit_waiting_blink
+                        else -> portrait
+                    }
+                    setImageViewResource(R.id.pet_widget_frame_3, blink)
                     setContentDescription(R.id.pet_widget_portrait, "Companion: $message")
                     setOnClickPendingIntent(R.id.pet_widget_root, open)
                 }
