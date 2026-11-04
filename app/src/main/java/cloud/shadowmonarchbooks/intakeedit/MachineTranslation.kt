@@ -309,11 +309,15 @@ internal suspend fun translateWithGoogle(
 ): ImportedTranslationOverlay = withContext(Dispatchers.IO) {
     languages.validate()
     var previousRequest = false
+    var preferredRoute: GoogleRoute? = null
     translateChapterInBatches(chapterPath, document, alreadyTranslated = alreadyTranslated,
         onCheckpoint = onCheckpoint, onProgress = onProgress,
         request = { text ->
             if (previousRequest) delay(1000)
             previousRequest = true
-            translateUsingGoogleRoutes(onRetry = onRetry) { route -> requestGoogleText(text, languages, route) }
+            val routes = listOfNotNull(preferredRoute) + googleRoutes.filter { it != preferredRoute }
+            translateUsingGoogleRoutes(routes = routes, onRetry = onRetry) { route ->
+                requestGoogleText(text, languages, route).also { preferredRoute = route }
+            }
         })
 }
