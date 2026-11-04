@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.20**.
+Current application version: **0.15.21**.
 
 ## Workspace sections
 
@@ -60,9 +60,9 @@ SDLXLIFF whole-XHTML imports preserve translatable block order across `h1`, `h2`
 
 ## Machine translation reference
 
-In a chapter, open **Editor actions** and choose **Machine Translation · Translate with Google**. The app uses Google's on-device Japanese-to-English translation model, the same model family used by Google Translate's offline mode. The first use downloads language models and can use mobile data; subsequent translations run on the device. Each source entry is translated separately, with headings and paragraphs kept aligned by locator.
+In a chapter, tap the **Machine Translation** button on the bottom bar. The app detects the source language automatically and translates it into English using the Google Translate web service. This is an unofficial integration and does not require an API key. It sends chapter text to Google and needs a network connection. Service changes and rate limiting can interrupt translation.
 
-Machine Translation is a local reference. It does not change the English fields until you use a translation or choose **Fill blanks**. An imported XLIFF reference is stored independently; switch between references from **Editor actions**. Machine translation quality varies and should be reviewed against the source. Translations powered by Google Translate; see [Cloud Translation](https://cloud.google.com/translate).
+The first complete translation is saved locally for the project, chapter, and source revision. Tap the button again to hide it; tap once more to restore the saved result without sending a new request. An imported XLIFF reference remains separate. Use the import and Machine Translation buttons to switch between them. Machine translations are references and do not change the English fields until explicitly applied.
 
 ## Chapter draft safety
 

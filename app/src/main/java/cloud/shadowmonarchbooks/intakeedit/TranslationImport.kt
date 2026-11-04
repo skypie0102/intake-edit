@@ -32,12 +32,17 @@ data class ImportedTranslationOverlay(
 class TranslationImportStore(context: Context) {
     private val dir = File(context.filesDir, "translation_imports").also { it.mkdirs() }
 
-    private fun file(path: String, machine: Boolean = false): File {
+    private fun file(path: String, machine: Boolean = false, machineKey: String? = null): File {
         val key = Base64.encodeToString(path.toByteArray(Charsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
+        if (machine && machineKey != null) {
+            val identity = (path + "\u0000" + machineKey).toByteArray(Charsets.UTF_8)
+            val hash = java.security.MessageDigest.getInstance("SHA-256").digest(identity).joinToString("") { "%02x".format(it) }
+            return File(dir, "machine-$hash.json")
+        }
         return File(dir, if (machine) "$key.machine.json" else "$key.json")
     }
 
-    fun save(overlay: ImportedTranslationOverlay, machine: Boolean = false): Boolean = runCatching {
+    fun save(overlay: ImportedTranslationOverlay, machine: Boolean = false, machineKey: String? = null): Boolean = runCatching {
         val translations = JSONObject()
         overlay.translations.forEach { (locator, text) -> translations.put(locator, text) }
         val payload = JSONObject()
@@ -52,7 +57,7 @@ class TranslationImportStore(context: Context) {
             .put("imported_at_ms", overlay.importedAtMillis)
             .put("translations", translations)
             .toString()
-        val atomic = AtomicFile(file(overlay.chapterPath, machine))
+        val atomic = AtomicFile(file(overlay.chapterPath, machine, machineKey))
         var stream: java.io.FileOutputStream? = null
         try {
             stream = atomic.startWrite()
@@ -65,8 +70,8 @@ class TranslationImportStore(context: Context) {
         true
     }.getOrDefault(false)
 
-    fun load(path: String, sourceSha256: String, machine: Boolean = false): ImportedTranslationOverlay? {
-        val target = file(path, machine)
+    fun load(path: String, sourceSha256: String, machine: Boolean = false, machineKey: String? = null): ImportedTranslationOverlay? {
+        val target = file(path, machine, machineKey)
         if (!target.exists()) return null
         return runCatching {
             val root = JSONObject(String(AtomicFile(target).readFully(), Charsets.UTF_8))

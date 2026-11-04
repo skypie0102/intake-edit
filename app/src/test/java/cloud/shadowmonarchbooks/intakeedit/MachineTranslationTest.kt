@@ -2,6 +2,7 @@ package cloud.shadowmonarchbooks.intakeedit
 
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -27,6 +28,31 @@ class MachineTranslationTest {
         assertEquals("Existing English", document.entries.last().english)
         assertEquals(listOf(1 to 3, 2 to 3, 3 to 3), progress)
         assertEquals("source-sha", result.sourceSha256)
+    }
+
+    @Test fun hideThenRestoreNeverRequestsAnotherTranslation() {
+        assertEquals(MachineToggle.TRANSLATE, nextMachineAction(selected = false, cached = false))
+        assertEquals(MachineToggle.HIDE, nextMachineAction(selected = true, cached = true))
+        assertEquals(MachineToggle.RESTORE, nextMachineAction(selected = false, cached = true))
+    }
+
+    @Test fun cacheIdentitySeparatesProjectsAndAutomaticallyTargetsEnglish() {
+        val languages = TranslationLanguages()
+        assertEquals("auto", languages.normalizedSource)
+        assertEquals("en", languages.normalizedTarget)
+        assertNotEquals(machineCacheKey(RepoSettings(), languages), machineCacheKey(RepoSettings(repo = "other"), languages))
+        assertNotEquals(machineCacheKey(RepoSettings(), languages), machineCacheKey(RepoSettings(branch = "other"), languages))
+    }
+
+    @Test fun parsesGoogleResponseWithoutLosingSegments() {
+        assertEquals("Hello, world!", parseGoogleTranslation("[[[\"Hello, \",\"a\"],[\"world!\",\"b\"]],null,\"ja\"]"))
+    }
+
+    @Test fun longEntriesSplitWithoutLosingUnicodeOrSourceText() {
+        val source = "あいうえお ".repeat(1000) + "𠮷"
+        val chunks = splitForGoogle(source, 100)
+        assertEquals(source, chunks.joinToString(""))
+        assertEquals(true, chunks.all { it.codePointCount(0, it.length) <= 100 })
     }
 
     @Test fun failedEntryDoesNotReturnAPartialReference() = runTest {
