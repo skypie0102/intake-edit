@@ -32,6 +32,7 @@ class TranslationPetWidget : AppWidgetProvider() {
     }
 
     companion object {
+        internal const val ACTION_OPEN_CHAPTER = "cloud.shadowmonarchbooks.intakeedit.OPEN_NEXT_CHAPTER"
         private const val ACTION_REFRESH = "cloud.shadowmonarchbooks.intakeedit.PET_WIDGET_REFRESH"
 
         internal fun refreshAll(context: Context) {
@@ -48,15 +49,12 @@ class TranslationPetWidget : AppWidgetProvider() {
             val snapshot = PetProjectCache(context).get(settings, token)
             val count = snapshot?.completed
             if (count == null) {
-                val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java),
+                val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_CHAPTER),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 for (id in ids) {
                     val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
-                        setTextViewText(R.id.pet_widget_level, "Translation companion")
-                        setTextViewText(R.id.pet_widget_status, if (snapshot == null) "Connect your project" else "Syncing progress…")
-                        setTextViewText(R.id.pet_widget_progress_text, "Open Intake Edit")
                         setViewVisibility(R.id.pet_widget_portrait, android.view.View.INVISIBLE)
-                        setViewVisibility(R.id.pet_widget_progress, android.view.View.INVISIBLE)
+                        setContentDescription(R.id.pet_widget_root, "Connect your project in Intake Edit")
                         setOnClickPendingIntent(R.id.pet_widget_root, open)
                     }
                     manager.updateAppWidget(id, views)
@@ -72,15 +70,12 @@ class TranslationPetWidget : AppWidgetProvider() {
                 PetMood.SAD -> R.drawable.book_spirit_sad to "I miss you..."
             }
             val open = PendingIntent.getActivity(
-                context, 0, Intent(context, MainActivity::class.java),
+                context, 0, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_CHAPTER),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             for (id in ids) {
                 val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
-                    setTextViewText(R.id.pet_widget_level, "Level ${status.level}")
-                    setTextViewText(R.id.pet_widget_status, message)
-                    setTextViewText(R.id.pet_widget_progress_text, "${status.levelProgress}/5 chapters to next level")
-                    setProgressBar(R.id.pet_widget_progress, 5, status.levelProgress, false)
+                    setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
                     setImageViewResource(R.id.pet_widget_frame_0, portrait)
                     setImageViewResource(R.id.pet_widget_frame_1, portrait)
                     setImageViewResource(R.id.pet_widget_frame_2, portrait)

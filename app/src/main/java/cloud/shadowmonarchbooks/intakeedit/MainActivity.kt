@@ -1,6 +1,8 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import android.os.Bundle
+import android.content.Intent
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -74,9 +76,21 @@ import androidx.compose.material3.ModalBottomSheet
 private enum class AppDestination { HOME, CHAPTERS, GLOSSARY, HELP }
 
 class MainActivity : ComponentActivity() {
+    private var widgetOpenRequest by mutableStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { IntakeEditTheme { IntakeAppShell() } }
+        widgetOpenRequest = savedInstanceState?.getInt("widgetOpenRequest") ?: 0
+        if (savedInstanceState == null && intent?.action == TranslationPetWidget.ACTION_OPEN_CHAPTER) widgetOpenRequest++
+        setContent { IntakeEditTheme { IntakeAppShell(widgetOpenRequest) } }
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("widgetOpenRequest", widgetOpenRequest)
+        super.onSaveInstanceState(outState)
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == TranslationPetWidget.ACTION_OPEN_CHAPTER) widgetOpenRequest++
     }
 }
 
@@ -98,8 +112,10 @@ private fun IntakeEditTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun IntakeAppShell() {
+private fun IntakeAppShell(widgetOpenRequest: Int) {
     var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
+    var consumedWidgetRequest by rememberSaveable { mutableStateOf(0) }
+    LaunchedEffect(widgetOpenRequest) { if (widgetOpenRequest > consumedWidgetRequest) destination = AppDestination.CHAPTERS }
     when (destination) {
         AppDestination.HOME -> WorkspaceHomeScreen(
             onOpenChapters = { destination = AppDestination.CHAPTERS },
@@ -107,6 +123,8 @@ private fun IntakeAppShell() {
             onOpenHelp = { destination = AppDestination.HELP },
         )
         AppDestination.CHAPTERS -> ChapterIntakeApp(
+            widgetOpenRequest = if (widgetOpenRequest > consumedWidgetRequest) widgetOpenRequest else 0,
+            onWidgetRequestConsumed = { consumedWidgetRequest = widgetOpenRequest },
             onExitToHome = { destination = AppDestination.HOME },
         )
         AppDestination.GLOSSARY -> {
@@ -163,7 +181,7 @@ internal data class OpenChapter(
 )
 
 @Composable
-private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
+private fun ChapterIntakeApp(widgetOpenRequest: Int, onWidgetRequestConsumed: () -> Unit, onExitToHome: () -> Unit) {
     val context = LocalContext.current
     val chapterListFactory = remember(context) { ChapterListViewModelFactory(context) }
     val chapterListViewModel: ChapterListViewModel = viewModel(factory = chapterListFactory)
@@ -176,6 +194,25 @@ private fun ChapterIntakeApp(onExitToHome: () -> Unit) {
     val settings = repoSettingsState.settings
     val token = repoSettingsState.token
     val showSettings = repoSettingsState.showSettings
+    LaunchedEffect(widgetOpenRequest, token, showSettings) {
+        if (widgetOpenRequest == 0 || token.isBlank() || showSettings) return@LaunchedEffect
+        if (editorViewModel.chapterForDisplay() != null) {
+            onWidgetRequestConsumed()
+            return@LaunchedEffect
+        }
+        Toast.makeText(context, "Finding a chapter to translate…", Toast.LENGTH_SHORT).show()
+        try {
+            val next = findNextTranslationChapter(DefaultChapterRepositoryFactory.create(settings, token))
+            if (next == null) Toast.makeText(context, "No chapters are currently available for translation.", Toast.LENGTH_LONG).show()
+            else editorViewModel.open(next, settings, token)
+            onWidgetRequestConsumed()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Toast.makeText(context, e.message ?: "Could not find a chapter. Open one from the list.", Toast.LENGTH_LONG).show()
+            onWidgetRequestConsumed()
+        }
+    }
 
     fun refresh() {
         chapterListViewModel.refresh(settings, token)
@@ -533,3 +570,4 @@ private fun SettingsScreen(
         }
     }
 }
+

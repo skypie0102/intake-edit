@@ -8,7 +8,7 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="3600000"
     android:initialLayout="@layout/translation_pet_widget"
-    android:previewImage="@drawable/pet_widget_happy"
+    android:previewImage="@drawable/book_spirit_happy"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/pet_widget_description" />
