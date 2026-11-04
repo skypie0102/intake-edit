@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.NavigateNext
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -99,6 +100,10 @@ internal fun EditorScreen(
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val importStore = remember { TranslationImportStore(context) }
+    val onlineSettings = remember { OnlineTranslationSettings(context) }
+    val project = remember { SettingsStore(context).load() }
+    val languages = remember { TranslationLanguages(source = "auto", target = "en") }
+    val machineKey = remember(project) { machineCacheKey(project, languages) }
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
     var importedFile by remember(initial.file.path, initial.document.sourceSha256) {
         mutableStateOf<ImportedTranslationOverlay?>(null)
@@ -117,7 +122,6 @@ internal fun EditorScreen(
     var showCommit by remember { mutableStateOf(false) }
     var showApprove by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
-    var showMachineConfirm by remember { mutableStateOf(false) }
     var showRemoveAllConfirm by remember { mutableStateOf(false) }
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
@@ -128,13 +132,14 @@ internal fun EditorScreen(
     LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
         importBusy = true
         val saved = withContext(Dispatchers.IO) {
-            importStore.load(initial.file.path, initial.document.sourceSha256) to
-                importStore.load(initial.file.path, initial.document.sourceSha256, machine = true)
+            val machine = importStore.load(initial.file.path, initial.document.sourceSha256, machine = true, machineKey = machineKey)
+                ?: if (project.owner.equals("skypie0102", true) && project.repo.equals("purelove", true) && project.branch == "main")
+                    importStore.load(initial.file.path, initial.document.sourceSha256, machine = true) else null
+            importStore.load(initial.file.path, initial.document.sourceSha256) to machine
         }
         importedFile = saved.first
         machineTranslation = saved.second
-        if (importedFile == null && machineTranslation != null) useMachine = true
-        if (machineTranslation == null) useMachine = false
+        useMachine = machineTranslation != null && onlineSettings.visible(machineKey, initial.file.path, initial.document.sourceSha256)
         importBusy = false
     }
 
@@ -171,10 +176,36 @@ internal fun EditorScreen(
                 }.onSuccess { overlay ->
                     importedFile = overlay
                     useMachine = false
+                    onlineSettings.setVisible(machineKey, chapter.file.path, chapter.document.sourceSha256, false)
                     editorNotice = "Imported: ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}"
                 }.onFailure {
                     editorNotice = it.message ?: "Could not import this translation file."
                 }
+                importBusy = false
+            }
+        }
+    }
+
+    fun beginMachineTranslation() {
+        val chapter = current
+        scope.launch {
+            importBusy = true
+            editorNotice = "Translating with Google…"
+            try {
+                val overlay = translateWithGoogle(chapter.file.path, chapter.document, languages) { done, total ->
+                    editorNotice = "Machine translation: $done/$total entries"
+                }
+                val saved = withContext(Dispatchers.IO) { importStore.save(overlay, machine = true, machineKey = machineKey) }
+                check(saved) { "Could not save the machine translation locally." }
+                machineTranslation = overlay
+                useMachine = true
+                onlineSettings.setVisible(machineKey, chapter.file.path, chapter.document.sourceSha256, true)
+                editorNotice = "Machine Translation ready: ${overlay.matchedCount}/${overlay.totalEntries} entries."
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                editorNotice = error.message ?: "Machine translation failed. Check your connection and try again."
+            } finally {
                 importBusy = false
             }
         }
@@ -408,28 +439,6 @@ fun stageProposalDecision(proposalId: String, status: String) {
                             },
                             enabled = !busy,
                         )
-                        DropdownMenuItem(
-                            text = { Text(if (machineTranslation == null) "Machine Translation · Translate with Google" else "Regenerate Machine Translation · Google") },
-                            onClick = { showOverflow = false; showMachineConfirm = true },
-                            enabled = !busy && !importBusy,
-                        )
-                        if (machineTranslation != null && !useMachine) {
-                            DropdownMenuItem(text = { Text("Show Machine Translation") }, onClick = {
-                                showOverflow = false; useMachine = true
-                            }, enabled = !busy && !importBusy)
-                        }
-                        if (importedFile != null && useMachine) {
-                            DropdownMenuItem(text = { Text("Show Imported Translation") }, onClick = {
-                                showOverflow = false; useMachine = false
-                            }, enabled = !busy && !importBusy)
-                        }
-                        if (useMachine) {
-                            DropdownMenuItem(text = { Text("Import translation file") }, onClick = {
-                                showOverflow = false
-                                focusManager.clearFocus(force = true)
-                                importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*"))
-                            }, enabled = !busy && !importBusy)
-                        }
                         imported?.let { overlay ->
                             DropdownMenuItem(
                                 text = {
@@ -585,20 +594,43 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
                     }
                 }
-                if (imported == null) {
-                    IconButton(
-                        onClick = {
+                IconButton(
+                    onClick = {
+                        if (importedFile != null && !useMachine) {
+                            showRemoveImportConfirm = true
+                        } else if (importedFile != null) {
+                            useMachine = false
+                            onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, false)
+                        } else {
                             focusManager.clearFocus(force = true)
                             importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*"))
-                        },
-                        enabled = !busy && !importBusy,
-                    ) {
-                        Icon(Icons.Default.UploadFile, if (importBusy) "Loading import" else "Import translation")
-                    }
-                } else {
-                    IconButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy && !importBusy) {
-                        Icon(Icons.Default.DeleteOutline, if (useMachine) "Remove machine translation" else "Remove imported translation")
-                    }
+                        }
+                    },
+                    enabled = !busy && !importBusy,
+                ) {
+                    Icon(if (importedFile != null && !useMachine) Icons.Default.DeleteOutline else Icons.Default.UploadFile,
+                        if (importedFile != null && !useMachine) "Remove imported translation" else if (importedFile != null) "Show imported translation" else "Import translation")
+                }
+                IconButton(
+                    onClick = {
+                        when (nextMachineAction(useMachine, machineTranslation != null)) {
+                            MachineToggle.HIDE -> {
+                                useMachine = false
+                                onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, false)
+                                editorNotice = "Machine translation hidden. Tap again to restore it."
+                            }
+                            MachineToggle.RESTORE -> {
+                                useMachine = true
+                                onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, true)
+                                editorNotice = "Restored the saved machine translation."
+                            }
+                            MachineToggle.TRANSLATE -> beginMachineTranslation()
+                        }
+                    },
+                    enabled = !busy && !importBusy,
+                ) {
+                    Icon(if (useMachine) Icons.Default.DeleteOutline else Icons.Default.Translate,
+                        if (useMachine) "Hide machine translation" else "Machine Translation")
                 }
                 Spacer(Modifier.weight(1f))
                 Button(
@@ -682,45 +714,10 @@ fun stageProposalDecision(proposalId: String, status: String) {
         )
     }
 
-    if (showMachineConfirm) {
-        AlertDialog(
-            onDismissRequest = { showMachineConfirm = false },
-            title = { Text("Machine Translation") },
-            text = { Text("Translate every Japanese entry into English on this device using Google's offline translation model. The first use downloads language models (around 30 MB each) and may use mobile data. This creates a reference; your English fields and existing imported translation stay unchanged.") },
-            confirmButton = {
-                Button(onClick = {
-                    showMachineConfirm = false
-                    val chapter = current
-                    scope.launch {
-                        importBusy = true
-                        editorNotice = "Preparing Google Translate language models…"
-                        try {
-                            val overlay = translateWithGoogle(chapter.file.path, chapter.document) { done, total ->
-                                editorNotice = "Machine translation: $done/$total entries"
-                            }
-                            val saved = withContext(Dispatchers.IO) { importStore.save(overlay, machine = true) }
-                            check(saved) { "Could not save the machine translation locally." }
-                            machineTranslation = overlay
-                            useMachine = true
-                            editorNotice = "Machine Translation ready: ${overlay.matchedCount}/${overlay.totalEntries} entries."
-                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                            throw cancelled
-                        } catch (error: Exception) {
-                            editorNotice = error.message ?: "Machine translation failed. Check the model download and try again."
-                        } finally {
-                            importBusy = false
-                        }
-                    }
-                }) { Text("Translate with Google") }
-            },
-            dismissButton = { TextButton(onClick = { showMachineConfirm = false }) { Text("Cancel") } },
-        )
-    }
-
     if (showRemoveImportConfirm) {
         AlertDialog(
             onDismissRequest = { if (!importBusy) showRemoveImportConfirm = false },
-            title = { Text(if (useMachine) "Remove machine translation?" else "Remove imported translation?") },
+            title = { Text("Remove imported translation?") },
             text = { Text("Remove this local reference? English already copied into fields will not be changed.") },
             confirmButton = {
                 Button(
@@ -729,12 +726,10 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         showRemoveImportConfirm = false
                         scope.launch {
                             importBusy = true
-                            val deletingMachine = useMachine
-                            val removed = withContext(Dispatchers.IO) { importStore.delete(path, machine = deletingMachine) }
+                            val removed = withContext(Dispatchers.IO) { importStore.delete(path) }
                             if (removed) {
-                                if (deletingMachine) { machineTranslation = null; useMachine = false }
-                                else { importedFile = null; useMachine = machineTranslation != null }
-                                editorNotice = "Translation reference removed."
+                                importedFile = null
+                                editorNotice = "Imported translation removed."
                             } else {
                                 editorNotice = "Could not remove the imported translation."
                             }

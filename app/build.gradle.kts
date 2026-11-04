@@ -16,8 +16,8 @@ android {
         applicationId = "cloud.shadowmonarchbooks.intakeedit"
         minSdk = 26
         targetSdk = 37
-        versionCode = 55
-        versionName = "0.15.20"
+        versionCode = 56
+        versionName = "0.15.21"
     }
     signingConfigs {
         if (hasReleaseSigning) {
@@ -46,7 +46,6 @@ dependencies {
     androidTestImplementation(composeBom)
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
-    implementation("com.google.mlkit:translate:17.0.3")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
