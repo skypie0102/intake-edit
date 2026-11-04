@@ -45,7 +45,7 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
         ) {
             item {
                 HelpCard("Machine Translation") {
-                    Text("Tap the translation reference button on the chapter's bottom bar, then choose Machine Translation to translate each entry into English. Source language is detected automatically. Translation uses the online Google Translate web service and sends chapter text to Google.")
+                    Text("Tap the translation reference button on the chapter's bottom bar, then choose Machine Translation to translate each entry into English. Source language is detected automatically. Translation uses the online Google Translate web service, sends chapter text to Google, and batches entries where they fit. Each response is checked before applying it to the matching entries.")
                     Text("The first complete machine translation is saved locally. Use the same dialog to hide or restore it without another translation request. If translation is interrupted, completed entries are saved and reused when you retry. Imported translations are kept separately. Always review machine output against the source.")
                     TextButton(onClick = { uriHandler.openUri("https://cloud.google.com/translate") }) { Text("About Google Translate") }
                 }
