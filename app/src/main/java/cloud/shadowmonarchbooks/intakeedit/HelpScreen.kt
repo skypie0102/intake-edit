@@ -15,15 +15,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WorkflowHelpScreen(onBack: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -40,6 +43,13 @@ internal fun WorkflowHelpScreen(onBack: () -> Unit) {
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item {
+                HelpCard("Machine Translation") {
+                    Text("Use Editor actions → Machine Translation · Translate with Google to create a local Japanese-to-English reference for every chapter entry. Translations are powered by Google Translate's offline model. The first use downloads language models; translating runs on your device.")
+                    Text("Imported translations are kept separately. Switch references in Editor actions, then use individual translations or Fill blanks when you choose. Always review machine output against the source.")
+                    TextButton(onClick = { uriHandler.openUri("https://cloud.google.com/translate") }) { Text("About Google Translate") }
+                }
+            }
             item {
                 HelpCard("The four chapter states") {
                     HelpLine("Pending Review", "You are still editing/reviewing it. QA ignores this chapter.")
@@ -144,3 +154,4 @@ private fun QaRuleLine(title: String, severity: String, body: String) {
         Text(body, style = MaterialTheme.typography.bodyMedium)
     }
 }
+

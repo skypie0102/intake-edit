@@ -100,9 +100,14 @@ internal fun EditorScreen(
     val scope = rememberCoroutineScope()
     val importStore = remember { TranslationImportStore(context) }
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
-    var imported by remember(initial.file.path, initial.document.sourceSha256) {
+    var importedFile by remember(initial.file.path, initial.document.sourceSha256) {
         mutableStateOf<ImportedTranslationOverlay?>(null)
     }
+    var machineTranslation by remember(initial.file.path, initial.document.sourceSha256) {
+        mutableStateOf<ImportedTranslationOverlay?>(null)
+    }
+    var useMachine by rememberSaveable(initial.file.path, initial.document.sourceSha256) { mutableStateOf(false) }
+    val imported = if (useMachine) machineTranslation else importedFile
     var importBusy by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf(true) }
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
@@ -112,6 +117,7 @@ internal fun EditorScreen(
     var showCommit by remember { mutableStateOf(false) }
     var showApprove by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
+    var showMachineConfirm by remember { mutableStateOf(false) }
     var showRemoveAllConfirm by remember { mutableStateOf(false) }
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
@@ -121,9 +127,14 @@ internal fun EditorScreen(
 
     LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
         importBusy = true
-        imported = withContext(Dispatchers.IO) {
-            importStore.load(initial.file.path, initial.document.sourceSha256)
+        val saved = withContext(Dispatchers.IO) {
+            importStore.load(initial.file.path, initial.document.sourceSha256) to
+                importStore.load(initial.file.path, initial.document.sourceSha256, machine = true)
         }
+        importedFile = saved.first
+        machineTranslation = saved.second
+        if (importedFile == null && machineTranslation != null) useMachine = true
+        if (machineTranslation == null) useMachine = false
         importBusy = false
     }
 
@@ -158,7 +169,8 @@ internal fun EditorScreen(
                         overlay
                     }
                 }.onSuccess { overlay ->
-                    imported = overlay
+                    importedFile = overlay
+                    useMachine = false
                     editorNotice = "Imported: ${overlay.matchedCount}/${overlay.totalEntries} • ${overlay.alignment} • ${overlay.fileName}"
                 }.onFailure {
                     editorNotice = it.message ?: "Could not import this translation file."
@@ -396,6 +408,28 @@ fun stageProposalDecision(proposalId: String, status: String) {
                             },
                             enabled = !busy,
                         )
+                        DropdownMenuItem(
+                            text = { Text(if (machineTranslation == null) "Machine Translation · Translate with Google" else "Regenerate Machine Translation · Google") },
+                            onClick = { showOverflow = false; showMachineConfirm = true },
+                            enabled = !busy && !importBusy,
+                        )
+                        if (machineTranslation != null && !useMachine) {
+                            DropdownMenuItem(text = { Text("Show Machine Translation") }, onClick = {
+                                showOverflow = false; useMachine = true
+                            }, enabled = !busy && !importBusy)
+                        }
+                        if (importedFile != null && useMachine) {
+                            DropdownMenuItem(text = { Text("Show Imported Translation") }, onClick = {
+                                showOverflow = false; useMachine = false
+                            }, enabled = !busy && !importBusy)
+                        }
+                        if (useMachine) {
+                            DropdownMenuItem(text = { Text("Import translation file") }, onClick = {
+                                showOverflow = false
+                                focusManager.clearFocus(force = true)
+                                importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*"))
+                            }, enabled = !busy && !importBusy)
+                        }
                         imported?.let { overlay ->
                             DropdownMenuItem(
                                 text = {
@@ -507,6 +541,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 qaDispositionById = qaDispositionById,
                                 qaCanResolveById = qaCanResolveById,
                                 importedTranslation = imported?.translationFor(entry.locator),
+                                machineReference = useMachine,
                                 nextEndnoteId = { EndnoteIntegrity.nextId(current.document, entry.locator) },
                                 onUseImport = { text -> useImported(entry.locator, text) },
                                 onEnglishChange = { english -> updateEnglish(entry.locator, english) },
@@ -562,7 +597,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     }
                 } else {
                     IconButton(onClick = { showRemoveImportConfirm = true }, enabled = !busy && !importBusy) {
-                        Icon(Icons.Default.DeleteOutline, "Remove imported translation")
+                        Icon(Icons.Default.DeleteOutline, if (useMachine) "Remove machine translation" else "Remove imported translation")
                     }
                 }
                 Spacer(Modifier.weight(1f))
@@ -647,11 +682,46 @@ fun stageProposalDecision(proposalId: String, status: String) {
         )
     }
 
+    if (showMachineConfirm) {
+        AlertDialog(
+            onDismissRequest = { showMachineConfirm = false },
+            title = { Text("Machine Translation") },
+            text = { Text("Translate every Japanese entry into English on this device using Google's offline translation model. The first use downloads language models (around 30 MB each) and may use mobile data. This creates a reference; your English fields and existing imported translation stay unchanged.") },
+            confirmButton = {
+                Button(onClick = {
+                    showMachineConfirm = false
+                    val chapter = current
+                    scope.launch {
+                        importBusy = true
+                        editorNotice = "Preparing Google Translate language models…"
+                        try {
+                            val overlay = translateWithGoogle(chapter.file.path, chapter.document) { done, total ->
+                                editorNotice = "Machine translation: $done/$total entries"
+                            }
+                            val saved = withContext(Dispatchers.IO) { importStore.save(overlay, machine = true) }
+                            check(saved) { "Could not save the machine translation locally." }
+                            machineTranslation = overlay
+                            useMachine = true
+                            editorNotice = "Machine Translation ready: ${overlay.matchedCount}/${overlay.totalEntries} entries."
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            editorNotice = error.message ?: "Machine translation failed. Check the model download and try again."
+                        } finally {
+                            importBusy = false
+                        }
+                    }
+                }) { Text("Translate with Google") }
+            },
+            dismissButton = { TextButton(onClick = { showMachineConfirm = false }) { Text("Cancel") } },
+        )
+    }
+
     if (showRemoveImportConfirm) {
         AlertDialog(
             onDismissRequest = { if (!importBusy) showRemoveImportConfirm = false },
-            title = { Text("Remove imported translation?") },
-            text = { Text("Remove the local imported translation? English already copied into fields will not be changed.") },
+            title = { Text(if (useMachine) "Remove machine translation?" else "Remove imported translation?") },
+            text = { Text("Remove this local reference? English already copied into fields will not be changed.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -659,10 +729,12 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         showRemoveImportConfirm = false
                         scope.launch {
                             importBusy = true
-                            val removed = withContext(Dispatchers.IO) { importStore.delete(path) }
+                            val deletingMachine = useMachine
+                            val removed = withContext(Dispatchers.IO) { importStore.delete(path, machine = deletingMachine) }
                             if (removed) {
-                                imported = null
-                                editorNotice = "Imported translation removed."
+                                if (deletingMachine) { machineTranslation = null; useMachine = false }
+                                else { importedFile = null; useMachine = machineTranslation != null }
+                                editorNotice = "Translation reference removed."
                             } else {
                                 editorNotice = "Could not remove the imported translation."
                             }
@@ -776,6 +848,7 @@ private fun EntryCard(
     qaDispositionById: Map<String, QaFindingDisposition>,
     qaCanResolveById: Map<String, Boolean>,
     importedTranslation: String?,
+    machineReference: Boolean,
     nextEndnoteId: () -> String,
     onUseImport: (String) -> Unit,
     onEnglishChange: (String) -> Unit,
@@ -938,13 +1011,13 @@ LaunchedEffect(qaFindings) {
                 }
                 IconButton(onClick = {
                     focusManager.clearFocus(force = true)
-                    val reference = importedTranslation?.let { "\n\nIMPORTED TRANSLATION:\n$it" }.orEmpty()
+                    val reference = importedTranslation?.let { "\n\n${if (machineReference) "MACHINE TRANSLATION" else "IMPORTED TRANSLATION"}:\n$it" }.orEmpty()
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
                 }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
-            importedTranslation?.let { DisplayBlock("Imported", it) }
+            importedTranslation?.let { DisplayBlock(if (machineReference) "Machine Translation · Google Translate" else "Imported", it) }
             OutlinedTextField(
                 value = rich.asTextFieldValue(),
                 onValueChange = { next ->
@@ -1033,7 +1106,7 @@ LaunchedEffect(qaFindings) {
                         rich = RichInlineState.plain(importedText)
                         localEndnotes = emptyList()
                         onUseImport(importedText)
-                    }) { Text("Use Import") }
+                    }) { Text(if (machineReference) "Use Translation" else "Use Import") }
                 }
                 IconButton(
                     onClick = {
@@ -1394,3 +1467,4 @@ private fun QaFindingsView(
         )
     }
 }
+

@@ -32,12 +32,12 @@ data class ImportedTranslationOverlay(
 class TranslationImportStore(context: Context) {
     private val dir = File(context.filesDir, "translation_imports").also { it.mkdirs() }
 
-    private fun file(path: String): File {
+    private fun file(path: String, machine: Boolean = false): File {
         val key = Base64.encodeToString(path.toByteArray(Charsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
-        return File(dir, "$key.json")
+        return File(dir, if (machine) "$key.machine.json" else "$key.json")
     }
 
-    fun save(overlay: ImportedTranslationOverlay): Boolean = runCatching {
+    fun save(overlay: ImportedTranslationOverlay, machine: Boolean = false): Boolean = runCatching {
         val translations = JSONObject()
         overlay.translations.forEach { (locator, text) -> translations.put(locator, text) }
         val payload = JSONObject()
@@ -52,7 +52,7 @@ class TranslationImportStore(context: Context) {
             .put("imported_at_ms", overlay.importedAtMillis)
             .put("translations", translations)
             .toString()
-        val atomic = AtomicFile(file(overlay.chapterPath))
+        val atomic = AtomicFile(file(overlay.chapterPath, machine))
         var stream: java.io.FileOutputStream? = null
         try {
             stream = atomic.startWrite()
@@ -65,8 +65,8 @@ class TranslationImportStore(context: Context) {
         true
     }.getOrDefault(false)
 
-    fun load(path: String, sourceSha256: String): ImportedTranslationOverlay? {
-        val target = file(path)
+    fun load(path: String, sourceSha256: String, machine: Boolean = false): ImportedTranslationOverlay? {
+        val target = file(path, machine)
         if (!target.exists()) return null
         return runCatching {
             val root = JSONObject(String(AtomicFile(target).readFully(), Charsets.UTF_8))
@@ -93,9 +93,9 @@ class TranslationImportStore(context: Context) {
         }.getOrNull()
     }
 
-    fun delete(path: String): Boolean {
-        AtomicFile(file(path)).delete()
-        return !file(path).exists()
+    fun delete(path: String, machine: Boolean = false): Boolean {
+        AtomicFile(file(path, machine)).delete()
+        return !file(path, machine).exists()
     }
 }
 
@@ -367,3 +367,4 @@ object XliffTranslationImporter {
         return out
     }
 }
+
