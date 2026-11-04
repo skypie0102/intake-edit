@@ -75,13 +75,23 @@ import androidx.compose.material3.ModalBottomSheet
 
 private enum class AppDestination { HOME, CHAPTERS, GLOSSARY, HELP }
 
+internal fun shouldOpenFirstLaunchSettings(firstInstall: Long, lastUpdate: Long, token: String): Boolean =
+    firstInstall == lastUpdate && token.isBlank()
+
 class MainActivity : ComponentActivity() {
     private var widgetOpenRequest by mutableStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val launchPreferences = getSharedPreferences("app_launch", MODE_PRIVATE)
+        val firstLaunch = if (savedInstanceState == null && !launchPreferences.getBoolean("launched", false)) {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            launchPreferences.edit().putBoolean("launched", true).apply()
+            shouldOpenFirstLaunchSettings(packageInfo.firstInstallTime, packageInfo.lastUpdateTime, SecureTokenStore(this).load())
+        } else false
         widgetOpenRequest = savedInstanceState?.getInt("widgetOpenRequest") ?: 0
         if (savedInstanceState == null && intent?.action == TranslationPetWidget.ACTION_OPEN_CHAPTER) widgetOpenRequest++
-        setContent { IntakeEditTheme { IntakeAppShell(widgetOpenRequest) } }
+        TranslationPetWidget.refreshAll(this)
+        setContent { IntakeEditTheme { IntakeAppShell(widgetOpenRequest, firstLaunch) } }
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("widgetOpenRequest", widgetOpenRequest)
@@ -112,8 +122,8 @@ private fun IntakeEditTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun IntakeAppShell(widgetOpenRequest: Int) {
-    var destination by rememberSaveable { mutableStateOf(AppDestination.HOME) }
+private fun IntakeAppShell(widgetOpenRequest: Int, firstLaunch: Boolean) {
+    var destination by rememberSaveable { mutableStateOf(if (firstLaunch) AppDestination.CHAPTERS else AppDestination.HOME) }
     var consumedWidgetRequest by rememberSaveable { mutableStateOf(0) }
     LaunchedEffect(widgetOpenRequest) { if (widgetOpenRequest > consumedWidgetRequest) destination = AppDestination.CHAPTERS }
     when (destination) {

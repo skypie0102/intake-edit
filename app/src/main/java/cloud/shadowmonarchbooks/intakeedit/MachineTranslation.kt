@@ -117,22 +117,82 @@ internal fun googleRetryDelayMillis(retryAfter: String?, attempt: Int, nowMillis
 
 internal class GoogleRateLimit(val retryAfter: String?) : Exception()
 
-private fun requestGoogleText(source: String, languages: TranslationLanguages): String {
-    val query = listOf("client" to "gtx", "sl" to languages.normalizedSource,
-        "tl" to languages.normalizedTarget, "dt" to "t", "q" to source)
+internal data class GoogleRoute(val endpoint: String, val method: String, val mobile: Boolean = false)
+
+internal val googleRoutes = listOf(
+    GoogleRoute("https://translate.google.co.in/translate_a/single", "POST"),
+    GoogleRoute("https://translate.google.com/translate_a/single", "POST"),
+    GoogleRoute("https://clients5.google.com/translate_a/t", "POST", mobile = true),
+    GoogleRoute("https://translate.googleapis.com/translate_a/single", "GET"),
+)
+
+internal fun parseGoogleMobileTranslation(response: String): String {
+    val first = JSONArray(response).get(0)
+    return when (first) {
+        is String -> first
+        is JSONArray -> first.getString(0)
+        else -> error("Google returned an unsupported translation response.")
+    }
+}
+
+private fun requestGoogleText(source: String, languages: TranslationLanguages, route: GoogleRoute): String {
+    val params = mutableListOf("client" to if (route.mobile) "t" else "gtx", "sl" to languages.normalizedSource,
+        "tl" to languages.normalizedTarget)
+    if (!route.mobile) params += "dt" to "t"
+    params += "q" to source
+    val query = params
         .joinToString("&") { (key, value) -> URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8") }
-    val connection = URL("https://translate.googleapis.com/translate_a/single?$query").openConnection() as HttpsURLConnection
+    val url = if (route.method == "GET") "${route.endpoint}?$query" else route.endpoint
+    val connection = URL(url).openConnection() as HttpsURLConnection
     try {
-        connection.requestMethod = "GET"
+        connection.requestMethod = route.method
         connection.connectTimeout = 20_000
         connection.readTimeout = 60_000
-        connection.setRequestProperty("Accept", "application/json")
+        connection.setRequestProperty("Accept", "*/*")
+        connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        connection.setRequestProperty("Referer", "https://translate.google.com/")
+        connection.setRequestProperty("Origin", "https://translate.google.com")
+        if (route.method == "POST") {
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.doOutput = true
+            connection.outputStream.use { it.write(query.toByteArray(Charsets.UTF_8)) }
+        }
         val status = connection.responseCode
         if (status == 429) throw GoogleRateLimit(connection.getHeaderField("Retry-After"))
         if (status !in 200..299) error("Google Translate returned HTTP $status. Check your connection or try again later.")
         val response = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-        return parseGoogleTranslation(response).also { require(it.isNotBlank()) { "Google returned an empty translation." } }
+        return (if (route.mobile) parseGoogleMobileTranslation(response) else parseGoogleTranslation(response))
+            .also { require(it.isNotBlank()) { "Google returned an empty translation." } }
     } finally { connection.disconnect() }
+}
+
+/** Try Google routes only; respect server cooldowns and never substitute another provider. */
+internal suspend fun translateUsingGoogleRoutes(
+    routes: List<GoogleRoute> = googleRoutes,
+    onRetry: suspend (Long) -> Unit = {},
+    pause: suspend (Long) -> Unit = { delay(it) },
+    request: suspend (GoogleRoute) -> String,
+): String {
+    require(routes.isNotEmpty())
+    var limited = false
+    for ((index, route) in routes.withIndex()) {
+        coroutineContext.ensureActive()
+        try { return request(route) }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (rate: GoogleRateLimit) {
+            limited = true
+            if (index == routes.lastIndex) break
+            val wait = googleRetryDelayMillis(rate.retryAfter, 0, System.currentTimeMillis())
+                ?: error("Google Translate asked the app to wait before retrying (HTTP 429). Completed entries are saved.")
+            onRetry(wait)
+            pause(wait)
+        } catch (_: Exception) {
+            if (index != routes.lastIndex) pause(1000)
+        }
+    }
+    if (limited) error("Google Translate could not complete this batch; a Google endpoint returned HTTP 429. Completed entries are saved.")
+    error("Google Translate is unavailable. Completed entries are saved; try again later.")
 }
 
 internal suspend fun googleTextWithBackoff(
@@ -249,11 +309,15 @@ internal suspend fun translateWithGoogle(
 ): ImportedTranslationOverlay = withContext(Dispatchers.IO) {
     languages.validate()
     var previousRequest = false
+    var preferredRoute: GoogleRoute? = null
     translateChapterInBatches(chapterPath, document, alreadyTranslated = alreadyTranslated,
         onCheckpoint = onCheckpoint, onProgress = onProgress,
         request = { text ->
             if (previousRequest) delay(1000)
             previousRequest = true
-            googleTextWithBackoff(onRetry) { requestGoogleText(text, languages) }
+            val routes = listOfNotNull(preferredRoute) + googleRoutes.filter { it != preferredRoute }
+            translateUsingGoogleRoutes(routes = routes, onRetry = onRetry) { route ->
+                requestGoogleText(text, languages, route).also { preferredRoute = route }
+            }
         })
 }

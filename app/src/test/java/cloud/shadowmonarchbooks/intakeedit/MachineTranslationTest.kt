@@ -48,6 +48,38 @@ class MachineTranslationTest {
         assertEquals("Hello, world!", parseGoogleTranslation("[[[\"Hello, \",\"a\"],[\"world!\",\"b\"]],null,\"ja\"]"))
     }
 
+    @Test fun parsesGoogleMobileResponses() {
+        assertEquals("Hello", parseGoogleMobileTranslation("[\"Hello\"]"))
+        assertEquals("Hello", parseGoogleMobileTranslation("[[\"Hello\"]]"))
+    }
+
+    @Test fun googleRoutesHonorCooldownAndKeepOnlyGoogleResults() = runTest {
+        val routes = googleRoutes.take(2)
+        val calls = mutableListOf<GoogleRoute>()
+        val waits = mutableListOf<Long>()
+        val result = translateUsingGoogleRoutes(routes, pause = { waits += it }) { route ->
+            calls += route
+            if (calls.size == 1) throw GoogleRateLimit("5")
+            "Google result"
+        }
+        assertEquals("Google result", result)
+        assertEquals(routes, calls)
+        assertEquals(listOf(5000L), waits)
+    }
+
+    @Test fun googleLongCooldownStopsBeforeTryingAnotherRoute() = runTest {
+        var calls = 0
+        var caught: Exception? = null
+        try {
+            translateUsingGoogleRoutes(googleRoutes.take(2), pause = {}) {
+                calls++
+                throw GoogleRateLimit("60")
+            }
+        } catch (error: IllegalStateException) { caught = error }
+        assertEquals(1, calls)
+        assertEquals(true, caught?.message?.contains("429"))
+    }
+
     @Test fun longEntriesSplitWithoutLosingUnicodeOrSourceText() {
         val source = "あいうえお ".repeat(1000) + "𠮷"
         val chunks = splitForGoogle(source, 100)
