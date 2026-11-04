@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pet_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="8dp"
+    android:background="@drawable/pet_widget_background">
+    <TextView
+        android:id="@+id/pet_widget_level"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="Level 1"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:textSize="12sp"
+        android:maxLines="1" />
+    <ImageView
+        android:id="@+id/pet_widget_portrait"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:src="@drawable/pet_widget_happy"
+        android:contentDescription="@string/pet_widget_description" />
+    <TextView
+        android:id="@+id/pet_widget_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="Ready for a chapter!"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:maxLines="2" />
+    <ProgressBar
+        android:id="@+id/pet_widget_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="4dp"
+        android:max="5"
+        android:progress="0"
+        android:progressTint="#CEB3FF"
+        android:progressBackgroundTint="#6D5A82" />
+    <TextView
+        android:id="@+id/pet_widget_progress_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="0/5 days to next level"
+        android:textColor="#E7DDF4"
+        android:textSize="10sp"
+        android:maxLines="1" />
+</LinearLayout>

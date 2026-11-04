@@ -16,8 +16,8 @@ android {
         applicationId = "cloud.shadowmonarchbooks.intakeedit"
         minSdk = 26
         targetSdk = 37
-        versionCode = 51
-        versionName = "0.15.16"
+        versionCode = 52
+        versionName = "0.15.17"
     }
     signingConfigs {
         if (hasReleaseSigning) {

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_widget_name">Translation companion</string>
+    <string name="pet_widget_description">Your companion reacts when you tag a chapter for QA.</string>
+</resources>
