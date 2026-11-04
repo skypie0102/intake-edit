@@ -1,5 +1,7 @@
 package cloud.shadowmonarchbooks.intakeedit
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,10 +43,11 @@ internal fun WorkspaceHomeScreen(
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(12.dp),
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Workspace", style = MaterialTheme.typography.titleLarge)
+            TranslationPetCard()
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Chapter Intake", fontWeight = FontWeight.Bold)
@@ -62,3 +65,4 @@ internal fun WorkspaceHomeScreen(
         }
     }
 }
+

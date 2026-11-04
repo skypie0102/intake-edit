@@ -32,6 +32,7 @@ internal sealed interface EditorEvent {
 internal class EditorViewModel(
     private val draftRepository: DraftRepository,
     private val repositoryFactory: ChapterRepositoryFactory = DefaultChapterRepositoryFactory,
+    private val onTaggedForQa: (RepoSettings, ChapterFile) -> Unit = { _, _ -> },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
@@ -121,6 +122,7 @@ internal class EditorViewModel(
                 draftRepository.persist(next)
                 val repository = repositoryFactory.create(settings, token)
                 val committedResult = repository.commitChapter(next, tagForQa)
+                if (tagForQa) runCatching { onTaggedForQa(settings, next.file) }
                 draftRepository.delete(next.file.path)
                 touched = false
                 if (tagForQa) {
@@ -249,6 +251,8 @@ internal class EditorViewModelFactory(context: Context) : ViewModelProvider.Fact
         return EditorViewModel(
             draftRepository = LocalDraftRepository(applicationContext),
             repositoryFactory = DefaultChapterRepositoryFactory,
+            onTaggedForQa = { settings, file -> PetStore(applicationContext).feed(settings, file) },
         ) as T
     }
 }
+

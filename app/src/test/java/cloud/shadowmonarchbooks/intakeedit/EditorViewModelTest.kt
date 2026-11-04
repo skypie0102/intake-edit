@@ -78,9 +78,11 @@ class EditorViewModelTest {
         val remote = sampleChapter(raw = "edited raw", sha = "sha-1")
         val draftRepository = FakeDraftRepository()
         val chapterRepository = FakeEditorChapterRepository(remote)
+        val feedings = mutableListOf<ChapterFile>()
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
+            onTaggedForQa = { _, file -> feedings += file },
         )
         val event = async { viewModel.events.first() }
 
@@ -91,6 +93,7 @@ class EditorViewModelTest {
         assertNull(viewModel.chapterForDisplay())
         assertEquals(listOf(remote.file.path), draftRepository.deleted)
         assertEquals(remote, chapterRepository.committedChapter)
+        assertEquals(listOf(remote.file), feedings)
     }
 
     @Test
@@ -98,9 +101,11 @@ class EditorViewModelTest {
         val remote = sampleChapter(raw = "edited raw", sha = "sha-1")
         val draftRepository = FakeDraftRepository()
         val chapterRepository = FakeEditorChapterRepository(remote)
+        val feedings = mutableListOf<ChapterFile>()
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
+            onTaggedForQa = { _, file -> feedings += file },
         )
         val event = async { viewModel.events.first() }
 
@@ -115,6 +120,7 @@ class EditorViewModelTest {
         assertEquals(listOf(remote.file.path), draftRepository.deleted)
         assertEquals(remote, chapterRepository.committedChapter)
         assertEquals(false, chapterRepository.committedMarkReviewed)
+        assertEquals(emptyList<ChapterFile>(), feedings)
     }
 
     @Test
@@ -243,3 +249,4 @@ private fun sampleChapter(raw: String, sha: String): OpenChapter {
         qa = null,
     )
 }
+
