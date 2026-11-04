@@ -11,6 +11,7 @@ import java.net.URLEncoder
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import javax.net.ssl.HttpsURLConnection
+import kotlin.coroutines.coroutineContext
 
 internal data class TranslationLanguages(val source: String = "auto", val target: String = "en") {
     val normalizedSource: String get() = source.trim().lowercase()
