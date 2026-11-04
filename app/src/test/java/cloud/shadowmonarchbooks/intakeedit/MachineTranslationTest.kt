@@ -76,6 +76,50 @@ class MachineTranslationTest {
         assertEquals(3, checkpoints.last().size)
     }
 
+    @Test fun multipleEntriesUseOneRequestAndStayAligned() = runTest {
+        var calls = 0
+        val result = translateChapterInBatches("chapter.yml", document(), request = { payload ->
+            calls++
+            payload.replace("題名", "Title").replace("本文", "Body").replace("最後", "Last")
+        })
+        assertEquals(1, calls)
+        assertEquals("Title", result.translationFor("H1-1"))
+        assertEquals("Body", result.translationFor("P1"))
+        assertEquals("Last", result.translationFor("P2"))
+    }
+
+    @Test fun completedEntriesAreNotIncludedInNewBatches() = runTest {
+        var calls = 0
+        val result = translateChapterInBatches("chapter.yml", document(),
+            alreadyTranslated = mapOf("H1-1" to "Saved title"), request = { payload ->
+                calls++
+                assertEquals(false, payload.contains("題名"))
+                payload.replace("本文", "Body").replace("最後", "Last")
+            })
+        assertEquals(1, calls)
+        assertEquals("Saved title", result.translationFor("H1-1"))
+        assertEquals("Body", result.translationFor("P1"))
+    }
+
+    @Test fun changedOrMissingMarkersNeverSaveMisalignedResults() = runTest {
+        var checkpoints = 0
+        var caught: Exception? = null
+        try {
+            translateChapterInBatches("chapter.yml", document(), request = { "A response without markers" },
+                onCheckpoint = { checkpoints++ })
+        } catch (error: IllegalArgumentException) { caught = error }
+        assertEquals(0, checkpoints)
+        assertEquals(true, caught?.message?.contains("markers"))
+    }
+
+    @Test fun batchPlannerRespectsRequestSizeAndCanSpanManyRequests() {
+        val entries = (1..20).map { EditorEntry("P$it", "日本語".repeat(40), "") }
+        val batches = planTranslationBatches(entries, emptyMap(), maxEncodedChars = 2400, maxPieces = 10)
+        assertEquals(true, batches.size > 1)
+        assertEquals(entries.map { it.locator }, batches.flatMap { it.pieces }.map { it.locator })
+        assertEquals(true, batches.all { java.net.URLEncoder.encode(it.requestText(), "UTF-8").length <= 2400 })
+    }
+
     @Test fun google429WaitsBeforeRetryAndCanRecover() = runTest {
         var requests = 0
         val waits = mutableListOf<Long>()

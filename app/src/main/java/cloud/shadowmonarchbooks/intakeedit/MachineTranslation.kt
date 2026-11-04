@@ -8,6 +8,7 @@ import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 import java.net.URL
 import java.net.URLEncoder
+import kotlin.random.Random
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import javax.net.ssl.HttpsURLConnection
@@ -151,7 +152,94 @@ internal suspend fun googleTextWithBackoff(
     error("Google Translate could not complete the request.")
 }
 
-/** Requests entries separately, respecting rate limits and saving progress between entries. */
+internal data class TranslationPiece(val locator: String, val index: Int, val total: Int, val text: String)
+internal data class MarkedBatch(val pieces: List<TranslationPiece>, val nonce: String) {
+    private fun marker(index: Int) = "⟦${nonce}:${index.toString().padStart(4, '0')}⟧"
+    fun requestText(): String = buildString {
+        pieces.forEachIndexed { i, piece -> append(marker(i)).append('\n').append(piece.text.trim()).append('\n') }
+        append(marker(pieces.size))
+    }
+    fun parse(translated: String): List<String> {
+        val pattern = Regex("⟦${nonce}:[0-9]{4}⟧")
+        val matches = pattern.findAll(translated).toList()
+        require(matches.size == pieces.size + 1 && matches.map { it.value } == (0..pieces.size).map(::marker)) {
+            "Google changed the line markers, so the batch could not be aligned safely. No unverified translations were saved."
+        }
+        require(translated.substring(0, matches.first().range.first).isBlank() &&
+            translated.substring(matches.last().range.last + 1).isBlank()) {
+            "Google returned text outside the line markers; the batch could not be aligned safely."
+        }
+        return pieces.indices.map { i ->
+            translated.substring(matches[i].range.last + 1, matches[i + 1].range.first).trim().also {
+                require(it.isNotBlank()) { "Google returned an empty translation for ${pieces[i].locator}." }
+            }
+        }
+    }
+}
+
+/** Pack as much as safely fits into one keyless GET request without losing entry boundaries. */
+internal fun planTranslationBatches(entries: List<EditorEntry>, alreadyTranslated: Map<String, String>,
+    maxEncodedChars: Int = 7600, maxPieces: Int = 100): List<MarkedBatch> {
+    require(maxEncodedChars > 0 && maxPieces > 0)
+    val pieces = entries.filter { it.sourceJapanese.isNotBlank() && alreadyTranslated[it.locator].isNullOrBlank() }
+        .flatMap { entry ->
+            val parts = splitForGoogle(entry.sourceJapanese, 400)
+            parts.mapIndexed { i, part -> TranslationPiece(entry.locator, i, parts.size, part) }
+        }
+    val batches = mutableListOf<MarkedBatch>()
+    var current = mutableListOf<TranslationPiece>()
+    fun batch(items: List<TranslationPiece>) = MarkedBatch(items.toList(), "123456789012")
+    fun encodedSize(items: List<TranslationPiece>) = URLEncoder.encode(batch(items).requestText(), "UTF-8").length
+    for (piece in pieces) {
+        val next = current + piece
+        if (current.isNotEmpty() && (next.size > maxPieces || encodedSize(next) > maxEncodedChars)) {
+            batches += MarkedBatch(current.toList(), Random.nextLong(100_000_000_000L, 1_000_000_000_000L).toString())
+            current = mutableListOf()
+        }
+        current += piece
+        require(encodedSize(current) <= maxEncodedChars) { "A source entry is too long for a single translation request." }
+    }
+    if (current.isNotEmpty()) batches += MarkedBatch(current.toList(), Random.nextLong(100_000_000_000L, 1_000_000_000_000L).toString())
+    return batches
+}
+
+/** Translate validated batches; completed entries are checkpointed between requests. */
+internal suspend fun translateChapterInBatches(
+    chapterPath: String, document: EditorDocument, alreadyTranslated: Map<String, String> = emptyMap(),
+    request: suspend (String) -> String,
+    onCheckpoint: suspend (Map<String, String>) -> Unit = {},
+    onProgress: suspend (Int, Int) -> Unit = { _, _ -> },
+): ImportedTranslationOverlay {
+    val entries = document.entries.filter { it.sourceJapanese.isNotBlank() }
+    val valid = entries.mapTo(hashSetOf()) { it.locator }
+    val results = alreadyTranslated.filter { (key, value) -> key in valid && value.isNotBlank() }.toMutableMap()
+    val parts = mutableMapOf<String, MutableList<String>>()
+    val batches = planTranslationBatches(entries, results)
+    onProgress(results.size, entries.size)
+    for (batch in batches) {
+        coroutineContext.ensureActive()
+        val translated = batch.parse(request(batch.requestText()))
+        for ((i, piece) in batch.pieces.withIndex()) {
+            val targetParts = parts.getOrPut(piece.locator) { mutableListOf() }
+            require(targetParts.size == piece.index) { "Translation fragments are out of order." }
+            val prefix = piece.text.takeWhile { it.isWhitespace() }
+            val suffix = piece.text.takeLastWhile { it.isWhitespace() }
+            var next = prefix + translated[i] + suffix
+            if (targetParts.isNotEmpty() && targetParts.last().lastOrNull()?.isLetterOrDigit() == true &&
+                next.firstOrNull()?.isLetterOrDigit() == true) next = " " + next
+            targetParts += next
+            if (targetParts.size == piece.total) {
+                results[piece.locator] = targetParts.joinToString("")
+                parts.remove(piece.locator)
+            }
+        }
+        onCheckpoint(results.toMap())
+        onProgress(results.size, entries.size)
+    }
+    require(parts.isEmpty() && results.size == entries.size) { "Google returned an incomplete chapter translation." }
+    return translationOverlay(chapterPath, document, results)
+}
+
 internal suspend fun translateWithGoogle(
     chapterPath: String, document: EditorDocument, languages: TranslationLanguages,
     alreadyTranslated: Map<String, String> = emptyMap(),
@@ -160,22 +248,12 @@ internal suspend fun translateWithGoogle(
     onProgress: suspend (Int, Int) -> Unit,
 ): ImportedTranslationOverlay = withContext(Dispatchers.IO) {
     languages.validate()
-    translateChapterReference(chapterPath, document, alreadyTranslated = alreadyTranslated,
+    var previousRequest = false
+    translateChapterInBatches(chapterPath, document, alreadyTranslated = alreadyTranslated,
         onCheckpoint = onCheckpoint, onProgress = onProgress,
-        translate = { entry ->
-            val pieces = splitForGoogle(entry)
-            val translatedEntry = StringBuilder()
-            for ((index, piece) in pieces.withIndex()) {
-                coroutineContext.ensureActive()
-                val prefix = piece.takeWhile { it.isWhitespace() }
-                val suffix = piece.takeLastWhile { it.isWhitespace() }
-                val source = piece.trim()
-                if (source.isEmpty()) { translatedEntry.append(piece); continue }
-                val translated = googleTextWithBackoff(onRetry) { requestGoogleText(source, languages) }
-                translatedEntry.append(prefix).append(translated).append(suffix)
-                if (index < pieces.lastIndex && suffix.isEmpty() && pieces[index + 1].firstOrNull()?.isWhitespace() == false) translatedEntry.append(' ')
-                delay(1000)
-            }
-            translatedEntry.toString()
+        request = { text ->
+            if (previousRequest) delay(1000)
+            previousRequest = true
+            googleTextWithBackoff(onRetry) { requestGoogleText(text, languages) }
         })
 }
