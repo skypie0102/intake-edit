@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.21**.
+Current application version: **0.15.22**.
 
 ## Workspace sections
 
@@ -60,9 +60,9 @@ SDLXLIFF whole-XHTML imports preserve translatable block order across `h1`, `h2`
 
 ## Machine translation reference
 
-In a chapter, tap the **Machine Translation** button on the bottom bar. The app detects the source language automatically and translates it into English using the Google Translate web service. This is an unofficial integration and does not require an API key. It sends chapter text to Google and needs a network connection. Service changes and rate limiting can interrupt translation.
+In a chapter, tap the **Translation reference** button on the bottom bar, then choose **Import Translation** or **Machine Translation**. Machine Translation detects the source language automatically and translates it into English using the Google Translate web service. This is an unofficial integration and does not require an API key. It sends chapter text to Google and needs a network connection. The app spaces requests out, honors retry guidance, and saves completed entries if a rate limit or connection error interrupts translation; retrying resumes the chapter. Google may still rate-limit or change the service.
 
-The first complete translation is saved locally for the project, chapter, and source revision. Tap the button again to hide it; tap once more to restore the saved result without sending a new request. An imported XLIFF reference remains separate. Use the import and Machine Translation buttons to switch between them. Machine translations are references and do not change the English fields until explicitly applied.
+The first complete translation is saved locally for the project, chapter, and source revision. Open the translation reference dialog and choose Hide; choose Show saved translation to restore it without sending a new request. An imported XLIFF reference remains separate and can be selected in the same dialog. Machine translations are references and do not change the English fields until explicitly applied.
 
 ## Chapter draft safety
 

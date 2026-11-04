@@ -98,9 +98,9 @@ class TranslationImportStore(context: Context) {
         }.getOrNull()
     }
 
-    fun delete(path: String, machine: Boolean = false): Boolean {
-        AtomicFile(file(path, machine)).delete()
-        return !file(path, machine).exists()
+    fun delete(path: String, machine: Boolean = false, machineKey: String? = null): Boolean {
+        AtomicFile(file(path, machine, machineKey)).delete()
+        return !file(path, machine, machineKey).exists()
     }
 }
 

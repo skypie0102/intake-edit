@@ -8,7 +8,10 @@ import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 import java.net.URL
 import java.net.URLEncoder
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import javax.net.ssl.HttpsURLConnection
+import kotlin.coroutines.coroutineContext
 
 internal data class TranslationLanguages(val source: String = "auto", val target: String = "en") {
     val normalizedSource: String get() = source.trim().lowercase()
@@ -38,21 +41,24 @@ internal fun machineCacheKey(settings: RepoSettings, languages: TranslationLangu
     listOf(settings.owner.trim().lowercase(), settings.repo.trim().lowercase(), settings.branch.trim(),
         settings.intakeRoot.trim('/'), languages.normalizedSource, languages.normalizedTarget).joinToString("|")
 
-/** Produce the entire reference in memory; callers persist it only after every batch succeeds. */
+/** Retain completed entries after an interruption; publish a reference only after all succeed. */
 internal suspend fun translateChapterReference(
     chapterPath: String,
     document: EditorDocument,
     translate: suspend (String) -> String,
-    onProgress: (Int, Int) -> Unit = { _, _ -> },
+    alreadyTranslated: Map<String, String> = emptyMap(),
+    onCheckpoint: suspend (Map<String, String>) -> Unit = {},
+    onProgress: suspend (Int, Int) -> Unit = { _, _ -> },
 ): ImportedTranslationOverlay {
     val results = linkedMapOf<String, String>()
-    for ((index, entry) in document.entries.withIndex()) {
-        if (entry.sourceJapanese.isNotBlank()) {
-            val text = translate(entry.sourceJapanese)
-            require(text.isNotBlank()) { "No translation returned for ${entry.locator}." }
-            results[entry.locator] = text
-        }
-        onProgress(index + 1, document.entries.size)
+    val entries = document.entries.filter { it.sourceJapanese.isNotBlank() }
+    for ((index, entry) in entries.withIndex()) {
+        val saved = alreadyTranslated[entry.locator]?.takeIf { it.isNotBlank() }
+        val text = saved ?: translate(entry.sourceJapanese)
+        require(text.isNotBlank()) { "No translation returned for ${entry.locator}." }
+        results[entry.locator] = text
+        if (saved == null) onCheckpoint(results.toMap())
+        onProgress(index + 1, entries.size)
     }
     return translationOverlay(chapterPath, document, results)
 }
@@ -81,7 +87,7 @@ internal fun parseGoogleTranslation(response: String): String {
     }
 }
 
-internal fun splitForGoogle(text: String, limit: Int = 3500): List<String> {
+internal fun splitForGoogle(text: String, limit: Int = 400): List<String> {
     require(limit > 0)
     val parts = mutableListOf<String>()
     var start = 0
@@ -97,50 +103,79 @@ internal fun splitForGoogle(text: String, limit: Int = 3500): List<String> {
     return parts
 }
 
-/** Requests one entry at a time so source-to-result alignment is never inferred. */
+/** Honor the server's Retry-After and never retry sooner than our backoff. */
+internal fun googleRetryDelayMillis(retryAfter: String?, attempt: Int, nowMillis: Long): Long? {
+    val exponential = 3_000L shl attempt.coerceIn(0, 2)
+    val serverMillis = retryAfter?.trim()?.let { value ->
+        value.toLongOrNull()?.coerceAtLeast(0)?.coerceAtMost(86_400)?.times(1000)
+            ?: runCatching { (ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() - nowMillis).coerceAtLeast(0) }.getOrNull()
+    } ?: 0L
+    val wait = maxOf(exponential, serverMillis)
+    return wait.takeIf { it <= 30_000L }
+}
+
+internal class GoogleRateLimit(val retryAfter: String?) : Exception()
+
+private fun requestGoogleText(source: String, languages: TranslationLanguages): String {
+    val query = listOf("client" to "gtx", "sl" to languages.normalizedSource,
+        "tl" to languages.normalizedTarget, "dt" to "t", "q" to source)
+        .joinToString("&") { (key, value) -> URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8") }
+    val connection = URL("https://translate.googleapis.com/translate_a/single?$query").openConnection() as HttpsURLConnection
+    try {
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 20_000
+        connection.readTimeout = 60_000
+        connection.setRequestProperty("Accept", "application/json")
+        val status = connection.responseCode
+        if (status == 429) throw GoogleRateLimit(connection.getHeaderField("Retry-After"))
+        if (status !in 200..299) error("Google Translate returned HTTP $status. Check your connection or try again later.")
+        val response = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        return parseGoogleTranslation(response).also { require(it.isNotBlank()) { "Google returned an empty translation." } }
+    } finally { connection.disconnect() }
+}
+
+internal suspend fun googleTextWithBackoff(
+    onRetry: suspend (Long) -> Unit, request: suspend () -> String,
+): String {
+    for (attempt in 0..3) {
+        coroutineContext.ensureActive()
+        try { return request() } catch (limited: GoogleRateLimit) {
+            val wait = googleRetryDelayMillis(limited.retryAfter, attempt, System.currentTimeMillis())
+            if (attempt == 3 || wait == null) {
+                error("Google Translate is rate-limiting this connection (HTTP 429). Try again later; completed entries are saved.")
+            }
+            onRetry(wait)
+            delay(wait)
+        }
+    }
+    error("Google Translate could not complete the request.")
+}
+
+/** Requests entries separately, respecting rate limits and saving progress between entries. */
 internal suspend fun translateWithGoogle(
     chapterPath: String, document: EditorDocument, languages: TranslationLanguages,
-    onProgress: (Int, Int) -> Unit,
+    alreadyTranslated: Map<String, String> = emptyMap(),
+    onCheckpoint: suspend (Map<String, String>) -> Unit = {},
+    onRetry: suspend (Long) -> Unit = {},
+    onProgress: suspend (Int, Int) -> Unit,
 ): ImportedTranslationOverlay = withContext(Dispatchers.IO) {
     languages.validate()
-    val results = linkedMapOf<String, String>()
-    val entries = document.entries.filter { it.sourceJapanese.isNotBlank() }
-    for ((index, entry) in entries.withIndex()) {
-        coroutineContext.ensureActive()
-        val pieces = splitForGoogle(entry.sourceJapanese)
-        val translatedEntry = StringBuilder()
-        for ((partIndex, piece) in pieces.withIndex()) {
-            coroutineContext.ensureActive()
-            val prefix = piece.takeWhile { it.isWhitespace() }
-            val suffix = piece.takeLastWhile { it.isWhitespace() }
-            val source = piece.trim()
-            if (source.isEmpty()) { translatedEntry.append(piece); continue }
-            val body = listOf("client" to "gtx", "sl" to languages.normalizedSource,
-                "tl" to languages.normalizedTarget, "dt" to "t", "q" to source)
-                .joinToString("&") { (key, value) ->
-                    URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
-                }.toByteArray(Charsets.UTF_8)
-            val connection = URL("https://translate.google.co.in/translate_a/single").openConnection() as HttpsURLConnection
-            try {
-                connection.requestMethod = "POST"
-                connection.connectTimeout = 20_000
-                connection.readTimeout = 60_000
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
-                connection.setRequestProperty("Accept", "application/json")
-                connection.outputStream.use { it.write(body) }
-                val status = connection.responseCode
-                if (status !in 200..299) error("Google Translate returned HTTP $status. Check your connection or try again later.")
-                val response = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-                val translated = parseGoogleTranslation(response)
-                require(translated.isNotBlank()) { "Google returned no translation for ${entry.locator}." }
+    translateChapterReference(chapterPath, document, alreadyTranslated = alreadyTranslated,
+        onCheckpoint = onCheckpoint, onProgress = onProgress,
+        translate = { entry ->
+            val pieces = splitForGoogle(entry)
+            val translatedEntry = StringBuilder()
+            for ((index, piece) in pieces.withIndex()) {
+                coroutineContext.ensureActive()
+                val prefix = piece.takeWhile { it.isWhitespace() }
+                val suffix = piece.takeLastWhile { it.isWhitespace() }
+                val source = piece.trim()
+                if (source.isEmpty()) { translatedEntry.append(piece); continue }
+                val translated = googleTextWithBackoff(onRetry) { requestGoogleText(source, languages) }
                 translatedEntry.append(prefix).append(translated).append(suffix)
-                if (partIndex < pieces.lastIndex && suffix.isEmpty() && pieces[partIndex + 1].firstOrNull()?.isWhitespace() == false) translatedEntry.append(' ')
-            } finally { connection.disconnect() }
-            if (partIndex < pieces.lastIndex || index != entries.lastIndex) delay(300)
-        }
-        results[entry.locator] = translatedEntry.toString()
-        withContext(Dispatchers.Main) { onProgress(index + 1, entries.size) }
-    }
-    translationOverlay(chapterPath, document, results)
+                if (index < pieces.lastIndex && suffix.isEmpty() && pieces[index + 1].firstOrNull()?.isWhitespace() == false) translatedEntry.append(' ')
+                delay(1000)
+            }
+            translatedEntry.toString()
+        })
 }

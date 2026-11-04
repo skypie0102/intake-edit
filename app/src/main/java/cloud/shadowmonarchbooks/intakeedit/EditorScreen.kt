@@ -122,6 +122,7 @@ internal fun EditorScreen(
     var showCommit by remember { mutableStateOf(false) }
     var showApprove by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
+    var showTranslationChoices by remember { mutableStateOf(false) }
     var showRemoveAllConfirm by remember { mutableStateOf(false) }
     var editorNotice by remember { mutableStateOf<String?>(null) }
     var jumpLocator by remember { mutableStateOf<String?>(null) }
@@ -188,14 +189,32 @@ internal fun EditorScreen(
 
     fun beginMachineTranslation() {
         val chapter = current
+        val partialKey = "$machineKey|incomplete"
         scope.launch {
             importBusy = true
             editorNotice = "Translating with Google…"
             try {
-                val overlay = translateWithGoogle(chapter.file.path, chapter.document, languages) { done, total ->
-                    editorNotice = "Machine translation: $done/$total entries"
+                val partial = withContext(Dispatchers.IO) {
+                    importStore.load(chapter.file.path, chapter.document.sourceSha256, machine = true, machineKey = partialKey)
                 }
-                val saved = withContext(Dispatchers.IO) { importStore.save(overlay, machine = true, machineKey = machineKey) }
+                val overlay = translateWithGoogle(chapter.file.path, chapter.document, languages,
+                    alreadyTranslated = partial?.translations.orEmpty(),
+                    onCheckpoint = { entries ->
+                        val saved = importStore.save(translationOverlay(chapter.file.path, chapter.document, entries), machine = true, machineKey = partialKey)
+                        check(saved) { "Could not save translation progress locally." }
+                    },
+                    onRetry = { wait -> withContext(Dispatchers.Main) {
+                        editorNotice = "Google is limiting requests; retrying in ${wait / 1000} seconds…"
+                    } },
+                    onProgress = { done, total -> withContext(Dispatchers.Main) {
+                        editorNotice = "Machine translation: $done/$total entries"
+                    } },
+                )
+                val saved = withContext(Dispatchers.IO) {
+                    val success = importStore.save(overlay, machine = true, machineKey = machineKey)
+                    if (success) importStore.delete(chapter.file.path, machine = true, machineKey = partialKey)
+                    success
+                }
                 check(saved) { "Could not save the machine translation locally." }
                 machineTranslation = overlay
                 useMachine = true
@@ -204,7 +223,7 @@ internal fun EditorScreen(
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                editorNotice = error.message ?: "Machine translation failed. Check your connection and try again."
+                editorNotice = error.message ?: "Machine translation failed. Progress is saved; try again later."
             } finally {
                 importBusy = false
             }
@@ -594,43 +613,8 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
                     }
                 }
-                IconButton(
-                    onClick = {
-                        if (importedFile != null && !useMachine) {
-                            showRemoveImportConfirm = true
-                        } else if (importedFile != null) {
-                            useMachine = false
-                            onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, false)
-                        } else {
-                            focusManager.clearFocus(force = true)
-                            importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*"))
-                        }
-                    },
-                    enabled = !busy && !importBusy,
-                ) {
-                    Icon(if (importedFile != null && !useMachine) Icons.Default.DeleteOutline else Icons.Default.UploadFile,
-                        if (importedFile != null && !useMachine) "Remove imported translation" else if (importedFile != null) "Show imported translation" else "Import translation")
-                }
-                IconButton(
-                    onClick = {
-                        when (nextMachineAction(useMachine, machineTranslation != null)) {
-                            MachineToggle.HIDE -> {
-                                useMachine = false
-                                onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, false)
-                                editorNotice = "Machine translation hidden. Tap again to restore it."
-                            }
-                            MachineToggle.RESTORE -> {
-                                useMachine = true
-                                onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, true)
-                                editorNotice = "Restored the saved machine translation."
-                            }
-                            MachineToggle.TRANSLATE -> beginMachineTranslation()
-                        }
-                    },
-                    enabled = !busy && !importBusy,
-                ) {
-                    Icon(if (useMachine) Icons.Default.DeleteOutline else Icons.Default.Translate,
-                        if (useMachine) "Hide machine translation" else "Machine Translation")
+                IconButton(onClick = { showTranslationChoices = true }, enabled = !busy && !importBusy) {
+                    Icon(Icons.Default.Translate, "Translation reference")
                 }
                 Spacer(Modifier.weight(1f))
                 Button(
@@ -639,6 +623,53 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) { Text(primaryCommitLabel) }
             }
         }
+    }
+
+    if (showTranslationChoices) {
+        AlertDialog(
+            onDismissRequest = { showTranslationChoices = false },
+            title = { Text("Translation reference") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Import Translation", fontWeight = FontWeight.Bold)
+                    Text(if (importedFile == null) "Select an XLIFF file." else importedFile!!.fileName, style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            showTranslationChoices = false
+                            if (importedFile != null) {
+                                useMachine = false
+                                onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, false)
+                            } else {
+                                focusManager.clearFocus(force = true)
+                                importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*"))
+                            }
+                        }) { Text(if (importedFile == null) "Choose file" else if (!useMachine) "Showing" else "Show import") }
+                        if (importedFile != null) TextButton(onClick = {
+                            showTranslationChoices = false; showRemoveImportConfirm = true
+                        }) { Text("Remove") }
+                    }
+                    Text("Machine Translation", fontWeight = FontWeight.Bold)
+                    Text(if (machineTranslation == null) "Translate online with Google." else "A saved translation is available.", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = {
+                        showTranslationChoices = false
+                        when (nextMachineAction(useMachine, machineTranslation != null)) {
+                            MachineToggle.HIDE -> {
+                                useMachine = false
+                                onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, false)
+                                editorNotice = "Machine translation hidden. Show it again without another request."
+                            }
+                            MachineToggle.RESTORE -> {
+                                useMachine = true
+                                onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, true)
+                                editorNotice = "Restored the saved machine translation."
+                            }
+                            MachineToggle.TRANSLATE -> beginMachineTranslation()
+                        }
+                    }) { Text(if (useMachine) "Hide" else if (machineTranslation != null) "Show saved translation" else "Translate with Google") }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showTranslationChoices = false }) { Text("Close") } },
+        )
     }
 
     if (showFilters) {
