@@ -15,8 +15,10 @@ import java.time.ZoneId
 class TranslationPetWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         render(context, manager, appWidgetIds)
-        scheduleNextDay(context)
-        schedulePetProjectSync(context)
+        if (!isRigOnlyPreview(context)) {
+            scheduleNextDay(context)
+            schedulePetProjectSync(context)
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -34,22 +36,26 @@ class TranslationPetWidget : AppWidgetProvider() {
     companion object {
         internal const val ACTION_OPEN_CHAPTER = "cloud.shadowmonarchbooks.intakeedit.OPEN_NEXT_CHAPTER"
         private const val ACTION_REFRESH = "cloud.shadowmonarchbooks.intakeedit.PET_WIDGET_REFRESH"
+        private fun isRigOnlyPreview(context: Context) = BuildConfig.DEBUG && context.packageName == RIG_PREVIEW_PACKAGE
 
         internal fun refreshAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, TranslationPetWidget::class.java))
             if (ids.isEmpty()) return
             render(context, manager, ids)
-            scheduleNextDay(context)
+            if (!isRigOnlyPreview(context)) scheduleNextDay(context)
         }
 
         private fun render(context: Context, manager: AppWidgetManager, ids: IntArray) {
+            if (isRigOnlyPreview(context)) {
+                renderMood(context, manager, ids, readRigDemoMood(context) ?: PetMood.WAITING)
+                return
+            }
             val settings = SettingsStore(context).load()
             val token = SecureTokenStore(context).load()
             val snapshot = PetProjectCache(context).get(settings, token)
             val count = snapshot?.completed
-            val demoMood = readRigDemoMood(context)
-            if (count == null && demoMood == null) {
+            if (count == null) {
                 val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_CHAPTER),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 for (id in ids) {
@@ -62,7 +68,10 @@ class TranslationPetWidget : AppWidgetProvider() {
                 }
                 return
             }
-            val mood = demoMood ?: PetStore(context).status(settings, requireNotNull(count)).mood
+            renderMood(context, manager, ids, PetStore(context).status(settings, count).mood)
+        }
+
+        private fun renderMood(context: Context, manager: AppWidgetManager, ids: IntArray, mood: PetMood) {
             val message = when (mood) {
                 PetMood.NEW -> "Ready for a chapter!"
                 PetMood.HAPPY -> "Fed today!"

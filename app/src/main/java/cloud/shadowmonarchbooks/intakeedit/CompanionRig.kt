@@ -21,6 +21,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -33,7 +34,7 @@ internal fun thinkingArmCoordinates(progress: Float): FloatArray {
 }
 
 @Composable
-internal fun AnimatedBookSpirit(mood: PetMood, description: String) {
+internal fun AnimatedBookSpirit(mood: PetMood, description: String, size: Dp = 110.dp) {
     val assets = companionRigAssets(mood)
     val thought = remember(mood) { Animatable(0f) }
     var blinking by remember(mood) { mutableStateOf(false) }
@@ -55,7 +56,7 @@ internal fun AnimatedBookSpirit(mood: PetMood, description: String) {
             blinking = false
         }
     }
-    Box(Modifier.size(110.dp).semantics { contentDescription = "Companion: $description" }) {
+    Box(Modifier.size(size).semantics { contentDescription = "Companion: $description" }) {
         // The face, eyes and monocle share one pivot. The book never moves.
         Box(Modifier.fillMaxSize().graphicsLayer {
             transformOrigin = TransformOrigin(.5f, 178f / 310f)
@@ -68,7 +69,10 @@ internal fun AnimatedBookSpirit(mood: PetMood, description: String) {
         if (mood == PetMood.WAITING) ThinkingArm(thought.value)
         else Image(painterResource(assets.rightArm), contentDescription = null, modifier = Modifier.fillMaxSize())
         Image(painterResource(R.drawable.companion_rig_book), contentDescription = null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(assets.symbol), contentDescription = null, modifier = Modifier.fillMaxSize())
+        if (mood == PetMood.WAITING) {
+            Image(painterResource(assets.symbol), contentDescription = null,
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = thought.value })
+        }
     }
 }
 
@@ -79,7 +83,8 @@ private fun ThinkingArm(progress: Float) {
         val path = Path().apply {
             moveTo(v[0], v[1]); cubicTo(v[2], v[3], v[4], v[5], v[6], v[7])
             cubicTo(v[8], v[9], v[10], v[11], v[12], v[13])
-            cubicTo(v[14], v[15], v[16], v[17], v[18], v[19]); close()
+            cubicTo(v[14], v[15], v[16], v[17], v[18], v[19])
+            lineTo(v[18], 325f); lineTo(303f, 325f); close()
         }
         val sx = size.width / 310f
         val sy = size.height / 310f

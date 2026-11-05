@@ -39,13 +39,25 @@ internal fun RigPreviewPanel() {
             Text("Rig preview", style = MaterialTheme.typography.titleMedium)
             Text("Demo moods also update the preview widget. They do not change chapters or companion progress.")
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                AnimatedBookSpirit(mood, "${mood.name.lowercase()} preview")
+                AnimatedBookSpirit(mood, "${mood.name.lowercase()} preview", size = 220.dp)
             }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PetMood.entries.forEach { item ->
                     FilterChip(selected = mood == item, onClick = { select(item) }, label = { Text(item.name.lowercase().replaceFirstChar { it.titlecase() }) })
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RigOnlyPreviewScreen() {
+    Scaffold(topBar = { TopAppBar(title = { Text("Companion rig preview") }) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            RigPreviewPanel()
+            Text("Waiting includes the first thinking action. Other actions are still being developed.")
+            Text("Add Companion — Rig Preview from your launcher to check the widget.")
         }
     }
 }

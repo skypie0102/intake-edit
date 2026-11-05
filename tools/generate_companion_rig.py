@@ -27,8 +27,9 @@ def arm_path(progress):
     if not 0 <= progress <= 1:
         raise ValueError('arm progress must be between zero and one')
     v = [a + (b-a)*progress for a,b in zip(ARM_REST, ARM_THINK)]
-    return ('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
-            'C%.2f %.2f %.2f %.2f %.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f Z') % tuple(v)
+    return (('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
+             'C%.2f %.2f %.2f %.2f %.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f') % tuple(v)
+            + f' L{v[18]:.2f} 325 L303 325 Z')
 
 
 def scene(mood):
@@ -67,8 +68,12 @@ def parts(mood):
         blink = body_part([lids])
     arm = elements[-1]
     left, right = arm.get('d').split(' M',1)
-    left_node = deepcopy(arm); left_node.set('d',left)
-    right_node = deepcopy(arm); right_node.set('d','M'+right)
+    # Extend both limbs beneath the foreground book: no visible straight cutoff.
+    left_node = deepcopy(arm); left_node.set('d',left+' L201 325 L174 325 Z')
+    right_node = deepcopy(arm)
+    right_start = float(right.split()[0])
+    right_end = float(right.split()[-2])
+    right_node.set('d',f'M{right} L{right_end:g} 325 L{right_start:g} 325 Z')
     if mood == 'waiting': right_node.set('d',arm_path(0))
     return original, art, {'head':head, 'eyes':eyes, 'blink':blink,
                            'left_arm':body_part([left_node]), 'right_arm':body_part([right_node]),
@@ -76,7 +81,7 @@ def parts(mood):
                            'book':[deepcopy(x) for x in list(art)[1:7]]}
 
 
-def svg_for(mood, selected, progress=0, blinking=False):
+def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False):
     original, art, layers = parts(mood)
     root = svg_root(original)
     for part in selected:
@@ -88,6 +93,13 @@ def svg_for(mood, selected, progress=0, blinking=False):
             arm = deepcopy(layers[part])
             arm[0][0].set('d',arm_path(progress))
             root.append(arm)
+        elif part == 'symbol' and show_symbol:
+            for node in layers[part]: root.append(deepcopy(node))
+        elif part == 'symbol' and progress > 0 and mood == 'waiting':
+            marker = ET.SubElement(root, N+'g', {'opacity':f'{progress:.2f}'})
+            for node in layers[part]: marker.append(deepcopy(node))
+        elif part == 'symbol':
+            continue  # Symbols appear only with their corresponding actions.
         elif isinstance(layers[part], list):
             for node in layers[part]: root.append(deepcopy(node))
         else:
@@ -103,7 +115,7 @@ def generate():
     OUTPUT.mkdir(parents=True,exist_ok=True)
     for mood in MOODS:
         for part in PARTS:
-            write_vector(OUTPUT/f'companion_rig_{mood}_{part}.xml',svg_for(mood,[part]))
+            write_vector(OUTPUT/f'companion_rig_{mood}_{part}.xml',svg_for(mood,[part],show_symbol=part == 'symbol'))
         indices = range(len(POSES)) if mood == 'waiting' else (0, 3)
         for i in indices:
             amount = POSES[i]

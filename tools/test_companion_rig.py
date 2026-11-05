@@ -26,6 +26,23 @@ class RigTest(unittest.TestCase):
         self.assertIn('M364 139', ET.tostring(new['symbol'][0], encoding='unicode'))
         self.assertIn('M352 161', ET.tostring(waiting['symbol'][0], encoding='unicode'))
 
+    def test_waiting_smiles_and_symbol_only_appears_during_thinking(self):
+        _, _, layers = rig.parts('waiting')
+        head = ET.tostring(layers['head'], encoding='unicode')
+        self.assertIn('M242 245 Q252 251 262 245', head)
+        idle = rig.svg_for('waiting', ['symbol'], progress=0)
+        thinking = rig.svg_for('waiting', ['symbol'], progress=1)
+        self.assertNotIn('M352 161', idle)
+        self.assertIn('M352 161', thinking)
+
+    def test_arms_extend_behind_book_in_every_mood(self):
+        for mood in rig.MOODS:
+            with self.subTest(mood=mood):
+                _, _, layers = rig.parts(mood)
+                for arm in ('left_arm', 'right_arm'):
+                    self.assertIn('325', ET.tostring(layers[arm], encoding='unicode'))
+        self.assertIn('325', rig.arm_path(1))
+
     def test_single_limb_moves_and_returns_to_rest(self):
         self.assertEqual(rig.POSES[0], 0)
         self.assertEqual(rig.POSES[-1], 0)

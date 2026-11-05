@@ -82,6 +82,10 @@ class MainActivity : ComponentActivity() {
     private var widgetOpenRequest by mutableStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.DEBUG && packageName == RIG_PREVIEW_PACKAGE) {
+            setContent { IntakeEditTheme { RigOnlyPreviewScreen() } }
+            return
+        }
         val launchPreferences = getSharedPreferences("app_launch", MODE_PRIVATE)
         val firstLaunch = if (savedInstanceState == null && !launchPreferences.getBoolean("launched", false)) {
             val packageInfo = packageManager.getPackageInfo(packageName, 0)
@@ -91,8 +95,7 @@ class MainActivity : ComponentActivity() {
         widgetOpenRequest = savedInstanceState?.getInt("widgetOpenRequest") ?: 0
         if (savedInstanceState == null && intent?.action == TranslationPetWidget.ACTION_OPEN_CHAPTER) widgetOpenRequest++
         TranslationPetWidget.refreshAll(this)
-        val showInitialSettings = firstLaunch && !(BuildConfig.DEBUG && BuildConfig.APPLICATION_ID == RIG_PREVIEW_PACKAGE)
-        setContent { IntakeEditTheme { IntakeAppShell(widgetOpenRequest, showInitialSettings) } }
+        setContent { IntakeEditTheme { IntakeAppShell(widgetOpenRequest, firstLaunch) } }
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("widgetOpenRequest", widgetOpenRequest)
