@@ -101,6 +101,47 @@ def parts(mood):
                            'book':[deepcopy(x) for x in list(art)[1:7]]}
 
 
+def smooth(value):
+    value = max(0, min(1, value))
+    return value * value * (3 - 2 * value)
+
+
+def writing_pose(phase):
+    """Return reach and pen travel; the existing hand replaces its resting pose."""
+    reach = smooth((phase - .10) / .18) * smooth((.94 - phase) / .18)
+    writing = smooth((phase - .30) / .35)
+    return reach, writing
+
+
+def writing_arm(reach, writing):
+    # The same single limb morphs from the approved raised arm to the page.
+    start = (305,254, 318,247,324,231,327,220, 329,210,337,207,343,212,
+             352,220,346,232,341,241, 337,249,333,256,328,264)
+    end = (305,254, 316,258,325,260,333,267, 340,274,341,280,337,285,
+           334,290,327,296,321,296, 313,296,307,293,302,288)
+    vals = [a+(b-a)*reach for a,b in zip(start,end)]
+    # A small horizontal hand movement follows the writing tip.
+    for i in (14,16,18,20,22,24): vals[i] += 12*writing*reach
+    return ('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
+            'C%.2f %.2f %.2f %.2f %.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
+            'C%.2f %.2f %.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(vals + [((vals[24]+vals[0])/2)*(1-reach) + 296*reach, ((vals[25]+vals[1])/2)*(1-reach) + 270*reach, vals[0], vals[1]])
+
+
+def add_writing(root, phase, layer):
+    reach, writing = writing_pose(phase)
+    if layer == 'ink' and .3 <= phase < .9:
+        x, y = 296 + 12*writing, 315 - 3*writing
+        ET.SubElement(root, N+'path', {'d':f'M296 315 L{x:.2f} {y:.2f}',
+            'fill':'none','stroke':'#85617a','stroke-width':'2','stroke-linecap':'round'})
+    if layer == 'pen' and .20 < phase < .9:
+        # The shaft is held in the moving hand; its tip touches the new ink.
+        x, y = 296 + 12*writing, 315 - 3*writing
+        lift = 20 * (1-reach)
+        ET.SubElement(root, N+'path', {'d':f'M{x:.2f} {y-lift:.2f} L{x+18:.2f} {y-30-lift:.2f}',
+            'fill':'none','stroke':'#654e70','stroke-width':'4','stroke-linecap':'round'})
+        ET.SubElement(root, N+'circle', {'cx':f'{x:.2f}','cy':f'{y-lift:.2f}','r':'1.3','fill':'#a98458'})
+
+
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
@@ -110,12 +151,25 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             group = ET.SubElement(root,N+'g',{'transform':transform})
             group.append(deepcopy(layers['head']))
             group.append(deepcopy(layers['blink' if blinking else 'eyes']))
+        elif part == 'ink' and mood == 'happy' and phase is not None:
+            add_writing(root, phase, 'ink')
+        elif part == 'pen' and mood == 'happy' and phase is not None:
+            add_writing(root, phase, 'pen')
+        elif part == 'right_arm' and mood == 'happy' and phase is not None:
+            arm = deepcopy(layers[part])
+            reach, writing = writing_pose(phase)
+            arm[0][0].set('d', writing_arm(reach, writing))
+            root.append(arm)
         elif part == 'right_arm' and mood == 'waiting' and progress:
             arm = deepcopy(layers[part])
             arm[0][0].set('d',arm_path(progress))
             root.append(arm)
         elif part == 'symbol' and show_symbol:
             for node in layers[part]: root.append(deepcopy(node))
+        elif part == 'symbol' and mood == 'happy' and phase is not None:
+            if .66 <= phase < .82:
+                for node in layers['symbol']:
+                    root.append(deepcopy(node))
         elif part == 'symbol' and mood == 'new' and phase is not None:
             # Draw the approved exclamation only while he greets the viewer.
             if .34 <= phase < .8:
