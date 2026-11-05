@@ -32,7 +32,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 ## Validation and rollout
 
 - [ ] Review every state and transition on light and dark backgrounds, in motion and at actual device/widget size; check clipping, flicker, snapping, jitter, prop contact and repetition.
-- [ ] Test app and launcher behavior, resizing, sleep/resume and multiple widgets; record device, launcher, performance and known limitations. **In progress:** the preview widget frame interval now matches the duration of the 96-frame pack when sampled into 16 frames. Launcher playback, reduced motion, resizing and power use remain unverified.
+- [ ] Test app and launcher behavior, resizing, sleep/resume and multiple widgets; record device, launcher, performance and known limitations. **In progress:** the preview widget samples each normal mood into 16 frames at its authored duration. Happy divides those slots between writing and page turning and plays each at a shortened pace. Launcher playback, reduced motion, resizing and power use remain unverified.
 - [ ] Preserve the existing project, feeding, progress and chapter-opening behavior. Keep preview and production separate until the revamp is accepted.
 - [ ] Update this tracker with implementation and review evidence as work lands.
 

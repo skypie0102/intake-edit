@@ -10,6 +10,15 @@ internal fun nextTransitionFrame(frame: Int, frameCount: Int): Int {
     return (frame + 1) % frameCount
 }
 
+/** Select evenly spaced widget poses; Happy can divide its slots between actions. */
+internal fun widgetPose(slot: Int, slots: Int, frameCount: Int, hasPageTurn: Boolean): Pair<Boolean, Int> {
+    require(slots > 0 && slot in 0 until slots && frameCount >= slots && frameCount % slots == 0)
+    if (!hasPageTurn) return false to (slot * frameCount / slots)
+    require(slots % 2 == 0)
+    val perAction = slots / 2
+    return (slot >= perAction) to ((slot % perAction) * frameCount / perAction)
+}
+
 /** Preview-only timing. Idle frames stay ahead of the first scripted action. */
 internal class RigPreviewTimeline(
     private val frameCount: Int,

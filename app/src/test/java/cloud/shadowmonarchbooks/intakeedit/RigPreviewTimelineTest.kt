@@ -5,6 +5,17 @@ import org.junit.Test
 import kotlin.random.Random
 
 class RigPreviewTimelineTest {
+    @Test fun widgetIncludesBothActionsWithoutAddingSlots() {
+        val normal = (0 until 16).map { widgetPose(it, 16, 96, false) }
+        assertTrue(normal.all { !it.first })
+        assertEquals(listOf(0, 6, 12, 18), normal.take(4).map { it.second })
+        val mixed = (0 until 16).map { widgetPose(it, 16, 96, true) }
+        assertTrue(mixed.take(8).all { !it.first })
+        assertTrue(mixed.drop(8).all { it.first })
+        assertEquals(listOf(0, 12, 24, 36, 48, 60, 72, 84), mixed.take(8).map { it.second })
+        assertEquals(mixed.take(8).map { it.second }, mixed.drop(8).map { it.second })
+    }
+
     @Test fun happyAlternatesWritingAndPageTurningWithoutLosingIdle() {
         val timeline = RigPreviewTimeline(96, Random(14), allowPageTurn = true)
         val actions = mutableListOf<Boolean>()

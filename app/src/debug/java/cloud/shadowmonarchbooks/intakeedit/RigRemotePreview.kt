@@ -139,8 +139,14 @@ internal object RigRemoteFrames {
         } else {
             views.setViewVisibility(R.id.pet_widget_static, android.view.View.INVISIBLE)
             views.setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
+            val hasPageTurn = mood == PetMood.HAPPY && pack.pageTurn.size == frames.size && frameViews.size % 2 == 0
+            // The widget has 16 slots. Split them between both Happy actions,
+            // retaining a readable pace without allocating additional bitmaps.
+            val baseInterval = (pack.frameMs * frames.size / frameViews.size).toInt()
+            views.setInt(R.id.pet_widget_portrait, "setFlipInterval", if (hasPageTurn) baseInterval * 4 / 3 else baseInterval)
             frameViews.forEachIndexed { index, view ->
-                views.setImageViewBitmap(view, bitmap(frames[index * frames.size / frameViews.size]))
+                val (page, pose) = widgetPose(index, frameViews.size, frames.size, hasPageTurn)
+                views.setImageViewBitmap(view, bitmap(if (page) pack.pageTurn[pose] else frames[pose]))
             }
         }
         return true
