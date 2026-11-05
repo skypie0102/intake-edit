@@ -1,6 +1,7 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -17,6 +18,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun TranslationPetCard() {
@@ -100,6 +103,32 @@ private fun AnimatedBookSpirit(mood: PetMood, description: String) {
         animationSpec = infiniteRepeatable(tween(duration + 500), RepeatMode.Reverse), label = "tilt")
     val breathe by transition.animateFloat(initialValue = .98f, targetValue = 1.02f,
         animationSpec = infiniteRepeatable(tween(duration + 250), RepeatMode.Reverse), label = "breathe")
+    val gestureX = remember(mood) { Animatable(0f) }
+    val gestureY = remember(mood) { Animatable(0f) }
+    val gestureTilt = remember(mood) { Animatable(0f) }
+    LaunchedEffect(mood) {
+        while (true) {
+            delay(kotlin.random.Random.nextLong(6500L, 10500L))
+            val direction = if (kotlin.random.Random.nextBoolean()) 1f else -1f
+            val energetic = mood == PetMood.HAPPY
+            val subdued = mood == PetMood.HUNGRY || mood == PetMood.SAD
+            val sideways = if (subdued) 1.5f else if (energetic) 5f else 3f
+            val lift = if (energetic) -6f else if (subdued) 1.5f else -2f
+            val turn = if (subdued) 2f else if (energetic) 6f else 4f
+            val speed = if (subdued) 1100 else 650
+            coroutineScope {
+                launch { gestureX.animateTo(direction * sideways, tween(speed)) }
+                launch { gestureY.animateTo(lift, tween(speed)) }
+                launch { gestureTilt.animateTo(direction * turn, tween(speed)) }
+            }
+            delay(if (energetic) 150 else 300)
+            coroutineScope {
+                launch { gestureX.animateTo(0f, tween(speed)) }
+                launch { gestureY.animateTo(0f, tween(speed)) }
+                launch { gestureTilt.animateTo(0f, tween(speed)) }
+            }
+        }
+    }
     var blinking by remember(mood) { mutableStateOf(false) }
     LaunchedEffect(mood) {
         while (true) {
@@ -122,8 +151,9 @@ private fun AnimatedBookSpirit(mood: PetMood, description: String) {
     }
     Image(painterResource(image), contentDescription = "Companion: $description",
         modifier = Modifier.size(110.dp).graphicsLayer {
-            translationY = bob * density
-            rotationZ = tilt
+            translationX = gestureX.value * density
+            translationY = (bob + gestureY.value) * density
+            rotationZ = tilt + gestureTilt.value
             scaleX = breathe
             scaleY = breathe
         })

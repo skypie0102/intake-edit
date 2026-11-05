@@ -79,13 +79,15 @@ class TranslationPetWidget : AppWidgetProvider() {
                     listOf(R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2,
                         R.id.pet_widget_frame_3, R.id.pet_widget_frame_4, R.id.pet_widget_frame_5,
                         R.id.pet_widget_frame_6, R.id.pet_widget_frame_7, R.id.pet_widget_frame_8,
-                        R.id.pet_widget_frame_9, R.id.pet_widget_frame_10).forEach { setImageViewResource(it, portrait) }
+                        R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
+                        R.id.pet_widget_frame_12, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15)
+                        .forEach { setImageViewResource(it, portrait) }
                     val blink = when (status.mood) {
                         PetMood.HAPPY -> R.drawable.book_spirit_happy_blink
                         PetMood.NEW, PetMood.WAITING -> R.drawable.book_spirit_waiting_blink
                         else -> portrait
                     }
-                    setImageViewResource(R.id.pet_widget_frame_11, blink)
+                    setImageViewResource(R.id.pet_widget_frame_13, blink)
                     setContentDescription(R.id.pet_widget_portrait, "Companion: $message")
                     setOnClickPendingIntent(R.id.pet_widget_root, open)
                 }
