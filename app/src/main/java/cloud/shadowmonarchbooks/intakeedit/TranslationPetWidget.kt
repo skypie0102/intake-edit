@@ -62,12 +62,12 @@ class TranslationPetWidget : AppWidgetProvider() {
                 return
             }
             val status = PetStore(context).status(settings, count)
-            val (portrait, message) = when (status.mood) {
-                PetMood.NEW -> R.drawable.book_spirit_waiting to "Ready for a chapter!"
-                PetMood.HAPPY -> R.drawable.book_spirit_happy to "Fed today!"
-                PetMood.WAITING -> R.drawable.book_spirit_waiting to "Time to feed me!"
-                PetMood.HUNGRY -> R.drawable.book_spirit_hungry to "I'm hungry..."
-                PetMood.SAD -> R.drawable.book_spirit_sad to "I miss you..."
+            val message = when (status.mood) {
+                PetMood.NEW -> "Ready for a chapter!"
+                PetMood.HAPPY -> "Fed today!"
+                PetMood.WAITING -> "Time to feed me!"
+                PetMood.HUNGRY -> "I'm hungry..."
+                PetMood.SAD -> "I miss you..."
             }
             val open = PendingIntent.getActivity(
                 context, 0, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_CHAPTER),
@@ -76,18 +76,13 @@ class TranslationPetWidget : AppWidgetProvider() {
             for (id in ids) {
                 val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
                     setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
-                    listOf(R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2,
+                    val frameViews = listOf(R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2,
                         R.id.pet_widget_frame_3, R.id.pet_widget_frame_4, R.id.pet_widget_frame_5,
                         R.id.pet_widget_frame_6, R.id.pet_widget_frame_7, R.id.pet_widget_frame_8,
-                        R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
-                        R.id.pet_widget_frame_12, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15)
-                        .forEach { setImageViewResource(it, portrait) }
-                    val blink = when (status.mood) {
-                        PetMood.HAPPY -> R.drawable.book_spirit_happy_blink
-                        PetMood.NEW, PetMood.WAITING -> R.drawable.book_spirit_waiting_blink
-                        else -> portrait
+                        R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11)
+                    frameViews.zip(companionFrames(status.mood).asIterable()).forEach { (view, frame) ->
+                        setImageViewResource(view, frame)
                     }
-                    setImageViewResource(R.id.pet_widget_frame_13, blink)
                     setContentDescription(R.id.pet_widget_portrait, "Companion: $message")
                     setOnClickPendingIntent(R.id.pet_widget_root, open)
                 }

@@ -1,10 +1,6 @@
 package cloud.shadowmonarchbooks.intakeedit
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -12,14 +8,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun TranslationPetCard() {
@@ -86,75 +79,23 @@ internal fun TranslationPetCard() {
     }
 }
 
-internal fun petPortrait(mood: PetMood): Int = when (mood) {
-    PetMood.NEW, PetMood.WAITING -> R.drawable.book_spirit_waiting
-    PetMood.HAPPY -> R.drawable.book_spirit_happy
-    PetMood.HUNGRY -> R.drawable.book_spirit_hungry
-    PetMood.SAD -> R.drawable.book_spirit_sad
-}
-
 @Composable
 private fun AnimatedBookSpirit(mood: PetMood, description: String) {
-    val transition = rememberInfiniteTransition(label = "companion movement")
-    val duration = when (mood) { PetMood.HAPPY -> 1100; PetMood.WAITING, PetMood.NEW -> 1800; else -> 2800 }
-    val bob by transition.animateFloat(initialValue = 0f, targetValue = if (mood == PetMood.HAPPY) -7f else -3f,
-        animationSpec = infiniteRepeatable(tween(duration), RepeatMode.Reverse), label = "float")
-    val tilt by transition.animateFloat(initialValue = -1.8f, targetValue = 1.8f,
-        animationSpec = infiniteRepeatable(tween(duration + 500), RepeatMode.Reverse), label = "tilt")
-    val breathe by transition.animateFloat(initialValue = .98f, targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(tween(duration + 250), RepeatMode.Reverse), label = "breathe")
-    val gestureX = remember(mood) { Animatable(0f) }
-    val gestureY = remember(mood) { Animatable(0f) }
-    val gestureTilt = remember(mood) { Animatable(0f) }
+    val frames = companionFrames(mood)
+    var frame by remember(mood) { mutableIntStateOf(0) }
+    val interval = when (mood) {
+        PetMood.HAPPY -> 280L
+        PetMood.NEW, PetMood.WAITING -> 350L
+        PetMood.HUNGRY -> 450L
+        PetMood.SAD -> 500L
+    }
     LaunchedEffect(mood) {
         while (true) {
-            delay(kotlin.random.Random.nextLong(6500L, 10500L))
-            val direction = if (kotlin.random.Random.nextBoolean()) 1f else -1f
-            val energetic = mood == PetMood.HAPPY
-            val subdued = mood == PetMood.HUNGRY || mood == PetMood.SAD
-            val sideways = if (subdued) 1.5f else if (energetic) 5f else 3f
-            val lift = if (energetic) -6f else if (subdued) 1.5f else -2f
-            val turn = if (subdued) 2f else if (energetic) 6f else 4f
-            val speed = if (subdued) 1100 else 650
-            coroutineScope {
-                launch { gestureX.animateTo(direction * sideways, tween(speed)) }
-                launch { gestureY.animateTo(lift, tween(speed)) }
-                launch { gestureTilt.animateTo(direction * turn, tween(speed)) }
-            }
-            delay(if (energetic) 150 else 300)
-            coroutineScope {
-                launch { gestureX.animateTo(0f, tween(speed)) }
-                launch { gestureY.animateTo(0f, tween(speed)) }
-                launch { gestureTilt.animateTo(0f, tween(speed)) }
-            }
+            delay(interval)
+            frame = (frame + 1) % frames.size
         }
     }
-    var blinking by remember(mood) { mutableStateOf(false) }
-    LaunchedEffect(mood) {
-        while (true) {
-            delay(kotlin.random.Random.nextLong(3200L, 5400L))
-            blinking = true
-            delay(150)
-            blinking = false
-            if (mood == PetMood.HAPPY && kotlin.random.Random.nextInt(3) == 0) {
-                delay(130)
-                blinking = true
-                delay(150)
-                blinking = false
-            }
-        }
+    Crossfade(targetState = frame, animationSpec = tween(100), label = "companion idle") { index ->
+        Image(painterResource(frames[index]), contentDescription = "Companion: $description", modifier = Modifier.size(110.dp))
     }
-    val image = when {
-        blinking && mood == PetMood.HAPPY -> R.drawable.book_spirit_happy_blink
-        blinking && (mood == PetMood.NEW || mood == PetMood.WAITING) -> R.drawable.book_spirit_waiting_blink
-        else -> petPortrait(mood)
-    }
-    Image(painterResource(image), contentDescription = "Companion: $description",
-        modifier = Modifier.size(110.dp).graphicsLayer {
-            translationX = gestureX.value * density
-            translationY = (bob + gestureY.value) * density
-            rotationZ = tilt + gestureTilt.value
-            scaleX = breathe
-            scaleY = breathe
-        })
 }
