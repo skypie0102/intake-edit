@@ -151,18 +151,10 @@ def add_writing(root, phase, layer):
             'fill':'none','stroke':'#85617a','stroke-width':'2','stroke-linecap':'round','stroke-linejoin':'round'})
     if layer == 'pen' and .15 < phase < .94:
         x, y = pen_position(reach, writing)
-        # The shaft passes through the fingers, which are layered above it.
+        # The shaft follows the existing hand as it moves.
         ET.SubElement(root, N+'path', {'d':f'M{x:.2f} {y:.2f} L{x+21:.2f} {y-38:.2f}',
             'fill':'none','stroke':'#654e70','stroke-width':'4','stroke-linecap':'round'})
         ET.SubElement(root, N+'circle', {'cx':f'{x:.2f}','cy':f'{y:.2f}','r':'1.3','fill':'#a98458'})
-    if layer == 'grip' and .20 < phase < .90:
-        x, y = pen_position(reach, writing)
-        # A small thumb and finger belong to this hand and sit in front of the pen.
-        ET.SubElement(root, N+'path', {
-            'd':f'M{x+7:.2f} {y-15:.2f} Q{x+9:.2f} {y-20:.2f} {x+13:.2f} {y-20:.2f} '
-                f'Q{x+17:.2f} {y-20:.2f} {x+17:.2f} {y-16:.2f} '
-                f'Q{x+16:.2f} {y-12:.2f} {x+12:.2f} {y-12:.2f}',
-            'fill':'#dfd2f1','stroke':'#705c87','stroke-width':'2','stroke-linecap':'round','stroke-linejoin':'round'})
 
 
 def happy_focus(phase):
@@ -206,7 +198,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(deepcopy(layers['blink' if blinking else 'eyes']))
         elif part == 'ink' and mood == 'happy' and phase is not None:
             add_writing(root, phase, 'ink')
-        elif part in ('pen', 'grip') and mood == 'happy' and phase is not None:
+        elif part == 'pen' and mood == 'happy' and phase is not None:
             add_writing(root, phase, part)
         elif part == 'right_arm' and mood == 'happy' and phase is not None:
             arm = deepcopy(layers[part])

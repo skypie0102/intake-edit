@@ -38,8 +38,8 @@ class PreviewPackTest(unittest.TestCase):
             self.assertEqual(rig.pen_position(1, t), rig.ink_point(t))
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         writing = pack['moods']['happy'][24]
-        # The grip is drawn after the shaft and the existing arm.
-        self.assertGreater(writing.rfind('stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'), writing.find('#654e70'))
+        # No additional skin-coloured finger shape is introduced.
+        self.assertNotIn('fill="#dfd2f1" stroke="#705c87" stroke-width="2"', writing)
 
     def test_happy_looks_down_and_changes_expression_while_writing(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())

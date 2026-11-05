@@ -25,7 +25,7 @@ def generate():
             t = frame / FRAME_COUNT
             phase = t if t < .94 else 0
             amount = interpolate(rig.POSES if mood == 'waiting' else rig.GREETING_POSES, t) if mood in ('waiting', 'new') else 0
-            layers = (['head_group', 'left_arm', 'book', 'ink', 'pen', 'right_arm', 'grip', 'symbol']
+            layers = (['head_group', 'left_arm', 'book', 'ink', 'pen', 'right_arm', 'symbol']
                       if mood == 'happy' else ['head_group', 'left_arm', 'right_arm', 'book', 'symbol'])
             frames.append(rig.svg_for(mood, layers,
                 progress=amount, blinking=frame in (9,), phase=phase if mood in ('waiting', 'new', 'happy') else None))
