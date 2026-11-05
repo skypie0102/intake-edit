@@ -111,14 +111,15 @@ def smooth(value):
 def writing_pose(phase):
     """Return reach and pen travel; the existing hand replaces its resting pose."""
     reach = smooth((phase - .10) / .18) * smooth((.94 - phase) / .18)
-    writing = smooth((phase - .30) / .40)
+    # Two strokes with a short pause to consider the words between them.
+    writing = .5 * smooth((phase - .30) / .16) + .5 * smooth((phase - .52) / .18)
     return reach, writing
 
 
 def writing_arm(reach, writing):
-    # The same single limb morphs from the approved raised arm to the page.
-    start = (305,254, 318,247,324,231,327,220, 329,210,337,207,343,212,
-             352,220,346,232,341,241, 337,249,333,256,328,264)
+    # The same single limb starts at the book and reaches toward the page.
+    start = (305,254, 308,250,314,247,321,247, 330,248,335,253,334,262,
+             334,266,332,270,330,272, 322,275,312,268,305,254)
     end = (305,254, 316,258,325,260,333,267, 340,274,341,280,337,285,
            334,290,327,296,321,296, 313,296,307,293,302,288)
     vals = [a+(b-a)*reach for a,b in zip(start,end)]
@@ -164,8 +165,8 @@ def happy_focus(phase):
     return smooth((phase - .08) / .18) * smooth((.84 - phase) / .16)
 
 
-def happy_facial_layers(layers, focus, blinking):
-    head = deepcopy(layers['head'])
+def happy_facial_layers(layers, focus, blinking, idle_phase=None):
+    head = waiting_head(layers, idle_phase) if idle_phase is not None else deepcopy(layers['head'])
     eyes = deepcopy(layers['blink' if blinking else 'eyes'])
     for node in head[0]:
         path = node.get('d', '')
@@ -330,13 +331,14 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             float_y = -1.2 * math.sin(2 * math.pi * idle_phase) if mood == 'new' and idle_phase is not None else 0
             transform = (f'translate(0 {-7*progress + 20*reading + float_y:.2f}) rotate({7*reading:.2f} 252 270)' if mood == 'new' and idle_phase is not None
                          else f'translate(0 {-7*progress:.2f})' if mood == 'new'
+                         else f'translate(0 {-1.4*math.sin(2*math.pi*idle_phase):.2f}) rotate({2*focus:.2f} 252 270)' if mood == 'happy' and idle_phase is not None
                          else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
                          else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
                          else f'translate(0 {-1.2*breath:.2f}) rotate({1.5*progress:.2f} 252 270)' if mood == 'waiting' and phase is not None
                          else f'rotate({1.5*progress + 2*focus:.2f} 252 270)')
             group = ET.SubElement(root,N+'g',{'transform':transform})
             if mood == 'happy' and phase is not None:
-                head, eyes = happy_facial_layers(layers, focus, blinking)
+                head, eyes = happy_facial_layers(layers, focus, blinking, idle_phase)
                 group.append(head)
                 group.append(eyes)
             elif mood == 'hungry' and phase is not None:
@@ -452,7 +454,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                     ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'186.5', 'r':'2.5', 'fill':'#dcc2ec'})
         elif part == 'symbol':
             continue  # Symbols appear only with their corresponding actions.
-        elif part == 'book' and mood in ('waiting', 'new') and phase is not None and (mood == 'waiting' or idle_phase is not None):
+        elif part == 'book' and mood in ('waiting', 'new', 'happy') and phase is not None and (mood == 'waiting' or idle_phase is not None):
             nodes = deepcopy(layers[part])
             _, ribbon = waiting_follow_through(idle_phase if idle_phase is not None else phase)
             # Rotate only the ribbon, behind the stable book, around its hidden attachment.

@@ -25,7 +25,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 
 - [ ] **New:** read with head and eyes lowered, scanning the page left to right and back; lift his head and center his gaze toward the viewer; show surprise and the exclamation mark together; switch directly to a smile as the mark disappears; wave, lower his hand and return to reading. **In progress:** this sequence is implemented in the preview; user feedback and device review remain open.
 - [ ] **Waiting:** read, look puzzled, and retain the sequential dots and question mark; use the polished idle as the basis for other states.
-- [ ] **Happy:** look at the page, write several strokes with pauses and a longer mark, then smile with twinkling stars. Keep the pen aligned with the hand and writing; do not add a finger grip.
+- [ ] **Happy:** look at the page, write several strokes with pauses and a longer mark, then smile with twinkling stars. Keep the pen aligned with the hand and writing; do not add a finger grip. **In progress:** the preview adds a longer writing sequence with a pause between strokes, a resting hand, blinking and tuft/bookmark movement; user and device review remain open.
 - [ ] **Hungry:** retain a weary, downturned expression; imagine steaming food and settle with a gentle sigh. Do not introduce a smile.
 - [ ] **Sad:** retreat toward the book and occasionally glance up; use the tear sparingly.
 
