@@ -10,6 +10,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:autoStart="true"
+        android:inAnimation="@animator/companion_frame_no_fade"
+        android:outAnimation="@animator/companion_frame_no_fade"
+        android:animateFirstView="false"
         android:flipInterval="83"
         android:visibility="invisible"
         android:contentDescription="@string/pet_widget_description">
