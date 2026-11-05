@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    # Documentation and this workflow alone do not change the APK version.
+    paths-ignore:
+      - '*.md'
+      - '**/*.md'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -152,3 +157,4 @@ jobs:
           files: |
             intake-edit-${{ env.RELEASE_TAG }}.apk
             intake-edit-${{ env.RELEASE_TAG }}.apk.sha256
+
