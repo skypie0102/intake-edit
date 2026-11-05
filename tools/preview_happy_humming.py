@@ -25,8 +25,8 @@ def make_frame(t):
     looking = bell(t, .025, .09, .30, .10) + bell(t, .87, .08, 1.0, .08)
     singing = bell(t, .23, .10, .83, .10)
     lift = rig.smooth((t - .16) / .13) * rig.smooth((.91 - t) / .13)
-    # A slow, small head tilt; fades into the rest pose at both ends.
-    tilt = 2.0 * math.sin(2 * math.pi * (t - .28) * 2.1) * singing
+    # A visible, unhurried side-to-side tilt that eases into and out of the humming.
+    tilt = 5.0 * math.sin(2 * math.pi * (t - .28) * 2.1) * singing
     motion_phase = t if 0 < t < 1 else 0
     root = ET.fromstring(rig.svg_for('happy', ['head_group', 'left_arm', 'book', 'right_arm'],
         phase=0, idle_phase=motion_phase, view_box='92 87 320 320',
@@ -41,12 +41,12 @@ def make_frame(t):
     tongue = next(x for x in head[0][0] if x.get('fill') == '#ef9eaa')
     hum = singing * (.5 + .5*math.sin(2 * math.pi * (t-.30) * 4.0))
     a = (239,239,252,245,265,239,263,257,252,258,241,257,239,239)
-    b = (246,241,252,242,258,241,258,251,252,253,246,251,246,241)
+    b = (244,240,252,238,260,240,260,254,252,257,244,254,244,240)
     v = [x+(y-x)*hum for x,y in zip(a,b)]
     mouth.set('d', ('M%.2f %.2f Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(v))
     tongue.set('opacity', f'{1-hum:.3f}')
     # Two notes, independently timed, enter gently and float upward.
-    for start, x, y, scale in ((.34, 352, 203, .85), (.57, 370, 197, .72)):
+    for start, x, y, scale in ((.34, 350, 202, 1.25), (.57, 369, 197, 1.10)):
         duration = .19
         local = (t-start)/duration
         if 0 < local < 1:
