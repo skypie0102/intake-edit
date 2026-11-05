@@ -27,5 +27,17 @@
         <ImageView android:id="@+id/pet_widget_frame_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_09" />
         <ImageView android:id="@+id/pet_widget_frame_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_10" />
         <ImageView android:id="@+id/pet_widget_frame_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_11" />
+        <ImageView android:id="@+id/pet_widget_frame_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_12" />
+        <ImageView android:id="@+id/pet_widget_frame_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_13" />
+        <ImageView android:id="@+id/pet_widget_frame_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_14" />
+        <ImageView android:id="@+id/pet_widget_frame_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_15" />
+        <ImageView android:id="@+id/pet_widget_frame_16" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_16" />
+        <ImageView android:id="@+id/pet_widget_frame_17" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_17" />
+        <ImageView android:id="@+id/pet_widget_frame_18" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_18" />
+        <ImageView android:id="@+id/pet_widget_frame_19" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_19" />
+        <ImageView android:id="@+id/pet_widget_frame_20" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_20" />
+        <ImageView android:id="@+id/pet_widget_frame_21" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_21" />
+        <ImageView android:id="@+id/pet_widget_frame_22" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_22" />
+        <ImageView android:id="@+id/pet_widget_frame_23" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_23" />
     </ViewFlipper>
 </FrameLayout>

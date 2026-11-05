@@ -76,10 +76,14 @@ class TranslationPetWidget : AppWidgetProvider() {
             for (id in ids) {
                 val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
                     setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
-                    val frameViews = listOf(R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2,
-                        R.id.pet_widget_frame_3, R.id.pet_widget_frame_4, R.id.pet_widget_frame_5,
-                        R.id.pet_widget_frame_6, R.id.pet_widget_frame_7, R.id.pet_widget_frame_8,
-                        R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11)
+                    val frameViews = listOf(
+                        R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2, R.id.pet_widget_frame_3,
+                        R.id.pet_widget_frame_4, R.id.pet_widget_frame_5, R.id.pet_widget_frame_6, R.id.pet_widget_frame_7,
+                        R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
+                        R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
+                        R.id.pet_widget_frame_16, R.id.pet_widget_frame_17, R.id.pet_widget_frame_18, R.id.pet_widget_frame_19,
+                        R.id.pet_widget_frame_20, R.id.pet_widget_frame_21, R.id.pet_widget_frame_22, R.id.pet_widget_frame_23,
+                    )
                     frameViews.zip(companionFrames(status.mood).asIterable()).forEach { (view, frame) ->
                         setImageViewResource(view, frame)
                     }
