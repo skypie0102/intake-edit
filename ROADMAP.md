@@ -41,7 +41,7 @@ The approved transition switches immediately to the selected mood with a brief b
 
 Detailed acting, pacing, and sequencing are in the [idle-animation design](docs/COMPANION_IDLE_ANIMATIONS.md). Implement and visually review one sequence at a time, beginning with Happy humming; retain the shared reading, writing, and page-turning actions.
 
-- [ ] Happy: humming to himself; delighted by a passage.
+- [ ] Happy: humming to himself; delighted by a passage. **In progress:** a standalone humming preview is ready for visual review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); it is not yet integrated into app or widget playback.
 - [ ] Waiting: searching for his place; quietly thinking.
 - [ ] Hungry: distracted by food; stomach rumble.
 - [ ] Sad: losing focus; comforting himself with the book.
