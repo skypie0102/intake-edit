@@ -35,7 +35,7 @@ def generate():
             layers = (['head_group', 'left_arm', 'book', 'ink', 'pen', 'right_arm', 'symbol']
                       if mood == 'happy' else ['head_group', 'left_arm', 'right_arm', 'book', 'symbol'])
             frames.append(rig.svg_for(mood, layers,
-                progress=amount, blinking=frame in ((12, 13, 70, 71) if mood == 'waiting' else (25, 26, 77, 78) if mood == 'new' else (15, 16, 84, 85) if mood == 'happy' else (10, 11, 80, 81) if mood == 'hungry' else (15, 16, 84, 85)),
+                progress=amount, blinking=frame in ((12, 13, 70, 71, 75, 76) if mood == 'waiting' else (25, 26, 77, 78) if mood == 'new' else (15, 16, 84, 85) if mood == 'happy' else (10, 11, 80, 81) if mood == 'hungry' else (15, 16, 84, 85)),
                 phase=phase, idle_phase=t))
         moods[mood] = frames
     result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods}, separators=(',', ':')) + '\n'
@@ -46,3 +46,4 @@ def generate():
 
 if __name__ == '__main__':
     generate()
+

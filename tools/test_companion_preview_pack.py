@@ -56,15 +56,15 @@ class PreviewPackTest(unittest.TestCase):
         self.assertNotIn('M364 139', frames[25])
         self.assertIn('M364 139', frames[48])
         self.assertIn('rotate(0.00 313 341)', frames[0])
-        self.assertIn('rotate(23.59 313 341)', frames[12])
+        self.assertIn(f'rotate({rig.waiting_follow_through(.125)[1]:.2f} 313 341)', frames[12])
 
     def test_waiting_follow_through_loops_and_keeps_book_attached(self):
         for first, last in zip(rig.waiting_follow_through(0), rig.waiting_follow_through(1)):
             self.assertAlmostEqual(first, last, places=6)
         tuft, ribbon = rig.waiting_follow_through(.125)
-        self.assertAlmostEqual(tuft, 12)
-        self.assertGreater(ribbon, 20)
-        self.assertLess(ribbon, 26)
+        self.assertGreater(tuft, 10)
+        self.assertGreater(ribbon, 18)
+        self.assertLess(ribbon, 25)
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['waiting']
         self.assertIn('rotate(0.00 313 341)', frames[0])
         self.assertIn(f'rotate({ribbon:.2f} 313 341)', frames[12])
@@ -86,6 +86,15 @@ class PreviewPackTest(unittest.TestCase):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['waiting']
         self.assertIn('translate(0 3.00)', frames[20])
         self.assertIn('M352 161', frames[58])
+
+    def test_posture_shifts_and_recovers_for_each_mood(self):
+        for mood in rig.MOODS:
+            start = rig.idle_posture(mood, 0)
+            self.assertEqual(start, (0, 0))
+            self.assertEqual(rig.idle_posture(mood, 1), (0, 0))
+            self.assertLess(rig.idle_posture(mood, .22)[0], 0)
+            self.assertGreater(rig.idle_posture(mood, .60)[0], 0)
+        self.assertLess(rig.idle_posture('sad', .60)[0], rig.idle_posture('waiting', .60)[0])
 
     def test_pack_is_bundled_and_contains_safe_sized_vector_sequences(self):
         published = (ROOT / 'rig-preview/animation-pack.json').read_bytes()
@@ -177,3 +186,4 @@ class PreviewPackTest(unittest.TestCase):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         for mood in ('new', 'waiting'):
             self.assertGreater(len(set(pack['moods'][mood])), 10)
+

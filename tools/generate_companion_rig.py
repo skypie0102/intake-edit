@@ -247,10 +247,22 @@ def waiting_idle(phase):
 
 
 def waiting_follow_through(phase):
-    """Noticeable, smooth secondary motion with a neutral start and end."""
-    tuft = 12 * math.sin(4 * math.pi * phase)
-    ribbon = 18 * (math.sin(4 * math.pi * phase - .4) + math.sin(.4))
+    """Asymmetric secondary motion; both parts return to their attachment pose."""
+    tuft = 9 * math.sin(4 * math.pi * phase) + 3 * math.sin(2 * math.pi * phase)
+    ribbon = 14 * (math.sin(4 * math.pi * phase - .4) + math.sin(.4)) + 4 * math.sin(2 * math.pi * phase)
     return tuft, ribbon
+
+
+def idle_posture(mood, phase):
+    """A deliberate shift and recovery, quieter for the subdued moods.
+
+    A short anticipation precedes the main shift.  The eye and face remain
+    under the same head transform and the book stays stationary.
+    """
+    anticipation = smooth((phase - .13) / .10) * smooth((.33 - phase) / .10)
+    shift = smooth((phase - .32) / .18) * smooth((.87 - phase) / .20)
+    strength = {'new': .55, 'happy': 1.0, 'waiting': 1.0, 'hungry': .55, 'sad': .4}[mood]
+    return strength * (2.4 * shift - .8 * anticipation), strength * (2.5 * shift - .8 * anticipation)
 
 
 def waiting_head(layers, phase, strength=1):
@@ -339,6 +351,9 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                          else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
                          else f'translate(0 {-1.2*breath:.2f}) rotate({1.5*progress:.2f} 252 270)' if mood == 'waiting' and phase is not None
                          else f'rotate({1.5*progress + 2*focus:.2f} 252 270)')
+            if idle_phase is not None:
+                lean, shift_y = idle_posture(mood, idle_phase)
+                transform += f' translate(0 {shift_y:.2f}) rotate({lean:.2f} 252 270)'
             group = ET.SubElement(root,N+'g',{'transform':transform})
             if mood == 'happy' and phase is not None:
                 head, eyes = happy_facial_layers(layers, focus, blinking, idle_phase)
@@ -493,3 +508,4 @@ def generate():
 if __name__ == '__main__':
     generate()
     print('Generated companion rig parts and widget poses from the approved SVG.')
+

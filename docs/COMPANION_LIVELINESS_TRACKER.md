@@ -14,7 +14,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 
 - [ ] Use restrained idle movement so the character is present without constant bouncing.
 - [ ] Vary blink, glance, action and idle timing; provide a few spaced variations instead of synchronized repetition.
-- [ ] Lead actions with the eyes, followed by head and body; use anticipation, readable holds, recovery and follow-through.
+- [ ] Lead actions with the eyes, followed by head and body; use anticipation, readable holds, recovery and follow-through. **In progress:** all five preview moods have a small anticipatory posture shift and recovery; hungry and sad move less. Tuft and bookmark follow-through is less uniform, and Waiting has a spaced double blink. Sampled poses were reviewed on alternating light and dark backgrounds; 24 rig and pack checks passed. Full-motion and device review remain open.
 - [ ] Animate compatible transitions between moods, including when an action is interrupted; keep status changes responsive.
 - [ ] Keep eyes, eyelids, head/body, tuft, arms, book, pen, and bookmark independently controllable but connected; preserve pivots, attachment, overlaps and drawing order.
 - [ ] Explore restrained soft body deformation without warping the face or silhouette.
@@ -26,8 +26,8 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 - [ ] **New:** read with head and eyes lowered, scanning the page left to right and back; lift his head and center his gaze toward the viewer; show surprise and the exclamation mark together; switch directly to a smile as the mark disappears; wave, lower his hand and return to reading. **In progress:** this sequence is implemented in the preview; user feedback and device review remain open.
 - [ ] **Waiting:** read, look puzzled, and retain the sequential dots and question mark; use the polished idle as the basis for other states.
 - [ ] **Happy:** look at the page, write several strokes with pauses and a longer mark, then smile with twinkling stars. Keep the pen aligned with the hand and writing; do not add a finger grip. **In progress:** the preview adds a longer writing sequence with a pause between strokes, a resting hand, blinking and tuft/bookmark movement; user and device review remain open.
-- [ ] **Hungry:** retain a weary, downturned expression; imagine steaming food and settle with a gentle sigh. Do not introduce a smile. **In progress:** longer food-thought and sigh preview, with slower body, tuft and ribbon movement; sampled poses reviewed on a dark background; the 96-frame pack was regenerated and matched the published file, and 23 rig and pack checks passed. User, full-motion, light-background, and device review remain open.
-- [ ] **Sad:** retreat toward the book and occasionally glance up; use the tear sparingly. **In progress:** longer preview with a more visible upward glance, retreat, single tear, and softer tuft/bookmark movement; rendered poses reviewed, user and device review remain open.
+- [ ] **Hungry:** retain a weary, downturned expression; imagine steaming food and settle with a gentle sigh. Do not introduce a smile. **In progress:** longer food-thought and sigh preview, with slower body, tuft and ribbon movement; rendered poses reviewed, user and device review remain open.
+- [ ] **Sad:** retreat toward the book and occasionally glance up; use the tear sparingly. **In progress:** longer preview with a more visible upward glance, retreat, single tear, and softer tuft/bookmark movement; sampled poses reviewed on a dark background; the earlier 96-frame pack was regenerated and matched the published file. User and device review remain open.
 
 ## Validation and rollout
 
@@ -37,3 +37,4 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 - [ ] Update this tracker with implementation and review evidence as work lands.
 
 See [the animation revamp plan](COMPANION_ANIMATION_PLAN.md) for existing behavior, constraints and acceptance criteria.
+
