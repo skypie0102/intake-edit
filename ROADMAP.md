@@ -4,18 +4,21 @@ This roadmap tracks the current companion-animation revamp. Items are planned un
 
 ## Current priority: companion animation revamp
 
-The current public release is **v0.15.27**. The separate vector preview in [PR #47](https://github.com/skypie0102/intake-edit/pull/47) is a prototype, not an accepted fix: the user reported flickering, an extra arm while writing, and no visible preview widget entry. Do not merge it as the final animation implementation without resolving and validating those reports.
+The current public release is **v0.15.27**. The separate vector preview in [PR #47](https://github.com/skypie0102/intake-edit/pull/47) is a prototype, not an accepted fix: the user reported flickering and an extra arm while writing. The user later confirmed that its widget does appear under the preview app's different name. Do not merge the prototype as the final animation implementation without resolving and validating the animation reports.
 
 ### Phase 0 — reproduce and define the baseline
 
 - [ ] Reproduce flickering in the in-app companion and, separately, in a registered widget; record device, Android version, launcher, wallpaper, state, and whether the effect occurs at an action or frame boundary.
-- [ ] Verify the preview package's widget provider with Android's widget service and the actual launcher picker. Give the preview widget a distinct name and confirm it can be added beside the production widget.
+- [x] User confirmed that the earlier preview widget is discoverable under the preview app's name; the earlier missing-entry report was withdrawn.
+- [ ] Give the new rig preview widget a distinct name and verify it can be added beside the production widget; inspect provider and lifecycle behavior on the target launcher.
 - [ ] Capture the current vector art, mood thresholds, source-of-progress rules, widget appearance and navigation behavior as regression baselines.
 - [ ] Profile the current animation's APK size, frame rendering, memory, and background behavior; record measurements rather than assuming vectors are always cheaper.
 
 **Exit:** The reported issues can be reproduced or have a documented device-specific investigation, and the current behavior is recorded.
 
 ### Phase 1 — build the character rig and first action
+
+**In progress:** the user approved the five-state concept, including a new-state exclamation mark, waiting-state question mark, visible book pages, bookmark below the book, and a body hidden behind the book. The first rig/action is being prepared as a side-by-side preview; it is not yet device-approved.
 
 - [ ] Separate the approved SVG artwork into named, layered parts with stable pivots and attachment points for the head, eyes, monocle, arms, book, page, pen, and mood symbols.
 - [ ] Make each hand a single continuous limb; attach the monocle to the head and the pen to the writing hand. Define draw order and clipping against the book.
