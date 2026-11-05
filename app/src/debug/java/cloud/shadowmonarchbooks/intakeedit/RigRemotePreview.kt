@@ -128,7 +128,7 @@ internal object RigRemoteFrames {
         if (reducedMotion) {
             views.setImageViewBitmap(R.id.pet_widget_static, bitmap(frames.first()))
             views.setContentDescription(R.id.pet_widget_static, "Companion: ${mood.name.lowercase()}")
-            views.setViewVisibility(R.id.pet_widget_portrait, android.view.View.INVISIBLE)
+            views.setViewVisibility(R.id.pet_widget_portrait, android.view.View.GONE)
             views.setViewVisibility(R.id.pet_widget_static, android.view.View.VISIBLE)
         } else {
             views.setViewVisibility(R.id.pet_widget_static, android.view.View.INVISIBLE)
