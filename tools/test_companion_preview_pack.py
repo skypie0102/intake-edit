@@ -13,9 +13,13 @@ class PreviewPackTest(unittest.TestCase):
             self.assertAlmostEqual(glance, 0, places=6)
         self.assertGreater(rig.waiting_idle(.2)[1], .9)
         self.assertEqual(rig.waiting_idle(.5)[1], 0)
+        # The gaze takes close to a second to lower at the 83 ms frame rate.
+        self.assertLess(rig.waiting_idle(.08)[1], .3)
+        self.assertGreater(rig.waiting_idle(.16)[1], .99)
+        self.assertGreater(rig.waiting_idle(.25)[1], .9)
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['waiting']
-        self.assertIn('translate(0 3.00)', frames[10])
-        self.assertIn('M352 161', frames[30])
+        self.assertIn('translate(0 3.00)', frames[20])
+        self.assertIn('M352 161', frames[58])
 
     def test_pack_is_bundled_and_contains_safe_sized_vector_sequences(self):
         published = (ROOT / 'rig-preview/animation-pack.json').read_bytes()
@@ -25,8 +29,8 @@ class PreviewPackTest(unittest.TestCase):
         pack = json.loads(published)
         self.assertEqual(pack['format'], 1)
         self.assertEqual(set(pack['moods']), {'new', 'happy', 'waiting', 'hungry', 'sad'})
-        for frames in pack['moods'].values():
-            self.assertEqual(len(frames), 48)
+        for mood, frames in pack['moods'].items():
+            self.assertEqual(len(frames), 96 if mood == 'waiting' else 48)
             self.assertTrue(all(frame.startswith('<svg ') and len(frame) < 30_000 for frame in frames))
 
     def test_happy_writing_uses_one_hand_and_a_timed_pen(self):

@@ -4,9 +4,9 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 
 ## First pass: Waiting
 
-- [ ] Subtle breathing with a stable book and connected face, eyes and monocle. **In progress:** generated preview adds a gentle body rise and fall; visual and device review pending.
-- [ ] Blink naturally and vary pauses; avoid a predictable short loop.
-- [ ] Glance at the page, pause, and look up before the existing sequential thinking dots and drawn question mark. **In progress:** a page glance has been added to the generated preview; timing and visual review pending.
+- [ ] Subtle breathing with a stable book and connected face, eyes and monocle. **In progress:** generated preview adds a gentle body rise and fall; intermediate poses reviewed, device playback pending.
+- [ ] Blink naturally and vary pauses; avoid a predictable short loop. **In progress:** two blinks are spaced across the longer preview sequence; it still repeats deterministically.
+- [ ] Glance at the page, pause, and look up before the existing sequential thinking dots and drawn question mark. **In progress:** the gaze now lowers and returns more slowly, with a brief hold. The preview runs a longer sequence with reading time; intermediate poses were inspected on a dark background. Full-speed and device review remain open.
 - [ ] Add small posture shifts and delayed tuft and bookmark follow-through without visible detachment.
 - [ ] Review intermediate poses and playback at actual in-app and 2×2 widget sizes.
 

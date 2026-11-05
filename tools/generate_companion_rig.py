@@ -241,11 +241,11 @@ def sad_facial_layers(layers, glance, tear, blinking):
 def waiting_idle(phase):
     """A seamless, restrained breath and a glance toward the page."""
     breath = math.sin(2 * math.pi * phase)
-    glance = smooth((phase - .05) / .09) * smooth((.31 - phase) / .09)
+    glance = smooth((phase - .04) / .12) * smooth((.36 - phase) / .13)
     return breath, glance
 
 
-def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None):
+def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None, idle_phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
     for part in selected:
@@ -253,7 +253,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             focus = happy_focus(phase) if mood == 'happy' and phase is not None else 0
             look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None else (0, 0)
             glance, settle, tear = sad_action(phase) if mood == 'sad' and phase is not None else (0, 0, 0)
-            breath, page_glance = waiting_idle(phase) if mood == 'waiting' and phase is not None else (0, 0)
+            breath, page_glance = waiting_idle(idle_phase if idle_phase is not None else phase) if mood == 'waiting' and phase is not None else (0, 0)
             transform = (f'translate(0 {-7*progress:.2f})' if mood == 'new'
                          else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
                          else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
