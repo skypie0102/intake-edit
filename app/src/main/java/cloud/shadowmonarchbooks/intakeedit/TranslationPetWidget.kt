@@ -85,7 +85,7 @@ class TranslationPetWidget : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             for (id in ids) {
-                val layout = if (isRigOnlyPreview(context)) R.layout.translation_pet_widget else when (mood) {
+                val layout = when (mood) {
                     PetMood.NEW -> R.layout.companion_widget_new
                     PetMood.HAPPY -> R.layout.companion_widget_happy
                     PetMood.WAITING -> R.layout.companion_widget_waiting
@@ -94,19 +94,7 @@ class TranslationPetWidget : AppWidgetProvider() {
                 }
                 val views = RemoteViews(context.packageName, layout).apply {
                     setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
-                    if (isRigOnlyPreview(context)) {
-                        val frameViews = listOf(
-                            R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2, R.id.pet_widget_frame_3,
-                            R.id.pet_widget_frame_4, R.id.pet_widget_frame_5, R.id.pet_widget_frame_6, R.id.pet_widget_frame_7,
-                            R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
-                            R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
-                        )
-                        if (!RigRemoteFrames.apply(context, mood, this, frameViews)) {
-                            frameViews.zip(companionWidgetFrames(mood).asIterable()).forEach { (view, frame) ->
-                                setImageViewResource(view, frame)
-                            }
-                        }
-                    } else if (!ProductionWidgetFrames.apply(context, mood, this, id)) {
+                    if (!ProductionWidgetFrames.apply(context, mood, this, id)) {
                         setViewVisibility(R.id.pet_widget_portrait, android.view.View.GONE)
                         setViewVisibility(R.id.pet_widget_static, android.view.View.VISIBLE)
                         setImageViewResource(R.id.pet_widget_static, companionWidgetFrames(mood).first())
