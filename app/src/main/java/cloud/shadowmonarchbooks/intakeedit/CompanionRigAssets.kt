@@ -16,10 +16,10 @@ private val newRig = CompanionRigAssets(
 )
 
 private val newWidget = intArrayOf(
-    R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_03,
-    R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00,
-    R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00,
-    R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_00,
+    R.drawable.companion_widget_new_00, R.drawable.companion_widget_new_01, R.drawable.companion_widget_new_02, R.drawable.companion_widget_new_03,
+    R.drawable.companion_widget_new_04, R.drawable.companion_widget_new_05, R.drawable.companion_widget_new_06, R.drawable.companion_widget_new_07,
+    R.drawable.companion_widget_new_08, R.drawable.companion_widget_new_09, R.drawable.companion_widget_new_10, R.drawable.companion_widget_new_11,
+    R.drawable.companion_widget_new_12, R.drawable.companion_widget_new_13, R.drawable.companion_widget_new_14, R.drawable.companion_widget_new_15,
 )
 
 private val happyRig = CompanionRigAssets(

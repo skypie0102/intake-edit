@@ -1,6 +1,6 @@
 # Companion animation revamp plan
 
-Status: **in progress**. The user approved the five-state appearance; the first rig/action is under development and has not yet been validated on their device. Track the work and phase gates in the [repository roadmap](../ROADMAP.md).
+Status: **in progress**. The user approved the five-state appearance; the waiting thinking preview received a positive visual review; the new-state greeting preview is in progress. Device and launcher validation remains open. Track the work and phase gates in the [repository roadmap](../ROADMAP.md).
 
 ## Purpose and current evidence
 

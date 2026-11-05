@@ -56,7 +56,7 @@ internal fun RigOnlyPreviewScreen() {
     Scaffold(topBar = { TopAppBar(title = { Text("Companion rig preview") }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RigPreviewPanel()
-            Text("Waiting includes the first thinking action. Other actions are still being developed.")
+            Text("New includes a greeting; Waiting includes a thinking action. Other actions are still being developed.")
             Text("Add Companion — Rig Preview from your launcher to check the widget.")
         }
     }

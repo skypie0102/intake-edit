@@ -19,6 +19,7 @@ MOODS = ('new', 'happy', 'waiting', 'hungry', 'sad')
 PARTS = ('head', 'eyes', 'blink', 'left_arm', 'right_arm', 'symbol')
 POSES = (0, 0, .1, .3, .55, .8, 1, 1, 1, 1, 1, 1, 1, .9, .6, 0)
 PHASES = (0, .04, .09, .14, .19, .24, .29, .34, .40, .48, .56, .64, .72, .8, .9, 0)
+GREETING_POSES = (0, 0, .1, .3, .55, .8, 1, 1, 1, 1, 1, 1, .9, .65, .3, 0)
 DOTS = ((329, 207), (339, 195), (348, 181))
 QUESTION_CURVE = 'M352 161 Q348 152 352 144 Q356 136 367 137 Q381 138 382 150 Q382 160 369 166 Q363 169 364 176'
 
@@ -105,7 +106,8 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
     root = svg_root(original)
     for part in selected:
         if part == 'head_group':
-            group = ET.SubElement(root,N+'g',{'transform':f'rotate({1.5*progress:.2f} 252 270)'})
+            transform = f'translate(0 {-7*progress:.2f})' if mood == 'new' else f'rotate({1.5*progress:.2f} 252 270)'
+            group = ET.SubElement(root,N+'g',{'transform':transform})
             group.append(deepcopy(layers['head']))
             group.append(deepcopy(layers['blink' if blinking else 'eyes']))
         elif part == 'right_arm' and mood == 'waiting' and progress:
@@ -114,6 +116,15 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             root.append(arm)
         elif part == 'symbol' and show_symbol:
             for node in layers[part]: root.append(deepcopy(node))
+        elif part == 'symbol' and mood == 'new' and phase is not None:
+            # Draw the approved exclamation only while he greets the viewer.
+            if .34 <= phase < .8:
+                draw = max(0, min(1, (phase - .34) / .18))
+                if draw > 0:
+                    ET.SubElement(root, N+'path', {'d':f'M364 139 L364 {139 + 32*draw:.2f}',
+                        'fill':'none', 'stroke':'#dcc2ec', 'stroke-width':'6', 'stroke-linecap':'round'})
+                if phase >= .52:
+                    ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'185.5', 'r':'3', 'fill':'#dcc2ec'})
         elif part == 'symbol' and mood == 'waiting' and phase is not None:
             if phase < .85:
                 for index, (x, y) in enumerate(DOTS):
@@ -144,11 +155,11 @@ def generate():
     for mood in MOODS:
         for part in PARTS:
             write_vector(OUTPUT/f'companion_rig_{mood}_{part}.xml',svg_for(mood,[part],show_symbol=part == 'symbol'))
-        indices = range(len(POSES)) if mood == 'waiting' else (0, 3)
+        indices = range(len(POSES)) if mood in ('waiting', 'new') else (0, 3)
         for i in indices:
             amount = POSES[i]
-            progress = amount if mood == 'waiting' else 0
-            svg = svg_for(mood,['head_group','left_arm','right_arm','book','symbol'],progress,blinking=i==3,phase=PHASES[i] if mood == 'waiting' else None)
+            progress = amount if mood == 'waiting' else GREETING_POSES[i] if mood == 'new' else 0
+            svg = svg_for(mood,['head_group','left_arm','right_arm','book','symbol'],progress,blinking=i==3,phase=PHASES[i] if mood in ('waiting', 'new') else None)
             write_vector(OUTPUT/f'companion_widget_{mood}_{i:02d}.xml',svg)
     write_vector(OUTPUT/'companion_rig_book.xml',svg_for('waiting',['book']))
 

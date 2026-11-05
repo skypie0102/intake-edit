@@ -53,6 +53,19 @@ class RigTest(unittest.TestCase):
         self.assertEqual(len(circles(symbol(.72))), 4)
         self.assertEqual(len(circles(symbol(.9))), 0)
 
+    def test_new_greeting_peeks_and_shows_symbol_only_during_action(self):
+        idle = rig.svg_for('new', ['head_group', 'symbol'], progress=0, phase=0)
+        rising = rig.svg_for('new', ['head_group', 'symbol'], progress=1, phase=.48)
+        recovered = rig.svg_for('new', ['symbol'], phase=.9)
+        self.assertIn('translate(0 0.00)', idle)
+        self.assertIn('translate(0 -7.00)', rising)
+        self.assertNotIn('M364 139', idle)
+        self.assertIn('M364 139', rising)
+        self.assertNotIn('M364 139', recovered)
+        assets = (rig.ROOT / 'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/CompanionRigAssets.kt').read_text()
+        for frame in range(16):
+            self.assertIn(f'companion_widget_new_{frame:02d}', assets)
+
     def test_original_arm_shapes_are_lowered_toward_book(self):
         for mood in rig.MOODS:
             with self.subTest(mood=mood):

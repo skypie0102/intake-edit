@@ -41,7 +41,7 @@ internal fun AnimatedBookSpirit(mood: PetMood, description: String, size: Dp = 1
     val thought = remember(mood) { Animatable(0f) }
     var blinking by remember(mood) { mutableStateOf(false) }
     LaunchedEffect(mood) {
-        if (mood == PetMood.WAITING) {
+        if (mood == PetMood.WAITING || mood == PetMood.NEW) {
             while (true) {
                 delay(Random.nextLong(8000, 13000))
                 thought.animateTo(1f, tween(4000, easing = LinearEasing))
@@ -63,11 +63,17 @@ internal fun AnimatedBookSpirit(mood: PetMood, description: String, size: Dp = 1
         phase < .8f -> 1f
         else -> ((1f - phase) / .2f).coerceIn(0f, 1f)
     }
+    val peekAmount = if (mood == PetMood.NEW) when {
+        phase < .29f -> (phase / .29f).coerceIn(0f, 1f)
+        phase < .72f -> 1f
+        else -> ((1f - phase) / .28f).coerceIn(0f, 1f)
+    } else 0f
     Box(Modifier.size(size).semantics { contentDescription = "Companion: $description" }) {
         // The face, eyes and monocle share one pivot. The book never moves.
         Box(Modifier.fillMaxSize().graphicsLayer {
             transformOrigin = TransformOrigin(.5f, 178f / 310f)
-            rotationZ = armAmount * 1.5f
+            rotationZ = if (mood == PetMood.WAITING) armAmount * 1.5f else 0f
+            translationY = -size.toPx() * 7f / 310f * peekAmount
         }) {
             Image(painterResource(assets.head), contentDescription = null, modifier = Modifier.fillMaxSize())
             Image(painterResource(if (blinking) assets.blink else assets.eyes), contentDescription = null, modifier = Modifier.fillMaxSize())
@@ -76,9 +82,8 @@ internal fun AnimatedBookSpirit(mood: PetMood, description: String, size: Dp = 1
         if (mood == PetMood.WAITING) ThinkingArm(armAmount)
         else Image(painterResource(assets.rightArm), contentDescription = null, modifier = Modifier.fillMaxSize())
         Image(painterResource(R.drawable.companion_rig_book), contentDescription = null, modifier = Modifier.fillMaxSize())
-        if (mood == PetMood.WAITING) {
-            ThinkingSymbol(phase)
-        }
+        if (mood == PetMood.WAITING) ThinkingSymbol(phase)
+        if (mood == PetMood.NEW) GreetingSymbol(phase)
     }
 }
 
@@ -134,6 +139,23 @@ private fun ThinkingSymbol(phase: Float) {
                 drawPath(visible, ink, style = Stroke(width = 5f, cap = StrokeCap.Round))
             }
             if (phase >= .64f) drawCircle(ink, 2.5f, Offset(364f, 186.5f))
+        }
+    }
+}
+
+@Composable
+private fun GreetingSymbol(phase: Float) {
+    Canvas(Modifier.fillMaxSize()) {
+        if (phase < .34f || phase >= .8f) return@Canvas
+        withTransform({
+            scale(size.width / 310f, size.height / 310f, pivot = Offset.Zero)
+            translate(-97f, -92f)
+        }) {
+            val ink = Color(0xffdcc2ec)
+            val draw = ((phase - .34f) / .18f).coerceIn(0f, 1f)
+            if (draw > 0f) drawLine(ink, Offset(364f,139f), Offset(364f,139f + 32f * draw),
+                strokeWidth = 6f, cap = StrokeCap.Round)
+            if (phase >= .52f) drawCircle(ink, 3f, Offset(364f,185.5f))
         }
     }
 }
