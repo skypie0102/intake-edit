@@ -77,6 +77,19 @@ class PreviewPackTest(unittest.TestCase):
         self.assertIn('stroke="#b9905e"', looking_up)
         self.assertGreater(len(set(frames)), 15)
 
+    def test_sad_glance_and_single_timed_cheek_tear(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        frames = pack['moods']['sad']
+        rest, glance, tear, returned = frames[0], frames[18], frames[33], frames[-1]
+        self.assertIn('cy="223.00"', rest)
+        self.assertIn('cy="220.00"', glance)
+        self.assertIn('opacity="0.000"', rest)
+        self.assertIn('opacity="1.000"', tear)
+        self.assertIn('opacity="0.000"', returned)
+        self.assertNotIn('M293 230 C284 246', tear)
+        self.assertIn('stroke="#b9905e"', glance)
+        self.assertGreater(len(set(frames)), 15)
+
     def test_animator_has_intermediate_new_and_waiting_frames(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         for mood in ('new', 'waiting'):

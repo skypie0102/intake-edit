@@ -210,6 +210,34 @@ def hungry_facial_layers(layers, look, blinking):
     return head, eyes
 
 
+def sad_action(phase):
+    # A hesitant glance up, then a small retreat towards the book.
+    glance = smooth((phase - .12) / .20) * smooth((.62 - phase) / .17)
+    settle = smooth((phase - .57) / .14) * smooth((.94 - phase) / .17)
+    tear = smooth((phase - .51) / .10) * smooth((.86 - phase) / .13)
+    return glance, settle, tear
+
+
+def sad_facial_layers(layers, glance, tear, blinking):
+    head = deepcopy(layers['head'])
+    eyes = deepcopy(layers['blink' if blinking else 'eyes'])
+    for node in head[0]:
+        path = node.get('d', '')
+        if path.startswith('M215 231 C206 247'):
+            # A single cheek tear appears briefly, without covering the monocle.
+            node.set('d', path.split(' M293', 1)[0])
+            node.set('opacity', f'{tear:.3f}')
+            node.set('transform', f'translate(0 {3*tear:.2f})')
+        elif path.startswith('M211 207 Q222 212'):
+            node.set('d', f'M211 {207-2*glance:.2f} Q222 {212-2*glance:.2f} 232 205 '
+                          f'M271 205 Q281 {212-2*glance:.2f} 293 {207-2*glance:.2f}')
+    if not blinking:
+        for node in eyes[0]:
+            if node.tag in (N+'ellipse', N+'circle'):
+                node.set('cy', f'{float(node.get("cy"))-3*glance:.2f}')
+    return head, eyes
+
+
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
@@ -217,8 +245,10 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
         if part == 'head_group':
             focus = happy_focus(phase) if mood == 'happy' and phase is not None else 0
             look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None else (0, 0)
+            glance, settle, tear = sad_action(phase) if mood == 'sad' and phase is not None else (0, 0, 0)
             transform = (f'translate(0 {-7*progress:.2f})' if mood == 'new'
                          else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
+                         else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
                          else f'rotate({1.5*progress + 2*focus:.2f} 252 270)')
             group = ET.SubElement(root,N+'g',{'transform':transform})
             if mood == 'happy' and phase is not None:
@@ -227,6 +257,10 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(eyes)
             elif mood == 'hungry' and phase is not None:
                 head, eyes = hungry_facial_layers(layers, look, blinking)
+                group.append(head)
+                group.append(eyes)
+            elif mood == 'sad' and phase is not None:
+                head, eyes = sad_facial_layers(layers, glance, tear, blinking)
                 group.append(head)
                 group.append(eyes)
             else:
