@@ -245,6 +245,28 @@ def waiting_idle(phase):
     return breath, glance
 
 
+def waiting_follow_through(phase):
+    """Small cyclic offsets that lag behind the body's vertical motion."""
+    lag = math.sin(2 * math.pi * phase - .6) + math.sin(.6)
+    return 1.1 * lag, 1.2 * lag
+
+
+def waiting_head(layers, phase):
+    head = deepcopy(layers['head'])
+    tuft, _ = waiting_follow_through(phase)
+    silhouette = head[0][0]
+    path = silhouette.get('d')
+    original = 'C228 146 231 123 230 113 C250 132 254 142 253 148 C269 134 271 119 269 107 C285 120 288 136 286 153'
+    replacement = (f'C228 146 {231+tuft:.2f} 123 {230+tuft:.2f} 113 '
+                   f'C{250+tuft*.7:.2f} 132 254 142 253 148 '
+                   f'C269 134 {271+tuft:.2f} 119 {269+tuft:.2f} 107 '
+                   f'C{285+tuft*.7:.2f} 120 288 136 286 153')
+    if original not in path:
+        raise ValueError('Waiting silhouette no longer matches the approved tuft')
+    silhouette.set('d', path.replace(original, replacement, 1))
+    return head
+
+
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None, idle_phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
@@ -273,7 +295,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(head)
                 group.append(eyes)
             elif mood == 'waiting' and phase is not None:
-                group.append(deepcopy(layers['head']))
+                group.append(waiting_head(layers, idle_phase if idle_phase is not None else phase))
                 eyes = deepcopy(layers['blink' if blinking else 'eyes'])
                 if not blinking:
                     current = eyes[0].get('transform', '')
@@ -367,6 +389,12 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                     ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'186.5', 'r':'2.5', 'fill':'#dcc2ec'})
         elif part == 'symbol':
             continue  # Symbols appear only with their corresponding actions.
+        elif part == 'book' and mood == 'waiting' and phase is not None:
+            nodes = deepcopy(layers[part])
+            _, ribbon = waiting_follow_through(idle_phase if idle_phase is not None else phase)
+            # Rotate only the ribbon, behind the stable book, around its hidden attachment.
+            nodes[0].set('transform', f'rotate({ribbon:.2f} 313 341)')
+            for node in nodes: root.append(node)
         elif isinstance(layers[part], list):
             for node in layers[part]: root.append(deepcopy(node))
         else:
