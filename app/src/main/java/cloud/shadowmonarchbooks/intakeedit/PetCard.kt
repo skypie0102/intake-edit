@@ -1,15 +1,11 @@
 package cloud.shadowmonarchbooks.intakeedit
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -79,23 +75,3 @@ internal fun TranslationPetCard() {
     }
 }
 
-@Composable
-private fun AnimatedBookSpirit(mood: PetMood, description: String) {
-    val frames = companionFrames(mood)
-    var frame by remember(mood) { mutableIntStateOf(0) }
-    val interval = when (mood) {
-        PetMood.HAPPY -> 280L
-        PetMood.NEW, PetMood.WAITING -> 350L
-        PetMood.HUNGRY -> 450L
-        PetMood.SAD -> 500L
-    }
-    LaunchedEffect(mood) {
-        while (true) {
-            delay(interval)
-            frame = (frame + 1) % frames.size
-        }
-    }
-    Crossfade(targetState = frame, animationSpec = tween(100), label = "companion idle") { index ->
-        Image(painterResource(frames[index]), contentDescription = "Companion: $description", modifier = Modifier.size(110.dp))
-    }
-}

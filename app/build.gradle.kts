@@ -32,6 +32,10 @@ android {
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     buildTypes {
+        debug {
+            applicationIdSuffix = ".rigpreview"
+            versionNameSuffix = "-rig-preview"
+        }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
@@ -61,4 +65,5 @@ dependencies {
     testImplementation("org.json:json:20240303")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:1.10.2")
 }
+
 
