@@ -1,18 +1,18 @@
 # Companion animation revamp plan
 
-Status: **planned**. This document records the desired design and acceptance criteria; it does not assert that the new rig or flicker fix has been implemented. Track the work and phase gates in the [repository roadmap](../ROADMAP.md).
+Status: **in progress**. The user approved the five-state appearance; the first rig/action is under development and has not yet been validated on their device. Track the work and phase gates in the [repository roadmap](../ROADMAP.md).
 
 ## Purpose and current evidence
 
 Make the monocled book spirit feel alive through character acting, not movement of the whole illustration. The user wants his body, head, arms, book, and symbols to move; he should sometimes think, turn a page, and write. The animation must work both inside Intake Edit and, within Android launcher limits, in the 2×2 home-screen widget. The widget should communicate mood visually, without a background, border, visible level, status, or counters.
 
-The current production baseline is v0.15.27. [PR #47](https://github.com/skypie0102/intake-edit/pull/47) contains a separate vector preview and remains unaccepted. In that preview the user observed flickering, an extra arm during writing, and no visible preview widget in their launcher. The APK manifest includes an app-widget provider, but this alone does not establish that it is discoverable or works on the user's launcher.
+The current production baseline is v0.15.27. [PR #47](https://github.com/skypie0102/intake-edit/pull/47) contains a separate vector preview and remains unaccepted. In that preview the user observed flickering and an extra arm during writing. The user later confirmed that its widget was present under the preview's different app name; the earlier missing-entry report was withdrawn.
 
 The inspected prototype crossfades complete images in the app, and its widget fades between complete images. These fades and abrupt pose boundaries are plausible contributors to flicker; the exact device-specific cause is not yet established. The writing sequence explicitly adds a new arm-shaped path without replacing the existing limb. These facts must guide reproduction and correction, not be presented as a verified device fix.
 
 ## Constraints and behavior to preserve
 
-- Use the approved expressive, gold-monocled book-spirit artwork. Keep the SVG editable and use a vector-first approach; retain any generated assets and their generation process where needed for a supported runtime.
+- Use the approved expressive, gold-monocled book-spirit artwork. The new companion has an exclamation mark; waiting has a question mark. The book retains visible writing lines and a ribbon hanging below, and the companion's body continues behind the book without an abrupt exposed edge. Keep the SVG editable and use a vector-first approach; retain any generated assets and their generation process where needed for a supported runtime.
 - No companion is shown until the user has connected a project repository and supplied a GitHub token, and a verified project snapshot is available.
 - A successfully committed **Tag for QA** feeds the companion once per chapter; a chapter sent back for correction must not feed it again.
 - Level and progress derive from completed chapters in the currently connected project repository, not from a global total or animation activity. Keep per-project/branch identity and existing offline cache behavior.
@@ -40,7 +40,7 @@ The following are intended visual behaviors, not new workflow semantics. Transit
 
 | State | Resting expression and idle | Occasional action |
 | --- | --- | --- |
-| NEW | Curious, gentle head tilt, alert eyes, soft breathing, a small question mark. | Peek over the book, look toward the viewer, and settle back. |
+| NEW | Curious, alert eyes, a welcoming pose, and an exclamation mark. | Peek over the book, look toward the viewer, and settle back. |
 | HAPPY | Warm smile, lively but restrained breathing, bright eyes, softly animated sparkles. | Turn a page with interest or write a short note, then react with a pleased expression. |
 | WAITING | Attentive and expectant, glance between the page and viewer, question mark when curious. | Raise a hand to his chin, pause thoughtfully, then return to reading. |
 | HUNGRY | Slower movement, slightly drooped posture and weary eyes; hungry marks remain subtle. | Pause over the page, look up hopefully, then settle back with a gentle sigh-like motion. |
@@ -78,7 +78,7 @@ Schedule actions with varied, reasonably spaced idle periods and mood-dependent 
 
 ## Preview widget investigation
 
-The current preview APK uses a separate application ID and declares `TranslationPetWidget`, but the user's launcher did not show a preview widget entry. Registration in the manifest is not proof of launcher discoverability. The receiver's current label is the same generic companion label used by the production app, which may be confusing; it has not been established as the cause.
+The earlier preview APK uses a separate application ID and declares `TranslationPetWidget`. The user initially missed its widget because of the preview's different app name, then confirmed that it works. This is no longer an open missing-widget defect. Continue to verify registration and playback for new preview builds rather than assuming they behave identically.
 
 Give the preview app and widget explicitly different, recognizable labels, e.g. **Intake Edit Vector Preview** and **Companion — Vector Preview**. Verify the compiled manifest, package identity, provider metadata, launcher picker grouping, fresh installation, first launch, and availability after a project is connected. Use Android device/widget-service inspection where available and confirm with the user's launcher. A blank companion when no verified project is connected is separate from a missing picker entry.
 
