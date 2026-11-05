@@ -36,15 +36,20 @@ def make_frame(t):
     # Pupils and highlights move together, while the monocle remains on the head.
     eyes = head[1][0]
     eyes.set('transform', eyes.get('transform', '') + f' translate({1.5*math.sin(2*math.pi*t*2.0)*looking:.3f} {4.0*looking:.3f})')
-    # Keep the native smiling mouth silhouette, gently varying its width and height.
+    # Morph the existing smile into a small round humming "o".  Splitting the
+    # smile's top quadratic at its midpoint preserves its original curve.
     mouth = next(x for x in head[0][0] if x.get('fill') == '#57364f')
     tongue = next(x for x in head[0][0] if x.get('fill') == '#ef9eaa')
     hum = singing * (.5 + .5*math.sin(2 * math.pi * (t-.30) * 4.0))
-    a = (239,239,252,245,265,239,263,257,252,258,241,257,239,239)
-    b = (244,240,252,238,260,240,260,254,252,257,244,254,244,240)
-    v = [x+(y-x)*hum for x,y in zip(a,b)]
-    mouth.set('d', ('M%.2f %.2f Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(v))
-    tongue.set('opacity', f'{1-hum:.3f}')
+    if hum > .00001:
+        smile = (239,239, 245.5,242,252,242, 258.5,242,265,239,
+                 263,257,252,258, 241,257,239,239)
+        rounded = (246,247, 246,241,252,241, 258,241,258,247,
+                   258,253,252,253, 246,253,246,247)
+        v = [x+(y-x)*hum for x,y in zip(smile,rounded)]
+        mouth.set('d', ('M%.2f %.2f Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f '
+                         'Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(v))
+        tongue.set('opacity', f'{1-rig.smooth(hum/.38):.3f}')
     # Two notes, independently timed, enter gently and float upward.
     for start, x, y, scale in ((.34, 350, 202, 1.25), (.57, 369, 197, 1.10)):
         duration = .19
