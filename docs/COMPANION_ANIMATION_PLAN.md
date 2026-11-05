@@ -2,7 +2,11 @@
 
 The accepted five-mood artwork and reaction sequences are bundled with the app. Reading, writing and page turning are shared across moods, with mood-specific expressions and pacing. Mood changes start the newly selected state rather than finishing the previous action. The production app does not download animation updates from the preview branch.
 
-The home-screen widget disables the platform’s default fades between frames and uses an `AdapterViewFlipper` and uses URI-backed frame collections on Android 12 and newer, with a `RemoteViewsService` on older versions. It cycles through the complete reaction, reading, writing and page-turning sequences. The 48-pose shared actions hold each pose for two ticks to match the 96-tick in-app action duration. Widget scheduling is a continuous fixed sequence; the in-app player includes variable idle intervals. Reduced motion shows a still pose. The widget remains transparent, project-specific, and opens the next translation chapter.
+The home-screen widget disables the platform’s default fades between frames and uses an `AdapterViewFlipper` with URI-backed frame collections on Android 12 and newer, with a `RemoteViewsService` on older versions. It cycles through the complete reaction, reading, writing and page-turning sequences. The 48-pose shared actions hold each pose for two ticks to match the 96-tick in-app action duration. Widget scheduling is a continuous fixed sequence; the in-app player includes variable idle intervals. Reduced motion shows a still pose. The widget remains transparent, project-specific, and opens the next translation chapter.
+
+## Widget review
+
+On November 6, 2026, the user confirmed that the widget no longer flickers after the frame-fade fix. This confirmation does not cover the remaining launcher and performance checks below.
 
 ## Outstanding validation
 

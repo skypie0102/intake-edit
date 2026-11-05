@@ -6,6 +6,7 @@
 - [x] Share reading, writing and page turning across moods with mood-specific pacing.
 - [x] Bundle the animation pack and keep project progress, feeding and chapter navigation separate from animation playback.
 - [x] Implement full-sequence widget playback through a launcher adapter and provide a reduced-motion resting pose.
+- [x] Remove the frame fades that caused flicker; the user confirmed that flickering stopped on November 6, 2026.
 - [ ] Verify full widget playback, touch navigation, mood changes, resizing, sleep/resume, multiple widgets, and performance on actual devices and launchers. Launcher behavior can differ.
 - [ ] Explore smooth mood-to-mood interpolation without delaying state changes.
 
