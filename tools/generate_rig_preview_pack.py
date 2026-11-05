@@ -23,7 +23,7 @@ def generate():
         frames = []
         for frame in range(FRAME_COUNT):
             t = frame / FRAME_COUNT
-            phase = t if t < .94 else 0
+            phase = t if mood == 'waiting' or t < .94 else 0
             amount = interpolate(rig.POSES if mood == 'waiting' else rig.GREETING_POSES, t) if mood in ('waiting', 'new') else 0
             layers = (['head_group', 'left_arm', 'book', 'ink', 'pen', 'right_arm', 'symbol']
                       if mood == 'happy' else ['head_group', 'left_arm', 'right_arm', 'book', 'symbol'])

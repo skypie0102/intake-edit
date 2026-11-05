@@ -6,6 +6,17 @@ import generate_companion_rig as rig
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_waiting_breath_and_glance_return_smoothly_to_rest(self):
+        for t in (0, 1):
+            breath, glance = rig.waiting_idle(t)
+            self.assertAlmostEqual(breath, 0, places=6)
+            self.assertAlmostEqual(glance, 0, places=6)
+        self.assertGreater(rig.waiting_idle(.2)[1], .9)
+        self.assertEqual(rig.waiting_idle(.5)[1], 0)
+        frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['waiting']
+        self.assertIn('translate(0 3.00)', frames[10])
+        self.assertIn('M352 161', frames[30])
+
     def test_pack_is_bundled_and_contains_safe_sized_vector_sequences(self):
         published = (ROOT / 'rig-preview/animation-pack.json').read_bytes()
         bundled = (ROOT / 'app/src/debug/assets/rig-preview-pack.json').read_bytes()

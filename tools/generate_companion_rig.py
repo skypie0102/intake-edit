@@ -238,6 +238,13 @@ def sad_facial_layers(layers, glance, tear, blinking):
     return head, eyes
 
 
+def waiting_idle(phase):
+    """A seamless, restrained breath and a glance toward the page."""
+    breath = math.sin(2 * math.pi * phase)
+    glance = smooth((phase - .05) / .09) * smooth((.31 - phase) / .09)
+    return breath, glance
+
+
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
@@ -246,9 +253,11 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             focus = happy_focus(phase) if mood == 'happy' and phase is not None else 0
             look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None else (0, 0)
             glance, settle, tear = sad_action(phase) if mood == 'sad' and phase is not None else (0, 0, 0)
+            breath, page_glance = waiting_idle(phase) if mood == 'waiting' and phase is not None else (0, 0)
             transform = (f'translate(0 {-7*progress:.2f})' if mood == 'new'
                          else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
                          else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
+                         else f'translate(0 {-1.2*breath:.2f}) rotate({1.5*progress:.2f} 252 270)' if mood == 'waiting' and phase is not None
                          else f'rotate({1.5*progress + 2*focus:.2f} 252 270)')
             group = ET.SubElement(root,N+'g',{'transform':transform})
             if mood == 'happy' and phase is not None:
@@ -262,6 +271,13 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             elif mood == 'sad' and phase is not None:
                 head, eyes = sad_facial_layers(layers, glance, tear, blinking)
                 group.append(head)
+                group.append(eyes)
+            elif mood == 'waiting' and phase is not None:
+                group.append(deepcopy(layers['head']))
+                eyes = deepcopy(layers['blink' if blinking else 'eyes'])
+                if not blinking:
+                    current = eyes[0].get('transform', '')
+                    eyes[0].set('transform', f'{current} translate(0 {3*page_glance:.2f})')
                 group.append(eyes)
             else:
                 group.append(deepcopy(layers['head']))
