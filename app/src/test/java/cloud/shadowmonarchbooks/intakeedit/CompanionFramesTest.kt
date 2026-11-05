@@ -8,8 +8,8 @@ class CompanionFramesTest {
     @Test fun eachMoodHasACompleteIdleLoop() {
         PetMood.entries.forEach { mood ->
             val frames = companionFrames(mood)
-            assertEquals(12, frames.size)
-            assertEquals(12, frames.toSet().size)
+            assertEquals(24, frames.size)
+            assertEquals(24, frames.toSet().size)
             assertTrue(frames.all { it != 0 })
         }
         assertTrue(companionFrames(PetMood.NEW).contentEquals(companionFrames(PetMood.WAITING)))

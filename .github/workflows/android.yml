@@ -42,6 +42,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
+      - name: Verify companion vector frames
+        run: python3 -m unittest discover -s tools -p 'test_companion_frames.py'
       - name: Run unit tests and build debug APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Upload debug APK
@@ -50,3 +52,4 @@ jobs:
           name: intake-edit-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
