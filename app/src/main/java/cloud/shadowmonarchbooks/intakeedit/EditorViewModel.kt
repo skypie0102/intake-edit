@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -33,6 +36,7 @@ internal class EditorViewModel(
     private val draftRepository: DraftRepository,
     private val repositoryFactory: ChapterRepositoryFactory = DefaultChapterRepositoryFactory,
     private val onTaggedForQa: (RepoSettings, ChapterFile) -> Unit = { _, _ -> },
+    private val parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
@@ -57,7 +61,7 @@ internal class EditorViewModel(
                 val remoteChapter = repository.loadChapter(file)
                 val draft = draftRepository.load(file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
-                    repository.restoreRaw(remoteChapter, draft.raw)
+                    withContext(parseDispatcher) { repository.restoreRaw(remoteChapter, draft.raw) }
                 } else {
                     remoteChapter
                 }
@@ -130,7 +134,7 @@ internal class EditorViewModel(
                     _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
                     eventChannel.send(EditorEvent.ReturnChapterList)
                 } else {
-                    val restored = repository.restoreRaw(next, committedResult.remote.content)
+                    val restored = withContext(parseDispatcher) { repository.restoreRaw(next, committedResult.remote.content) }
                     val committed = restored.copy(
                         remote = committedResult.remote,
                         endnoteProposals = committedResult.endnoteProposals,

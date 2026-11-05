@@ -443,6 +443,19 @@ object IntakeParser {
         return root.toString(2) + "\n"
     }
 
+    /** Update one English value while preserving all other source fields and unchanged endnotes. */
+    fun patchDocumentEntry(raw: String, document: EditorDocument, entryIndex: Int, endnotesChanged: Boolean): String {
+        require(document.schemaVersion == 6) { "Only schema-v6 documents can be written." }
+        require(entryIndex in document.entries.indices) { "Entry index is outside the chapter." }
+        EndnoteIntegrity.validate(document)
+        if (isJson(raw)) return patchJsonEndnotes(raw, document)
+        val patched = patchReviewComplete(
+            patchEnglishAt(raw, entryIndex, document.entries[entryIndex].english),
+            document.editorReviewComplete,
+        )
+        return if (endnotesChanged) patchEndnotesYaml(patched, document.endnotes) else patched
+    }
+
     fun patchDocument(raw: String, document: EditorDocument): String {
         require(document.schemaVersion == 6) { "Only schema-v6 documents can be written." }
         EndnoteIntegrity.validate(document)

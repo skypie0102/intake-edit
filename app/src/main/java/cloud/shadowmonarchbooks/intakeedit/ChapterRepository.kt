@@ -1,5 +1,7 @@
 package cloud.shadowmonarchbooks.intakeedit
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.UUID
 import org.json.JSONArray
@@ -201,8 +203,9 @@ internal class GitHubChapterRepository(
 
     override suspend fun loadBaseProgress(file: ChapterFile): LoadedChapterProgress {
         val remote = client.getFile(file.path)
-        val document = IntakeParser.parse(remote.content)
-        val editorContentSha256 = QaFindingsParser.editorContentSha256(remote.content)
+        val (document, editorContentSha256) = withContext(Dispatchers.Default) {
+            IntakeParser.parse(remote.content) to QaFindingsParser.editorContentSha256(remote.content)
+        }
         val approved = isApprovalCurrent(file, editorContentSha256, document.readerFile)
         return LoadedChapterProgress(
             progress = ChapterProgress(
@@ -232,8 +235,9 @@ internal class GitHubChapterRepository(
 
     override suspend fun loadChapter(file: ChapterFile): OpenChapter {
         val remote = client.getFile(file.path)
-        val document = IntakeParser.parse(remote.content)
-        val editorContentSha256 = QaFindingsParser.editorContentSha256(remote.content)
+        val (document, editorContentSha256) = withContext(Dispatchers.Default) {
+            IntakeParser.parse(remote.content) to QaFindingsParser.editorContentSha256(remote.content)
+        }
         val qa = runCatching { loadQa(file) }.getOrNull()
         val endnoteProposals = loadEndnoteProposals()
         return OpenChapter(

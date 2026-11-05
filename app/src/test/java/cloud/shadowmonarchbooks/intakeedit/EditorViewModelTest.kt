@@ -39,6 +39,7 @@ class EditorViewModelTest {
         val chapterRepository = FakeEditorChapterRepository(remote)
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
+            parseDispatcher = dispatcher,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
         )
 
@@ -59,6 +60,7 @@ class EditorViewModelTest {
         val chapterRepository = FakeEditorChapterRepository(remote)
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
+            parseDispatcher = dispatcher,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
         )
 
@@ -81,6 +83,7 @@ class EditorViewModelTest {
         val feedings = mutableListOf<ChapterFile>()
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
+            parseDispatcher = dispatcher,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
             onTaggedForQa = { _, file -> feedings += file },
         )
@@ -104,6 +107,7 @@ class EditorViewModelTest {
         val feedings = mutableListOf<ChapterFile>()
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
+            parseDispatcher = dispatcher,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
             onTaggedForQa = { _, file -> feedings += file },
         )
@@ -130,6 +134,7 @@ class EditorViewModelTest {
         val chapterRepository = FakeEditorChapterRepository(remote)
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
+            parseDispatcher = dispatcher,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
         )
         val event = async { viewModel.events.first() }
@@ -153,6 +158,7 @@ class EditorViewModelTest {
         val chapterRepository = FakeEditorChapterRepository(remote)
         val viewModel = EditorViewModel(
             draftRepository = draftRepository,
+            parseDispatcher = dispatcher,
             repositoryFactory = ChapterRepositoryFactory { _, _ -> chapterRepository },
         )
 
