@@ -1,4 +1,5 @@
 import unittest
+import re
 import xml.etree.ElementTree as ET
 import preview_happy_humming as humming
 
@@ -23,6 +24,22 @@ class HappyHummingPreviewTest(unittest.TestCase):
         mouths = [node for node in head.iter() if node.get('fill') == '#57364f']
         self.assertEqual(len(monocles), 1)
         self.assertEqual(len(mouths), 1)
+
+    def test_humming_has_visible_tilt_in_both_directions(self):
+        angles = []
+        for frame in range(humming.FRAMES):
+            head = ET.fromstring(humming.make_frame(frame / (humming.FRAMES - 1)))[1]
+            angles.append(float(re.search(r"rotate\(([-0-9.]+)", head.get('transform')).group(1)))
+        self.assertGreater(max(angles), 3.5)
+        self.assertLess(min(angles), -3.5)
+
+    def test_humming_changes_mouth_and_enlarges_notes(self):
+        def mouth(t):
+            root = ET.fromstring(humming.make_frame(t))
+            return next(node.get('d') for node in root[1].iter() if node.get('fill') == '#57364f')
+        self.assertGreater(len({mouth(i / 100) for i in range(30, 80)}), 15)
+        notes = [node for node in ET.fromstring(humming.make_frame(.40)).iter() if 'scale(1.25)' in node.get('transform', '')]
+        self.assertEqual(len(notes), 1)
 
     def test_preview_has_no_extra_arms(self):
         for t in (0, .3, .5, .7, 1):
