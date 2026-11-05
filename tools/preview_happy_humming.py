@@ -40,19 +40,21 @@ def make_frame(t):
     # smile's top quadratic at its midpoint preserves its original curve.
     mouth = next(x for x in head[0][0] if x.get('fill') == '#57364f')
     tongue = next(x for x in head[0][0] if x.get('fill') == '#ef9eaa')
-    hum = singing * (.5 + .5*math.sin(2 * math.pi * (t-.30) * 4.0))
+    # Hold the rounded shape through the humming phrase, with a gentle
+    # pulse rather than opening into a smile on every note.
+    hum = singing * (.94 + .06*math.sin(2 * math.pi * (t-.30) * 4.0))
     if hum > .00001:
         smile = (239,239, 245.5,242,252,242, 258.5,242,265,239,
                  263,257,252,258, 241,257,239,239)
-        rounded = (246,247, 246,241,252,241, 258,241,258,247,
-                   258,253,252,253, 246,253,246,247)
+        rounded = (244,247, 244,239,252,239, 260,239,260,247,
+                   260,255,252,255, 244,255,244,247)
         v = [x+(y-x)*hum for x,y in zip(smile,rounded)]
         mouth.set('d', ('M%.2f %.2f Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f '
                          'Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(v))
         tongue.set('opacity', f'{1-rig.smooth(hum/.38):.3f}')
     # Two notes, independently timed, enter gently and float upward.
-    for start, x, y, scale in ((.34, 350, 202, 1.25), (.57, 369, 197, 1.10)):
-        duration = .19
+    for start, x, y, scale in ((.34, 345, 201, 1.90), (.60, 368, 197, 1.70)):
+        duration = .23
         local = (t-start)/duration
         if 0 < local < 1:
             opacity = rig.smooth(local/.22) * rig.smooth((1-local)/.30)
