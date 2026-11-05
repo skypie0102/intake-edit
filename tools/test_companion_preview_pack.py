@@ -8,6 +8,21 @@ import generate_companion_rig as rig
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_page_turn_is_anchored_and_returns_to_the_same_rest_pose(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        frames = pack['page_turn']
+        self.assertEqual(len(frames), 96)
+        self.assertEqual(frames[0], pack['moods']['happy'][0])
+        self.assertEqual(frames[-1], pack['moods']['happy'][-1])
+        self.assertEqual(rig.page_turn_pose(0), (0, 0))
+        self.assertEqual(rig.page_turn_pose(1), (0, 1))
+        self.assertGreater(rig.page_turn_edge(0)[0], 253)
+        self.assertLess(rig.page_turn_edge(1)[0], 253)
+        self.assertLess(rig.page_turn_edge(.5)[1], 250)
+        self.assertIn('M253 300 Q', frames[48])
+        self.assertNotIn('#654e70', frames[48])
+        self.assertEqual(frames[48].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
+
     def test_preview_widget_plays_sampled_frames_at_pack_duration(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         ns = '{http://schemas.android.com/apk/res/android}'

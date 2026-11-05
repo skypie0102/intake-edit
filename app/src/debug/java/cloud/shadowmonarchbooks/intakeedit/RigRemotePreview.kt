@@ -37,6 +37,7 @@ private data class RigPack(
     val pictures: Map<PetMood, List<Picture>>,
     val transitionBlinks: Map<PetMood, Picture>,
     val idleBlinks: Map<PetMood, Picture>,
+    val pageTurn: List<Picture>,
     val frameMs: Long,
 )
 
@@ -71,7 +72,12 @@ private object RigPackStore {
         val idleBlinks = if (idleSource == null) emptyMap() else PetMood.entries.associateWith {
             parsePicture(idleSource.getString(it.name.lowercase()))
         }
-        return RigPack(pictures, blinks, idleBlinks, frameMs)
+        val pageSource = root.optJSONArray("page_turn")
+        val pageTurn = if (pageSource == null) emptyList() else {
+            require(pageSource.length() == 96) { "Invalid page turn frame count" }
+            List(pageSource.length()) { parsePicture(pageSource.getString(it)) }
+        }
+        return RigPack(pictures, blinks, idleBlinks, pageTurn, frameMs)
     }
 
     fun load(context: Context): RigPack {
@@ -154,6 +160,7 @@ internal fun RigRemotePreview() {
     var displayedMood by remember { mutableStateOf(mood) }
     var transitionBlink by remember { mutableStateOf(false) }
     var idleBlink by remember { mutableStateOf(false) }
+    var turningPage by remember { mutableStateOf(false) }
     val requestedMood by rememberUpdatedState(mood)
 
     LaunchedEffect(refreshCount) {
@@ -175,6 +182,7 @@ internal fun RigRemotePreview() {
         displayedMood = requestedMood
         transitionBlink = false
         idleBlink = false
+        turningPage = false
         var timeline: RigPreviewTimeline? = null
         while (true) {
             val currentPack = pack
@@ -187,6 +195,7 @@ internal fun RigRemotePreview() {
                 displayedMood = requestedMood
                 transitionBlink = false
                 idleBlink = false
+                turningPage = false
                 frame = 0
                 delay(currentPack.frameMs)
             } else if (requestedMood != displayedMood) {
@@ -201,6 +210,7 @@ internal fun RigRemotePreview() {
                         frame = nextTransitionFrame(frame, count)
                         delay(12)
                     }
+                    turningPage = false
                     if (requestedMood != displayedMood) {
                         transitionBlink = true
                         delay(80)
@@ -217,19 +227,23 @@ internal fun RigRemotePreview() {
                 } else {
                     displayedMood = requestedMood
                     frame = 0
+                    turningPage = false
                 }
             } else if (count != 96) {
                 // Older packs have different pose timing; play them as authored.
                 timeline = null
                 idleBlink = false
+                turningPage = false
                 frame = (frame + 1) % count
                 delay(currentPack.frameMs)
             } else {
                 val active = timeline ?: RigPreviewTimeline(count,
                     startWithAction = displayedMood == PetMood.NEW,
-                    allowIdleBlink = currentPack.idleBlinks.containsKey(displayedMood)).also { timeline = it }
+                    allowIdleBlink = currentPack.idleBlinks.containsKey(displayedMood),
+                    allowPageTurn = displayedMood == PetMood.HAPPY && currentPack.pageTurn.size == count).also { timeline = it }
                 frame = active.advance()
                 idleBlink = active.blinking
+                turningPage = active.pageTurn
                 delay(currentPack.frameMs)
             }
         }
@@ -241,6 +255,7 @@ internal fun RigRemotePreview() {
             Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                 val picture = if (transitionBlink) pack?.transitionBlinks?.get(displayedMood)
                               else if (idleBlink) pack?.idleBlinks?.get(displayedMood)
+                              else if (turningPage && displayedMood == PetMood.HAPPY) pack?.pageTurn?.getOrNull(frame)
                               else pack?.pictures?.get(displayedMood)?.getOrNull(frame)
                 if (picture != null) Canvas(Modifier.size(220.dp)) {
                     val canvas = drawContext.canvas.nativeCanvas

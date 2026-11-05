@@ -16,6 +16,7 @@ internal class RigPreviewTimeline(
     private val random: Random = Random.Default,
     startWithAction: Boolean = false,
     private val allowIdleBlink: Boolean = false,
+    private val allowPageTurn: Boolean = false,
 ) {
     init { require(frameCount >= 16) }
 
@@ -28,6 +29,9 @@ internal class RigPreviewTimeline(
     private var blinkTicks = 0
     var blinking: Boolean = false
         private set
+    var pageTurn: Boolean = false
+        private set
+    private var nextPageTurn = false
 
     private fun nextIdleLength() = random.nextInt(36, 109)
 
@@ -41,6 +45,7 @@ internal class RigPreviewTimeline(
                 idleStep = 0
                 idleRemaining = nextIdleLength()
                 playingAction = false
+                pageTurn = false
             }
             return frame
         }
@@ -58,6 +63,8 @@ internal class RigPreviewTimeline(
         blinkCountdown--
         if (idleRemaining-- <= 0 && idleStep == 0) {
             playingAction = true
+            pageTurn = allowPageTurn && nextPageTurn
+            if (allowPageTurn) nextPageTurn = !nextPageTurn
             frame = 1
             return frame
         }

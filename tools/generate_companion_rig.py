@@ -116,7 +116,44 @@ def writing_pose(phase):
     return reach, writing
 
 
-def writing_arm(reach, writing):
+def page_turn_pose(phase):
+    """Reach, lift the right page, turn it at the spine, then release it."""
+    turn = smooth((phase - .28) / .46)
+    # Release near the spine; the page finishes turning without an unnaturally
+    # long arm stretching all the way across the left page.
+    reach = smooth((phase - .12) / .16) * smooth((.54 - turn) / .20)
+    return reach, turn
+
+
+def page_turn_edge(turn):
+    lift = 42 * math.sin(math.pi * turn)
+    return 392 - 278 * turn, 282 - lift
+
+
+def add_turning_page(root, turn):
+    """A curved sheet shares the book spine and settles onto the left page."""
+    edge_x, edge_y = page_turn_edge(turn)
+    lift = 42 * math.sin(math.pi * turn)
+    lower_x = 391 - 276 * turn
+    top_control = 321 - 135 * turn
+    bottom_control = 321 - 139 * turn
+    ET.SubElement(root, N+'path', {
+        'd': (f'M253 300 Q{top_control:.2f} {257-lift*.65:.2f} {edge_x:.2f} {edge_y:.2f} '
+              f'L{lower_x:.2f} {349-lift*.35:.2f} Q{bottom_control:.2f} {335-lift*.30:.2f} 253 369 Z'),
+        'fill':'url(#paper)', 'stroke':'#ac8f87', 'stroke-width':'4', 'stroke-linejoin':'round'})
+    # Line direction reverses with the sheet; both end poses match the book.
+    if abs(edge_x - 253) > 12:
+        for sy, cx, cy, ex, ey, ly, lcx, lcy, lex, ley in (
+            (306,318,279,374,294,307,188,278,131,294),
+            (319,324,295,373,307,319,181,294,130,307),
+            (330,328,309,373,320,330,177,309,131,320)):
+            a = lambda x,y: x+(y-x)*turn
+            ET.SubElement(root, N+'path', {
+                'd':f'M{a(275,230):.2f} {a(sy,ly)-lift*.35:.2f} Q{a(cx,lcx):.2f} {a(cy,lcy)-lift*.60:.2f} {a(ex,lex):.2f} {a(ey,ley)-lift*.55:.2f}',
+                'fill':'none','stroke':'#b9a499','stroke-width':'3','stroke-linecap':'round','opacity':'.8'})
+
+
+def writing_arm(reach, writing, follow_x=0, follow_y=0):
     # The same single limb starts at the book and reaches toward the page.
     start = (305,254, 308,250,314,247,321,247, 330,248,335,253,334,262,
              334,266,332,270,330,272, 322,275,312,268,305,254)
@@ -124,13 +161,15 @@ def writing_arm(reach, writing):
            334,290,327,296,321,296, 313,296,307,293,302,288)
     vals = [a+(b-a)*reach for a,b in zip(start,end)]
     # A small horizontal hand movement follows the writing tip.
-    travel = 25 * writing * reach
+    travel = (25 * writing + follow_x) * reach
+    vertical = follow_y * reach
     # The wrist and hand travel together; the shoulder remains connected.
     for i, weight in zip(range(2, 26, 2), (.15, .35, .5, .7, .85, 1, 1, 1, 1, 1, 1, 1)):
         vals[i] += travel * weight
+        vals[i+1] += vertical * weight
     return ('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
             'C%.2f %.2f %.2f %.2f %.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
-            'C%.2f %.2f %.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(vals + [((vals[24]+vals[0])/2)*(1-reach) + (296 + travel*.55)*reach, ((vals[25]+vals[1])/2)*(1-reach) + 270*reach, vals[0], vals[1]])
+            'C%.2f %.2f %.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(vals + [((vals[24]+vals[0])/2)*(1-reach) + (296 + travel*.55)*reach, ((vals[25]+vals[1])/2)*(1-reach) + (270 + vertical*.55)*reach, vals[0], vals[1]])
 
 
 def ink_point(progress):
@@ -332,7 +371,7 @@ def greeting_head(layers, idle_phase, phase, reading):
 
 
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None, idle_phase=None,
-            view_box='97 92 310 310'):
+            view_box='97 92 310 310', action='default'):
     original, art, layers = parts(mood)
     root = svg_root(original, view_box)
     for part in selected:
@@ -389,10 +428,18 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             add_writing(root, phase, 'ink')
         elif part == 'pen' and mood == 'happy' and phase is not None:
             add_writing(root, phase, part)
+        elif part == 'turning_page' and mood == 'happy' and phase is not None:
+            if .28 <= phase < .98:
+                _, turn = page_turn_pose(phase)
+                add_turning_page(root, turn)
         elif part == 'right_arm' and mood == 'happy' and phase is not None:
             arm = deepcopy(layers[part])
-            reach, writing = writing_pose(phase)
-            arm[0][0].set('d', writing_arm(reach, writing))
+            if action == 'page_turn':
+                reach, turn = page_turn_pose(phase)
+                arm[0][0].set('d', writing_arm(reach, 0, -70*turn, -22*math.sin(math.pi*turn)))
+            else:
+                reach, writing = writing_pose(phase)
+                arm[0][0].set('d', writing_arm(reach, writing))
             root.append(arm)
         elif part == 'right_arm' and mood == 'new' and idle_phase is not None:
             arm = deepcopy(layers[part])

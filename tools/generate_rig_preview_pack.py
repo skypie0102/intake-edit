@@ -50,9 +50,18 @@ def generate():
                 idle_blinks[mood] = rig.svg_for(mood, layers,
                     progress=amount, blinking=True, phase=phase, idle_phase=t, view_box=PREVIEW_VIEWBOX)
         moods[mood] = frames
+    page_turn = []
+    for frame in range(FRAME_COUNT):
+        t = frame / FRAME_COUNT
+        phase = max(0, min(1, (t - .12) / .76))
+        page_turn.append(rig.svg_for('happy',
+            ['head_group', 'left_arm', 'book', 'turning_page', 'right_arm'],
+            blinking=frame in (15, 16, 84, 85), phase=phase, idle_phase=t,
+            view_box=PREVIEW_VIEWBOX, action='page_turn'))
     result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods,
                          'transition_blinks': transition_blinks,
-                         'idle_blinks': idle_blinks}, separators=(',', ':')) + '\n'
+                         'idle_blinks': idle_blinks,
+                         'page_turn': page_turn}, separators=(',', ':')) + '\n'
     for path in (ROOT / 'rig-preview/animation-pack.json', ROOT / 'app/src/debug/assets/rig-preview-pack.json'):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(result, encoding='utf-8')

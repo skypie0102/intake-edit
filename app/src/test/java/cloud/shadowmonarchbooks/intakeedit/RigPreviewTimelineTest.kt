@@ -5,6 +5,20 @@ import org.junit.Test
 import kotlin.random.Random
 
 class RigPreviewTimelineTest {
+    @Test fun happyAlternatesWritingAndPageTurningWithoutLosingIdle() {
+        val timeline = RigPreviewTimeline(96, Random(14), allowPageTurn = true)
+        val actions = mutableListOf<Boolean>()
+        var previous = 0
+        repeat(1800) {
+            val frame = timeline.advance()
+            if (frame == 10 && previous == 9) actions.add(timeline.pageTurn)
+            if (frame == 0) assertFalse(timeline.pageTurn)
+            previous = frame
+        }
+        assertTrue(actions.size >= 4)
+        assertEquals(listOf(false, true, false, true), actions.take(4))
+    }
+
     @Test fun idleBlinksOccurAtRestAndDoNotSkipActions() {
         val timeline = RigPreviewTimeline(96, Random(8), allowIdleBlink = true)
         var blinkTicks = 0
