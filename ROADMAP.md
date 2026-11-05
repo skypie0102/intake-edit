@@ -10,7 +10,9 @@ Not planned for now; retained for future reference, not marked complete.
 - [ ] Document the migration from prior one-off-signed releases, including their update incompatibility and the risk to local settings, drafts, and companion history. Do not assume an old one-off key can be recovered.
 - [ ] Determine and provide a reliable way to preserve or migrate local data before any required reinstall.
 
-## 2. Android performance and interaction polish — second priority
+## 2. Android performance and interaction polish
+
+Status: a first pass is implemented in [draft PR #52](https://github.com/skypie0102/intake-edit/pull/52), but has not been merged or profiled on a device. It caches chapter and glossary filter results across unrelated recompositions and stops the refresh animation while idle.
 
 - [ ] Profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File editing path on representative devices and chapter files.
 - [ ] Address measured input jank, background-work responsiveness, or interaction issues. Revisit spacing, button density, and screen-space use where profiling identifies a need.
@@ -28,6 +30,21 @@ Not planned for now; retained for future reference, not marked complete.
 
 The user confirmed on November 6, 2026 that the frame-fade flicker stopped. That confirmation does not establish completion of the other checks.
 
-## 4. Companion mood transitions — first priority
+## 4. Companion mood transitions
 
-- [ ] Explore and, if suitable, implement smooth transitions between moods without delaying a status change. The current implementation immediately switches to the newly selected mood.
+- [x] Review the first-pass in-app transition. The user approved the brief blink transition on November 6, 2026.
+- [ ] Merge the approved implementation from [draft PR #52](https://github.com/skypie0102/intake-edit/pull/52). The change has passed Android CI but is not yet on main.
+
+The approved transition switches immediately to the selected mood with a brief blink and keeps the character opaque; it does not geometrically morph between poses.
+
+## 5. Additional companion idle animations — next animation priority
+
+Detailed acting, pacing, and sequencing are in the [idle-animation design](docs/COMPANION_IDLE_ANIMATIONS.md). Implement and visually review one sequence at a time, beginning with Happy humming; retain the shared reading, writing, and page-turning actions.
+
+- [ ] Happy: humming to himself; delighted by a passage.
+- [ ] Waiting: searching for his place; quietly thinking.
+- [ ] Hungry: distracted by food; stomach rumble.
+- [ ] Sad: losing focus; comforting himself with the book.
+- [ ] New: curious peek; getting absorbed in the book.
+
+The actions are planned, not yet implemented or individually approved. The separate widget validation work in item 3 remains deferred.
