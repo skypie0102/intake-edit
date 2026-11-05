@@ -212,9 +212,23 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
         elif part == 'symbol' and show_symbol:
             for node in layers[part]: root.append(deepcopy(node))
         elif part == 'symbol' and mood == 'happy' and phase is not None:
-            if .72 <= phase < .86:
-                for node in layers['symbol']:
-                    root.append(deepcopy(node))
+            # Each sparkle grows and shrinks around its own centre with staggered timing.
+            if .65 <= phase < .93:
+                big, dot, small = layers['symbol']
+                left_path, right_path = small.get('d').split(' M', 1)
+                left, right = deepcopy(small), deepcopy(small)
+                left.set('d', left_path)
+                right.set('d', 'M' + right_path)
+                for index, (node, x, y, start) in enumerate((
+                    (big, 354, 182, .65), (left, 149, 247, .69),
+                    (right, 367, 234, .73), (dot, 147, 195, .77))):
+                    envelope = smooth((phase-start)/.06) * smooth((.93-phase)/.08)
+                    pulse = 1 + .18*math.sin((phase-start)*math.pi*12 + index*.6)
+                    size = max(0, envelope*pulse)
+                    if size > .001:
+                        group = ET.SubElement(root, N+'g', {
+                            'transform':f'translate({x} {y}) scale({size:.3f}) translate({-x} {-y})'})
+                        group.append(deepcopy(node))
         elif part == 'symbol' and mood == 'new' and phase is not None:
             # Draw the approved exclamation only while he greets the viewer.
             if .34 <= phase < .8:

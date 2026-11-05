@@ -51,6 +51,15 @@ class PreviewPackTest(unittest.TestCase):
         self.assertNotIn('translate(3.00 7.00)', finished)
         self.assertIn('stroke="#b9905e"', focused)
 
+    def test_happy_sparkles_twinkle_only_after_writing(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        frames = pack['moods']['happy']
+        self.assertNotIn('scale(', frames[20])
+        twinkles = [frame for frame in frames[31:45] if 'scale(' in frame]
+        self.assertGreater(len(twinkles), 5)
+        self.assertGreater(len(set(twinkles)), 5)
+        self.assertNotIn('scale(', frames[-1])
+
     def test_animator_has_intermediate_new_and_waiting_frames(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         for mood in ('new', 'waiting'):
