@@ -87,7 +87,7 @@ def generate():
                          'idle_blinks': idle_blinks,
                          'page_turn': page_turn,
                          'shared_actions': shared_actions}, separators=(',', ':')) + '\n'
-    for path in (ROOT / 'rig-preview/animation-pack.json', ROOT / 'app/src/debug/assets/rig-preview-pack.json'):
+    for path in (ROOT / 'rig-preview/animation-pack.json', ROOT / 'app/src/main/assets/companion/animation-pack.json'):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(result, encoding='utf-8')
     print(f'Generated {FRAME_COUNT} frames per mood ({len(result)} bytes).')

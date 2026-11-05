@@ -183,7 +183,7 @@ class PreviewPackTest(unittest.TestCase):
 
     def test_pack_is_bundled_and_contains_safe_sized_vector_sequences(self):
         published = (ROOT / 'rig-preview/animation-pack.json').read_bytes()
-        bundled = (ROOT / 'app/src/debug/assets/rig-preview-pack.json').read_bytes()
+        bundled = (ROOT / 'app/src/main/assets/companion/animation-pack.json').read_bytes()
         self.assertEqual(published, bundled)
         self.assertLess(len(published), 8_000_000)
         pack = json.loads(published)

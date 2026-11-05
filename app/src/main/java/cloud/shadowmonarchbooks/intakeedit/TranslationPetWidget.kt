@@ -61,6 +61,7 @@ class TranslationPetWidget : AppWidgetProvider() {
                 for (id in ids) {
                     val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
                         setViewVisibility(R.id.pet_widget_portrait, android.view.View.INVISIBLE)
+                        setViewVisibility(R.id.pet_widget_static, android.view.View.INVISIBLE)
                         setContentDescription(R.id.pet_widget_root, "Connect your project in Intake Edit")
                         setOnClickPendingIntent(R.id.pet_widget_root, open)
                     }
@@ -86,15 +87,22 @@ class TranslationPetWidget : AppWidgetProvider() {
             for (id in ids) {
                 val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
                     setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
-                    val frameViews = listOf(
-                        R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2, R.id.pet_widget_frame_3,
-                        R.id.pet_widget_frame_4, R.id.pet_widget_frame_5, R.id.pet_widget_frame_6, R.id.pet_widget_frame_7,
-                        R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
-                        R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
-                    )
-                    val loadedRemote = isRigOnlyPreview(context) && RigRemoteFrames.apply(context, mood, this, frameViews)
-                    if (!loadedRemote) frameViews.zip(companionWidgetFrames(mood).asIterable()).forEach { (view, frame) ->
-                        setImageViewResource(view, frame)
+                    if (isRigOnlyPreview(context)) {
+                        val frameViews = listOf(
+                            R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2, R.id.pet_widget_frame_3,
+                            R.id.pet_widget_frame_4, R.id.pet_widget_frame_5, R.id.pet_widget_frame_6, R.id.pet_widget_frame_7,
+                            R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
+                            R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
+                        )
+                        if (!RigRemoteFrames.apply(context, mood, this, frameViews)) {
+                            frameViews.zip(companionWidgetFrames(mood).asIterable()).forEach { (view, frame) ->
+                                setImageViewResource(view, frame)
+                            }
+                        }
+                    } else if (!ProductionWidgetFrames.apply(context, mood, this, id)) {
+                        setViewVisibility(R.id.pet_widget_portrait, android.view.View.GONE)
+                        setViewVisibility(R.id.pet_widget_static, android.view.View.VISIBLE)
+                        setImageViewResource(R.id.pet_widget_static, companionWidgetFrames(mood).first())
                     }
                     setContentDescription(R.id.pet_widget_portrait, "Companion: $message")
                     setOnClickPendingIntent(R.id.pet_widget_root, open)

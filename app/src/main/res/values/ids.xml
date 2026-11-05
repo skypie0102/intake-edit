@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="pet_widget_frame_0" type="id" />
+    <item name="pet_widget_frame_1" type="id" />
+    <item name="pet_widget_frame_2" type="id" />
+    <item name="pet_widget_frame_3" type="id" />
+    <item name="pet_widget_frame_4" type="id" />
+    <item name="pet_widget_frame_5" type="id" />
+    <item name="pet_widget_frame_6" type="id" />
+    <item name="pet_widget_frame_7" type="id" />
+    <item name="pet_widget_frame_8" type="id" />
+    <item name="pet_widget_frame_9" type="id" />
+    <item name="pet_widget_frame_10" type="id" />
+    <item name="pet_widget_frame_11" type="id" />
+    <item name="pet_widget_frame_12" type="id" />
+    <item name="pet_widget_frame_13" type="id" />
+    <item name="pet_widget_frame_14" type="id" />
+    <item name="pet_widget_frame_15" type="id" />
+</resources>

@@ -63,7 +63,7 @@ internal fun TranslationPetCard() {
     Card(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            AnimatedBookSpirit(status.mood, message)
+            ProductionBookSpirit(status.mood, message)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("Translation companion · Lv. ${status.level}", fontWeight = FontWeight.Bold)
                 Text(message, style = MaterialTheme.typography.bodyMedium)

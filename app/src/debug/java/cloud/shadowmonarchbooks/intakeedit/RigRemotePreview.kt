@@ -88,7 +88,7 @@ private object RigPackStore {
     fun load(context: Context): RigPack {
         current?.let { return it }
         val pack = runCatching { parse(cache(context).readText()) }
-            .getOrElse { parse(context.assets.open("rig-preview-pack.json").bufferedReader().use { it.readText() }) }
+            .getOrElse { parse(context.assets.open("companion/animation-pack.json").bufferedReader().use { it.readText() }) }
         current = pack
         return pack
     }

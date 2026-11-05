@@ -104,8 +104,9 @@ class RigTest(unittest.TestCase):
 
     def test_widget_has_no_whole_image_fades_or_visible_text(self):
         layout = ET.parse(rig.ROOT / 'app/src/main/res/layout/translation_pet_widget.xml').getroot()
-        flipper = layout.find('ViewFlipper')
-        self.assertEqual(len(flipper), len(rig.POSES))
+        flipper = layout.find('AdapterViewFlipper')
+        self.assertIsNotNone(flipper)
+        self.assertEqual(len(flipper), 0)
         self.assertIsNone(flipper.get('{'+ANDROID+'}inAnimation'))
         self.assertIsNone(flipper.get('{'+ANDROID+'}outAnimation'))
         self.assertEqual(len(layout.findall('.//TextView')), 0)

@@ -5,6 +5,15 @@ import org.junit.Test
 import kotlin.random.Random
 
 class RigPreviewTimelineTest {
+    @Test fun productionWidgetCoversEveryPoseInEachAction() {
+        val frames = (0 until 384).map(::widgetFrameIndex)
+        for (action in 0..3) {
+            val actionFrames = frames.filter { it.first == action }.map { it.second }
+            assertEquals((0 until 96).toList(), actionFrames)
+            if (action > 0) assertEquals((0 until 48).toList(), actionFrames.map { it / 2 }.distinct())
+        }
+    }
+
     @Test fun changingToAnyMoodNeverShowsThePreviousMoodsFrame() {
         val moods = listOf("NEW", "WAITING", "HAPPY", "HUNGRY", "SAD")
         for (selected in moods) for (displayed in moods) {

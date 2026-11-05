@@ -16,8 +16,8 @@ android {
         applicationId = "cloud.shadowmonarchbooks.intakeedit"
         minSdk = 26
         targetSdk = 37
-        versionCode = 62
-        versionName = "0.15.27"
+        versionCode = 63
+        versionName = "0.15.28"
     }
     signingConfigs {
         if (hasReleaseSigning) {
@@ -61,7 +61,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("com.caverock:androidsvg-aar:1.4")
+    implementation("com.caverock:androidsvg-aar:1.4")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:1.10.2")

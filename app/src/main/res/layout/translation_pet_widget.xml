@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent"
     android:contentDescription="@string/pet_widget_description">
-    <ViewFlipper
+    <AdapterViewFlipper
         android:id="@+id/pet_widget_portrait"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -13,21 +13,11 @@
         android:flipInterval="250"
         android:visibility="invisible"
         android:contentDescription="@string/pet_widget_description">
-        <ImageView android:id="@+id/pet_widget_frame_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_00" />
-        <ImageView android:id="@+id/pet_widget_frame_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_01" />
-        <ImageView android:id="@+id/pet_widget_frame_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_02" />
-        <ImageView android:id="@+id/pet_widget_frame_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_03" />
-        <ImageView android:id="@+id/pet_widget_frame_4" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_04" />
-        <ImageView android:id="@+id/pet_widget_frame_5" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_05" />
-        <ImageView android:id="@+id/pet_widget_frame_6" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_06" />
-        <ImageView android:id="@+id/pet_widget_frame_7" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_07" />
-        <ImageView android:id="@+id/pet_widget_frame_8" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_08" />
-        <ImageView android:id="@+id/pet_widget_frame_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_09" />
-        <ImageView android:id="@+id/pet_widget_frame_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_10" />
-        <ImageView android:id="@+id/pet_widget_frame_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_11" />
-        <ImageView android:id="@+id/pet_widget_frame_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_12" />
-        <ImageView android:id="@+id/pet_widget_frame_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_13" />
-        <ImageView android:id="@+id/pet_widget_frame_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_14" />
-        <ImageView android:id="@+id/pet_widget_frame_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_15" />
-    </ViewFlipper>
+    </AdapterViewFlipper>
+    <ImageView
+        android:id="@+id/pet_widget_static"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="invisible" />
 </FrameLayout>
