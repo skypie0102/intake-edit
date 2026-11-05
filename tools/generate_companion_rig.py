@@ -269,11 +269,16 @@ def waiting_head(layers, phase):
 
 
 def greeting_action(phase):
-    surprise = .34 <= phase < .53
-    raised = smooth((phase - .23) / .14) * smooth((.88 - phase) / .15)
-    wave_envelope = smooth((phase - .38) / .05) * smooth((.76 - phase) / .05)
-    wave = 24 * math.sin(4 * math.pi * (phase - .38) / .38) * wave_envelope
+    surprise = .34 <= phase < .49
+    raised = smooth((phase - .52) / .10) * smooth((.87 - phase) / .10)
+    wave_envelope = smooth((phase - .62) / .04) * smooth((.77 - phase) / .04)
+    wave = 24 * math.sin(4 * math.pi * (phase - .62) / .15) * wave_envelope
     return surprise, raised, wave
+
+
+def greeting_reading(phase):
+    look_up = smooth((phase - .06) / .20) * smooth((.99 - phase) / .12)
+    return 1 - look_up
 
 
 def greeting_arm(raised):
@@ -288,7 +293,7 @@ def greeting_arm(raised):
             'C%.2f %.2f %.2f %.2f %.2f %.2f Z') % tuple(v)
 
 
-def greeting_head(layers, idle_phase, phase):
+def greeting_head(layers, idle_phase, phase, reading):
     head = waiting_head(layers, idle_phase)
     surprise, _, _ = greeting_action(phase)
     group = head[0]
@@ -300,7 +305,8 @@ def greeting_head(layers, idle_phase, phase):
     else:
         raise ValueError('Greeting mouth no longer matches the approved artwork')
     if not surprise:
-        ET.SubElement(group, N+'path', {'d':'M239 240 Q252 253 265 240',
+        mouth = 'M242 246 Q252 248 262 246' if reading > .5 else 'M239 240 Q252 253 265 240'
+        ET.SubElement(group, N+'path', {'d':mouth,
             'fill':'none', 'stroke':'#70556d', 'stroke-width':'4',
             'stroke-linecap':'round'})
     return head
@@ -315,9 +321,10 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None else (0, 0)
             glance, settle, tear = sad_action(phase) if mood == 'sad' and phase is not None else (0, 0, 0)
             breath, page_glance = waiting_idle(idle_phase if idle_phase is not None else phase) if mood == 'waiting' and phase is not None else (0, 0)
-            dip = 3 * smooth((phase - .02) / .10) * smooth((.28 - phase) / .10) if mood == 'new' and idle_phase is not None else 0
+            reading = greeting_reading(phase) if mood == 'new' and idle_phase is not None else 0
             float_y = -1.2 * math.sin(2 * math.pi * idle_phase) if mood == 'new' and idle_phase is not None else 0
-            transform = (f'translate(0 {-7*progress + dip + float_y:.2f})' if mood == 'new'
+            transform = (f'translate(0 {-7*progress + 20*reading + float_y:.2f}) rotate({7*reading:.2f} 252 270)' if mood == 'new' and idle_phase is not None
+                         else f'translate(0 {-7*progress:.2f})' if mood == 'new'
                          else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
                          else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
                          else f'translate(0 {-1.2*breath:.2f}) rotate({1.5*progress:.2f} 252 270)' if mood == 'waiting' and phase is not None
@@ -336,8 +343,11 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(head)
                 group.append(eyes)
             elif mood == 'new' and idle_phase is not None:
-                group.append(greeting_head(layers, idle_phase, phase))
-                group.append(deepcopy(layers['blink' if blinking else 'eyes']))
+                group.append(greeting_head(layers, idle_phase, phase, reading))
+                eyes = deepcopy(layers['blink' if blinking else 'eyes'])
+                current = eyes[0].get('transform', '')
+                eyes[0].set('transform', f'{current} translate(0 {8*reading:.2f})')
+                group.append(eyes)
             elif mood == 'waiting' and phase is not None:
                 group.append(waiting_head(layers, idle_phase if idle_phase is not None else phase))
                 eyes = deepcopy(layers['blink' if blinking else 'eyes'])

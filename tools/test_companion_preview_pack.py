@@ -9,31 +9,41 @@ ROOT = Path(__file__).resolve().parents[1]
 class PreviewPackTest(unittest.TestCase):
     def test_new_greeting_has_smile_surprise_and_one_waving_arm(self):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
-        self.assertIn('M239 240 Q252 253 265 240', frames[0])
+        self.assertIn('M242 246 Q252 248 262 246', frames[0])
         surprise, _, _ = rig.greeting_action(.40)
         self.assertTrue(surprise)
         for frame in frames:
             surprised = '<ellipse cx="252" cy="246" rx="5" ry="7"' in frame
             exclamation = 'M364 139 L364 171' in frame
             smiling = 'M239 240 Q252 253 265 240' in frame
+            reading = 'M242 246 Q252 248 262 246' in frame
             self.assertEqual(surprised, exclamation)
-            self.assertNotEqual(smiling, surprised)
+            self.assertEqual(sum((smiling, surprised, reading)), 1)
         self.assertEqual(rig.greeting_action(0)[1], 0)
         self.assertEqual(rig.greeting_action(1)[1], 0)
-        self.assertGreater(rig.greeting_action(.50)[1], .99)
-        self.assertGreater(abs(rig.greeting_action(.43)[2]), 15)
+        self.assertEqual(rig.greeting_action(.48)[1], 0)
+        self.assertGreater(rig.greeting_action(.67)[1], .99)
+        self.assertGreater(abs(rig.greeting_action(.67)[2]), 15)
         self.assertEqual(frames[0].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
         self.assertEqual(frames[48].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
         self.assertIn(rig.greeting_arm(0), frames[0])
         self.assertIn(rig.greeting_arm(0), frames[-1])
 
-    def test_new_greeting_dips_then_peeks_and_returns(self):
+    def test_new_greeting_reads_then_looks_up_and_returns(self):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
+        self.assertEqual(rig.greeting_reading(0), 1)
+        self.assertEqual(rig.greeting_reading(.30), 0)
+        self.assertTrue(rig.greeting_action(.40)[0])
+        self.assertFalse(rig.greeting_action(.50)[0])
+        self.assertEqual(rig.greeting_action(.50)[1], 0)
+        self.assertGreater(rig.greeting_action(.70)[1], .9)
+        self.assertEqual(rig.greeting_action(.87)[1], 0)
+        self.assertGreater(rig.greeting_reading(.95), .5)
         def height(frame):
             return float(re.search(r'<g transform="translate\(0 (-?[0-9.]+)\)', frame).group(1))
-        self.assertGreater(height(frames[25]), .5)
+        self.assertGreater(height(frames[0]), 19)
         self.assertLess(height(frames[48]), -6)
-        self.assertLess(abs(height(frames[-1])), .2)
+        self.assertGreater(height(frames[-1]), 19)
         self.assertNotIn('M364 139', frames[25])
         self.assertIn('M364 139', frames[48])
         self.assertIn('rotate(0.00 313 341)', frames[0])
