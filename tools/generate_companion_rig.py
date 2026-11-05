@@ -246,9 +246,10 @@ def waiting_idle(phase):
 
 
 def waiting_follow_through(phase):
-    """Visible cyclic offsets that lag behind the body's vertical motion."""
-    lag = math.sin(2 * math.pi * phase - .6) + math.sin(.6)
-    return 5.0 * lag, 7.0 * lag
+    """Noticeable, smooth secondary motion with a neutral start and end."""
+    tuft = 12 * math.sin(4 * math.pi * phase)
+    ribbon = 18 * (math.sin(4 * math.pi * phase - .4) + math.sin(.4))
+    return tuft, ribbon
 
 
 def waiting_head(layers, phase):

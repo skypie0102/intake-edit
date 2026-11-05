@@ -9,15 +9,15 @@ class PreviewPackTest(unittest.TestCase):
     def test_waiting_follow_through_loops_and_keeps_book_attached(self):
         for first, last in zip(rig.waiting_follow_through(0), rig.waiting_follow_through(1)):
             self.assertAlmostEqual(first, last, places=6)
-        tuft, ribbon = rig.waiting_follow_through(.25)
-        self.assertGreater(tuft, 6)
-        self.assertGreater(ribbon, 9)
-        self.assertLess(ribbon, 12)
+        tuft, ribbon = rig.waiting_follow_through(.125)
+        self.assertAlmostEqual(tuft, 12)
+        self.assertGreater(ribbon, 20)
+        self.assertLess(ribbon, 26)
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['waiting']
         self.assertIn('rotate(0.00 313 341)', frames[0])
-        self.assertIn(f'rotate({ribbon:.2f} 313 341)', frames[24])
-        self.assertIn(f'C228 146 {231+tuft:.2f} 123 {230+tuft:.2f} 113', frames[24])
-        for i in (0, 24, 48, 72):
+        self.assertIn(f'rotate({ribbon:.2f} 313 341)', frames[12])
+        self.assertIn(f'C228 146 {231+tuft:.2f} 123 {230+tuft:.2f} 113', frames[12])
+        for i in (0, 12, 24, 48, 72):
             self.assertIn('M102 288 Q182 267 253 305', frames[i])
 
     def test_waiting_breath_and_glance_return_smoothly_to_rest(self):
