@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 from pathlib import Path
 import generate_companion_rig as rig
@@ -6,6 +7,18 @@ import generate_companion_rig as rig
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_new_greeting_dips_then_peeks_and_returns(self):
+        frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
+        def height(frame):
+            return float(re.search(r'<g transform="translate\(0 (-?[0-9.]+)\)', frame).group(1))
+        self.assertGreater(height(frames[25]), .5)
+        self.assertLess(height(frames[48]), -6)
+        self.assertLess(abs(height(frames[-1])), .2)
+        self.assertNotIn('M364 139', frames[25])
+        self.assertIn('M364 139', frames[48])
+        self.assertIn('rotate(0.00 313 341)', frames[0])
+        self.assertIn('rotate(23.59 313 341)', frames[12])
+
     def test_waiting_follow_through_loops_and_keeps_book_attached(self):
         for first, last in zip(rig.waiting_follow_through(0), rig.waiting_follow_through(1)):
             self.assertAlmostEqual(first, last, places=6)
@@ -44,7 +57,7 @@ class PreviewPackTest(unittest.TestCase):
         self.assertEqual(pack['format'], 1)
         self.assertEqual(set(pack['moods']), {'new', 'happy', 'waiting', 'hungry', 'sad'})
         for mood, frames in pack['moods'].items():
-            self.assertEqual(len(frames), 96 if mood == 'waiting' else 48)
+            self.assertEqual(len(frames), 96 if mood in ('waiting', 'new') else 48)
             self.assertTrue(all(frame.startswith('<svg ') and len(frame) < 30_000 for frame in frames))
 
     def test_happy_writing_uses_one_hand_and_a_timed_pen(self):

@@ -263,7 +263,7 @@ def waiting_head(layers, phase):
                    f'C269 134 {271+tuft:.2f} 119 {269+tuft:.2f} 107 '
                    f'C{285+tuft*.7:.2f} 120 288 136 286 153')
     if original not in path:
-        raise ValueError('Waiting silhouette no longer matches the approved tuft')
+        raise ValueError('Silhouette no longer matches the approved tuft')
     silhouette.set('d', path.replace(original, replacement, 1))
     return head
 
@@ -277,7 +277,9 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None else (0, 0)
             glance, settle, tear = sad_action(phase) if mood == 'sad' and phase is not None else (0, 0, 0)
             breath, page_glance = waiting_idle(idle_phase if idle_phase is not None else phase) if mood == 'waiting' and phase is not None else (0, 0)
-            transform = (f'translate(0 {-7*progress:.2f})' if mood == 'new'
+            dip = 3 * smooth((phase - .02) / .10) * smooth((.28 - phase) / .10) if mood == 'new' and idle_phase is not None else 0
+            float_y = -1.2 * math.sin(2 * math.pi * idle_phase) if mood == 'new' and idle_phase is not None else 0
+            transform = (f'translate(0 {-7*progress + dip + float_y:.2f})' if mood == 'new'
                          else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
                          else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
                          else f'translate(0 {-1.2*breath:.2f}) rotate({1.5*progress:.2f} 252 270)' if mood == 'waiting' and phase is not None
@@ -295,6 +297,9 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 head, eyes = sad_facial_layers(layers, glance, tear, blinking)
                 group.append(head)
                 group.append(eyes)
+            elif mood == 'new' and idle_phase is not None:
+                group.append(waiting_head(layers, idle_phase))
+                group.append(deepcopy(layers['blink' if blinking else 'eyes']))
             elif mood == 'waiting' and phase is not None:
                 group.append(waiting_head(layers, idle_phase if idle_phase is not None else phase))
                 eyes = deepcopy(layers['blink' if blinking else 'eyes'])
@@ -390,7 +395,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                     ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'186.5', 'r':'2.5', 'fill':'#dcc2ec'})
         elif part == 'symbol':
             continue  # Symbols appear only with their corresponding actions.
-        elif part == 'book' and mood == 'waiting' and phase is not None:
+        elif part == 'book' and mood in ('waiting', 'new') and phase is not None and (mood == 'waiting' or idle_phase is not None):
             nodes = deepcopy(layers[part])
             _, ribbon = waiting_follow_through(idle_phase if idle_phase is not None else phase)
             # Rotate only the ribbon, behind the stable book, around its hidden attachment.
