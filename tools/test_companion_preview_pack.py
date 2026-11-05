@@ -60,6 +60,19 @@ class PreviewPackTest(unittest.TestCase):
         self.assertGreater(len(set(twinkles)), 5)
         self.assertNotIn('scale(', frames[-1])
 
+    def test_hungry_looks_up_then_sighs_and_returns_to_rest(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        frames = pack['moods']['hungry']
+        rest, looking_up, sighing, returned = frames[0], frames[20], frames[37], frames[-1]
+        self.assertIn('M242 250.00 Q252 240.00 262 250.00', rest)
+        self.assertIn('M242 247.00 Q252 251.00 262 247.00', looking_up)
+        self.assertIn('cy="221.00"', looking_up)
+        self.assertNotIn('M146 226 q-8', rest)
+        self.assertIn('M146 226 q-8', sighing)
+        self.assertNotIn('M146 226 q-8', returned)
+        self.assertIn('stroke="#b9905e"', looking_up)
+        self.assertGreater(len(set(frames)), 15)
+
     def test_animator_has_intermediate_new_and_waiting_frames(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         for mood in ('new', 'waiting'):

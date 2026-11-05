@@ -81,7 +81,9 @@ def parts(mood):
     head = body_part([child for i,child in enumerate(elements[:-1]) if i not in eye_ids])
     eyes = body_part([child for i,child in enumerate(elements[:-1]) if i in eye_ids])
     if mood == 'hungry':
-        blink = deepcopy(eyes)  # This mood is already half-lidded.
+        lids = ET.Element(N+'path', {'d':'M214 225 Q224 230 234 225 M271 225 Q281 230 291 225',
+                                     'fill':'none','stroke':'#493552','stroke-width':'5','stroke-linecap':'round'})
+        blink = body_part([lids])
     else:
         y = 223 if mood == 'sad' else 218 if mood == 'happy' else 219
         lids = ET.Element(N+'path', {'d':f'M214 {y} Q224 {y+9} 234 {y} M271 {y} Q281 {y+9} 291 {y}',
@@ -180,17 +182,51 @@ def happy_facial_layers(layers, focus, blinking):
     return head, eyes
 
 
+def hungry_action(phase):
+    look = smooth((phase - .12) / .18) * smooth((.67 - phase) / .18)
+    sigh = smooth((phase - .61) / .12) * smooth((.94 - phase) / .15)
+    return look, sigh
+
+
+def hungry_facial_layers(layers, look, blinking):
+    head = deepcopy(layers['head'])
+    eyes = deepcopy(layers['blink' if blinking else 'eyes'])
+    for node in head[0]:
+        path = node.get('d', '')
+        if path.startswith('M242 250 Q252 240 262 250'):
+            # The weary frown relaxes into a small hopeful smile.
+            node.set('d', f'M242 {250-3*look:.2f} Q252 {240+11*look:.2f} 262 {250-3*look:.2f}')
+        elif path.startswith('M215 197 L230 201'):
+            node.set('d', f'M215 {197-2*look:.2f} L230 {201-3*look:.2f} '
+                          f'M275 {201-3*look:.2f} L290 {197-2*look:.2f}')
+    if not blinking:
+        for node in eyes[0]:
+            if node.tag == N+'ellipse':
+                node.set('cy', f'{225-4*look:.2f}')
+                node.set('ry', f'{3+2*look:.2f}')
+            elif node.tag == N+'path':
+                node.set('d', f'M211 {219-2*look:.2f} Q224 {223-5*look:.2f} 237 {219-2*look:.2f} '
+                              f'M268 {219-2*look:.2f} Q281 {223-5*look:.2f} 294 {219-2*look:.2f}')
+    return head, eyes
+
+
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
     for part in selected:
         if part == 'head_group':
             focus = happy_focus(phase) if mood == 'happy' and phase is not None else 0
+            look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None else (0, 0)
             transform = (f'translate(0 {-7*progress:.2f})' if mood == 'new'
+                         else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
                          else f'rotate({1.5*progress + 2*focus:.2f} 252 270)')
             group = ET.SubElement(root,N+'g',{'transform':transform})
             if mood == 'happy' and phase is not None:
                 head, eyes = happy_facial_layers(layers, focus, blinking)
+                group.append(head)
+                group.append(eyes)
+            elif mood == 'hungry' and phase is not None:
+                head, eyes = hungry_facial_layers(layers, look, blinking)
                 group.append(head)
                 group.append(eyes)
             else:
@@ -211,6 +247,14 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             root.append(arm)
         elif part == 'symbol' and show_symbol:
             for node in layers[part]: root.append(deepcopy(node))
+        elif part == 'symbol' and mood == 'hungry' and phase is not None:
+            _, sigh = hungry_action(phase)
+            if sigh > .01:
+                # Two soft breath marks rise briefly while he settles back.
+                group = ET.SubElement(root, N+'g', {'transform':f'translate({-2*sigh:.2f} {-5*sigh:.2f})',
+                                                   'opacity':f'{.75*sigh:.3f}'})
+                ET.SubElement(group, N+'path', {'d':'M146 226 q-8 9 0 18 q8 9 0 18 M132 235 q-6 7 0 14',
+                    'fill':'none', 'stroke':'#b7a6c5', 'stroke-width':'4', 'stroke-linecap':'round'})
         elif part == 'symbol' and mood == 'happy' and phase is not None:
             # Each sparkle grows and shrinks around its own centre with staggered timing.
             if .65 <= phase < .93:

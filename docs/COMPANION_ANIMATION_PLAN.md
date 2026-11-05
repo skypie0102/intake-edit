@@ -1,6 +1,6 @@
 # Companion animation revamp plan
 
-Status: **in progress**. The user approved the five-state appearance; the waiting thinking preview received a positive visual review; new-state greeting and happy-state writing previews are available for review. Device and launcher validation remains open. Track the work and phase gates in the [repository roadmap](../ROADMAP.md).
+Status: **in progress**. The user approved the five-state appearance; the waiting thinking preview received a positive visual review; new-state greeting, happy-state writing, and hungry-state hopeful glance and sigh previews are available for review. Device and launcher validation remains open. Track the work and phase gates in the [repository roadmap](../ROADMAP.md).
 
 ## Purpose and current evidence
 

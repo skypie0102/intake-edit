@@ -18,7 +18,7 @@ The current public release is **v0.15.27**. The separate vector preview in [PR #
 
 ### Phase 1 — build the character rig and first action
 
-**In progress:** the user approved the five-state concept, including a new-state exclamation mark, waiting-state question mark, visible book pages, bookmark below the book, and a body hidden behind the book. The waiting thinking preview received a positive visual review. New-state greeting and happy-state writing are available for review through the downloadable preview pack; device and launcher validation remains open.
+**In progress:** the user approved the five-state concept, including a new-state exclamation mark, waiting-state question mark, visible book pages, bookmark below the book, and a body hidden behind the book. The waiting thinking preview received a positive visual review. New-state greeting, happy-state writing, and hungry-state hopeful glance and sigh are available for review through the downloadable preview pack; device and launcher validation remains open.
 
 - [ ] Separate the approved SVG artwork into named, layered parts with stable pivots and attachment points for the head, eyes, monocle, arms, book, page, pen, and mood symbols.
 - [ ] Make each hand a single continuous limb; attach the monocle to the head and the pen to the writing hand. Define draw order and clipping against the book.

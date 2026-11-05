@@ -28,7 +28,7 @@ def generate():
             layers = (['head_group', 'left_arm', 'book', 'ink', 'pen', 'right_arm', 'symbol']
                       if mood == 'happy' else ['head_group', 'left_arm', 'right_arm', 'book', 'symbol'])
             frames.append(rig.svg_for(mood, layers,
-                progress=amount, blinking=frame in (9,), phase=phase if mood in ('waiting', 'new', 'happy') else None))
+                progress=amount, blinking=frame in (9,), phase=phase if mood in ('waiting', 'new', 'happy', 'hungry') else None))
         moods[mood] = frames
     result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods}, separators=(',', ':')) + '\n'
     for path in (ROOT / 'rig-preview/animation-pack.json', ROOT / 'app/src/debug/assets/rig-preview-pack.json'):
