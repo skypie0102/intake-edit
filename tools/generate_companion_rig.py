@@ -59,8 +59,8 @@ def scene(mood):
     return original, scenes[MOODS.index(mood)]
 
 
-def svg_root(original):
-    root = ET.Element(N+'svg', {'width':'320','height':'320','viewBox':'97 92 310 310'})
+def svg_root(original, view_box='97 92 310 310'):
+    root = ET.Element(N+'svg', {'width':'320','height':'320','viewBox':view_box})
     root.append(deepcopy(original[0]))
     return root
 
@@ -331,9 +331,10 @@ def greeting_head(layers, idle_phase, phase, reading):
     return head
 
 
-def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None, idle_phase=None):
+def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None, idle_phase=None,
+            view_box='97 92 310 310'):
     original, art, layers = parts(mood)
-    root = svg_root(original)
+    root = svg_root(original, view_box)
     for part in selected:
         if part == 'head_group':
             focus = happy_focus(phase) if mood == 'happy' and phase is not None else 0

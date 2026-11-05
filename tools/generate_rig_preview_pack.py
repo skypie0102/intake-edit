@@ -9,6 +9,8 @@ import generate_companion_rig as rig
 
 ROOT = Path(__file__).resolve().parents[1]
 FRAME_COUNT = 96
+# Keep the whole outlined book inside the preview canvas, including antialiasing.
+PREVIEW_VIEWBOX = '92 87 320 320'
 
 
 def interpolate(values, t):
@@ -38,15 +40,15 @@ def generate():
                       if mood == 'happy' else ['head_group', 'left_arm', 'right_arm', 'book', 'symbol'])
             frames.append(rig.svg_for(mood, layers,
                 progress=amount, blinking=frame in ((12, 13, 70, 71, 75, 76) if mood == 'waiting' else (25, 26, 77, 78) if mood == 'new' else (15, 16, 84, 85) if mood == 'happy' else (10, 11, 80, 81) if mood == 'hungry' else (15, 16, 84, 85)),
-                phase=phase, idle_phase=t))
+                phase=phase, idle_phase=t, view_box=PREVIEW_VIEWBOX))
             # Neutral, closed-eye pose for a change of mood. The greeting's
             # frame 36 has raised its head but has not started reacting.
             if frame == (36 if mood == 'new' else 0):
                 transition_blinks[mood] = rig.svg_for(mood, layers,
-                    progress=amount, blinking=True, phase=phase, idle_phase=t)
+                    progress=amount, blinking=True, phase=phase, idle_phase=t, view_box=PREVIEW_VIEWBOX)
             if frame == 0:
                 idle_blinks[mood] = rig.svg_for(mood, layers,
-                    progress=amount, blinking=True, phase=phase, idle_phase=t)
+                    progress=amount, blinking=True, phase=phase, idle_phase=t, view_box=PREVIEW_VIEWBOX)
         moods[mood] = frames
     result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods,
                          'transition_blinks': transition_blinks,

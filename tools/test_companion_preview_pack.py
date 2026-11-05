@@ -143,6 +143,7 @@ class PreviewPackTest(unittest.TestCase):
         for mood, frames in pack['moods'].items():
             self.assertEqual(len(frames), 96)
             self.assertTrue(all(frame.startswith('<svg ') and len(frame) < 30_000 for frame in frames))
+            self.assertTrue(all('viewBox="92 87 320 320"' in frame for frame in frames))
 
     def test_happy_writing_uses_one_hand_and_a_timed_pen(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
