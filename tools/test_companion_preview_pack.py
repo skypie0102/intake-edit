@@ -10,12 +10,13 @@ class PreviewPackTest(unittest.TestCase):
         for first, last in zip(rig.waiting_follow_through(0), rig.waiting_follow_through(1)):
             self.assertAlmostEqual(first, last, places=6)
         tuft, ribbon = rig.waiting_follow_through(.25)
-        self.assertGreater(tuft, 0)
-        self.assertLess(abs(ribbon), 2)
+        self.assertGreater(tuft, 6)
+        self.assertGreater(ribbon, 9)
+        self.assertLess(ribbon, 12)
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['waiting']
         self.assertIn('rotate(0.00 313 341)', frames[0])
-        self.assertIn('rotate(1.67 313 341)', frames[24])
-        self.assertIn('C228 146 232.53 123 231.53 113', frames[24])
+        self.assertIn(f'rotate({ribbon:.2f} 313 341)', frames[24])
+        self.assertIn(f'C228 146 {231+tuft:.2f} 123 {230+tuft:.2f} 113', frames[24])
         for i in (0, 24, 48, 72):
             self.assertIn('M102 288 Q182 267 253 305', frames[i])
 

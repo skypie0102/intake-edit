@@ -246,9 +246,9 @@ def waiting_idle(phase):
 
 
 def waiting_follow_through(phase):
-    """Small cyclic offsets that lag behind the body's vertical motion."""
+    """Visible cyclic offsets that lag behind the body's vertical motion."""
     lag = math.sin(2 * math.pi * phase - .6) + math.sin(.6)
-    return 1.1 * lag, 1.2 * lag
+    return 5.0 * lag, 7.0 * lag
 
 
 def waiting_head(layers, phase):
