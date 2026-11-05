@@ -29,6 +29,16 @@ class PreviewPackTest(unittest.TestCase):
         self.assertEqual(frames[20].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
         self.assertGreater(len(set(frames)), 10)
 
+    def test_happy_looks_down_and_changes_expression_while_writing(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        frames = pack['moods']['happy']
+        rest, focused, finished = frames[0], frames[24], frames[40]
+        self.assertIn('translate(0.00 0.00)', rest)
+        self.assertIn('translate(3.00 7.00)', focused)
+        self.assertIn('M242.00 245.00 Q252.00 250.00 262.00 245.00', focused)
+        self.assertNotIn('translate(3.00 7.00)', finished)
+        self.assertIn('stroke="#b9905e"', focused)
+
     def test_animator_has_intermediate_new_and_waiting_frames(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         for mood in ('new', 'waiting'):

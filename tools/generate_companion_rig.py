@@ -142,15 +142,45 @@ def add_writing(root, phase, layer):
         ET.SubElement(root, N+'circle', {'cx':f'{x:.2f}','cy':f'{y-lift:.2f}','r':'1.3','fill':'#a98458'})
 
 
+def happy_focus(phase):
+    # Look down before the pen touches the page, then look up when finished.
+    return smooth((phase - .08) / .18) * smooth((.80 - phase) / .18)
+
+
+def happy_facial_layers(layers, focus, blinking):
+    head = deepcopy(layers['head'])
+    eyes = deepcopy(layers['blink' if blinking else 'eyes'])
+    for node in head[0]:
+        path = node.get('d', '')
+        if path.startswith('M239 239 Q252 245 265 239'):
+            start = (239,239,252,245,265,239,263,257,252,258,241,257,239,239)
+            end = (242,245,252,250,262,245,259,250,252,250,245,250,242,245)
+            v = [a + (b-a)*focus for a,b in zip(start,end)]
+            node.set('d', ('M%.2f %.2f Q%.2f %.2f %.2f %.2f '
+                           'Q%.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(v))
+        elif path.startswith('M245 251 Q252 247 259 251'):
+            node.set('opacity', f'{1-focus:.3f}')
+    # The pupils and their highlights move as a unit; the monocle stays on the head.
+    eyes[0].set('transform', f'translate({3*focus:.2f} {7*focus:.2f})')
+    return head, eyes
+
+
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
     for part in selected:
         if part == 'head_group':
-            transform = f'translate(0 {-7*progress:.2f})' if mood == 'new' else f'rotate({1.5*progress:.2f} 252 270)'
+            focus = happy_focus(phase) if mood == 'happy' and phase is not None else 0
+            transform = (f'translate(0 {-7*progress:.2f})' if mood == 'new'
+                         else f'rotate({1.5*progress + 2*focus:.2f} 252 270)')
             group = ET.SubElement(root,N+'g',{'transform':transform})
-            group.append(deepcopy(layers['head']))
-            group.append(deepcopy(layers['blink' if blinking else 'eyes']))
+            if mood == 'happy' and phase is not None:
+                head, eyes = happy_facial_layers(layers, focus, blinking)
+                group.append(head)
+                group.append(eyes)
+            else:
+                group.append(deepcopy(layers['head']))
+                group.append(deepcopy(layers['blink' if blinking else 'eyes']))
         elif part == 'ink' and mood == 'happy' and phase is not None:
             add_writing(root, phase, 'ink')
         elif part == 'pen' and mood == 'happy' and phase is not None:
