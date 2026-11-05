@@ -5,6 +5,22 @@ import org.junit.Test
 import kotlin.random.Random
 
 class RigPreviewTimelineTest {
+    @Test fun interruptedActionsReachAnAnchorInAtMostOneCycle() {
+        for (moodIsNew in listOf(false, true)) {
+            val anchor = transitionAnchor(moodIsNew)
+            for (start in 0 until 96) {
+                var frame = start
+                var steps = 0
+                while (frame != anchor && steps < 96) {
+                    frame = nextTransitionFrame(frame, 96)
+                    steps++
+                }
+                assertEquals(anchor, frame)
+                assertTrue(steps < 96)
+            }
+        }
+    }
+
     @Test fun idleReturnsToRestBeforePlayingEveryActionFrame() {
         val timeline = RigPreviewTimeline(96, Random(19))
         var previous = 0

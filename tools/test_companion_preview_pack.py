@@ -1,12 +1,37 @@
 import json
 import re
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 import generate_companion_rig as rig
 
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_preview_widget_plays_sampled_frames_at_pack_duration(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        ns = '{http://schemas.android.com/apk/res/android}'
+        layout = ET.parse(ROOT / 'app/src/debug/res/layout/translation_pet_widget.xml').getroot()
+        flipper = layout.find('ViewFlipper')
+        self.assertIsNotNone(flipper)
+        self.assertEqual(len(flipper), 16)
+        for frames in pack['moods'].values():
+            self.assertEqual(int(flipper.get(ns + 'flipInterval')) * len(flipper),
+                             pack['frame_ms'] * len(frames))
+
+    def test_transition_blink_keeps_the_neutral_scene_attached(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        self.assertEqual(set(pack['transition_blinks']), set(rig.MOODS))
+        for mood in rig.MOODS:
+            neutral = ET.fromstring(pack['moods'][mood][36 if mood == 'new' else 0])
+            blink = ET.fromstring(pack['transition_blinks'][mood])
+            # The head group contains the same head and only substitutes eyes.
+            self.assertEqual(neutral[1].get('transform'), blink[1].get('transform'))
+            self.assertEqual(ET.tostring(neutral[1][0]), ET.tostring(blink[1][0]))
+            self.assertNotEqual(ET.tostring(neutral[1][1]), ET.tostring(blink[1][1]))
+            self.assertEqual([ET.tostring(node) for node in neutral[2:]],
+                             [ET.tostring(node) for node in blink[2:]])
+
     def test_new_companion_scans_page_and_centres_gaze_to_greet(self):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
         self.assertGreater(rig.greeting_reading_eye_x(.05, 1), 6.9)

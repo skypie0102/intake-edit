@@ -33,7 +33,11 @@ private const val MAX_BYTES = 4_000_000
 private const val DEMO_PREFS = "rig_preview_demo"
 private const val DEMO_KEY = "demo_mood"
 
-private data class RigPack(val pictures: Map<PetMood, List<Picture>>, val frameMs: Long)
+private data class RigPack(
+    val pictures: Map<PetMood, List<Picture>>,
+    val transitionBlinks: Map<PetMood, Picture>,
+    val frameMs: Long,
+)
 
 private object RigPackStore {
     @Volatile var current: RigPack? = null
@@ -46,17 +50,23 @@ private object RigPackStore {
         val frameMs = root.getLong("frame_ms")
         require(frameMs in 40..500) { "Invalid animation speed" }
         val source = root.getJSONObject("moods")
+        fun parsePicture(svg: String): Picture {
+            require(svg.length <= 30_000 && !Regex("(?i)<!|<script|<image|<use|href\\s*=").containsMatchIn(svg)) { "Unsupported SVG content" }
+            require(!Regex("url\\((?!#(?:paper|behind-book)\\))", RegexOption.IGNORE_CASE).containsMatchIn(svg)) { "External resources are not allowed" }
+            return SVG.getFromString(svg).renderToPicture(320, 320)
+        }
         val pictures = PetMood.entries.associateWith { mood ->
             val array = source.getJSONArray(mood.name.lowercase())
             require(array.length() in 16..96 && array.length() % 16 == 0) { "Invalid frame count" }
             List(array.length()) { index ->
-                val svg = array.getString(index)
-                require(svg.length <= 30_000 && !Regex("(?i)<!|<script|<image|<use|href\\s*=").containsMatchIn(svg)) { "Unsupported SVG content" }
-                require(!Regex("url\\((?!#(?:paper|behind-book)\\))", RegexOption.IGNORE_CASE).containsMatchIn(svg)) { "External resources are not allowed" }
-                SVG.getFromString(svg).renderToPicture(320, 320)
+                parsePicture(array.getString(index))
             }
         }
-        return RigPack(pictures, frameMs)
+        val blinkSource = root.optJSONObject("transition_blinks")
+        val blinks = if (blinkSource == null) emptyMap() else PetMood.entries.associateWith {
+            parsePicture(blinkSource.getString(it.name.lowercase()))
+        }
+        return RigPack(pictures, blinks, frameMs)
     }
 
     fun load(context: Context): RigPack {
@@ -124,6 +134,9 @@ internal fun RigRemotePreview() {
     var refreshing by remember { mutableStateOf(false) }
     var refreshCount by remember { mutableIntStateOf(0) }
     var frame by remember { mutableIntStateOf(0) }
+    var displayedMood by remember { mutableStateOf(mood) }
+    var transitionBlink by remember { mutableStateOf(false) }
+    val requestedMood by rememberUpdatedState(mood)
 
     LaunchedEffect(refreshCount) {
         refreshing = true
@@ -139,24 +152,60 @@ internal fun RigRemotePreview() {
         }.onFailure { message = "Using saved animations. Update failed: ${it.message}" }
         refreshing = false
     }
-    LaunchedEffect(pack, mood) {
+    LaunchedEffect(pack) {
         frame = 0
+        displayedMood = requestedMood
+        transitionBlink = false
         var timeline: RigPreviewTimeline? = null
         while (true) {
-            delay(pack?.frameMs ?: 83)
-            val count = pack?.pictures?.get(mood)?.size ?: continue
+            val currentPack = pack
+            if (currentPack == null) { delay(83); continue }
+            val count = currentPack.pictures[displayedMood]?.size ?: continue
             // Honor Android's animation setting without fading the character.
             val enabled = Build.VERSION.SDK_INT < 26 || ValueAnimator.areAnimatorsEnabled()
             if (!enabled) {
                 timeline = null
+                displayedMood = requestedMood
+                transitionBlink = false
                 frame = 0
+                delay(currentPack.frameMs)
+            } else if (requestedMood != displayedMood) {
+                timeline = null
+                if (currentPack.pictures.values.all { it.size == 96 } &&
+                    currentPack.transitionBlinks.size == PetMood.entries.size) {
+                    // Finish the current gesture quickly, preserving its drawing order.
+                    // New's raised-head pose precedes its surprise and wave.
+                    val anchor = transitionAnchor(displayedMood == PetMood.NEW)
+                    while (frame != anchor) {
+                        frame = nextTransitionFrame(frame, count)
+                        delay(12)
+                    }
+                    if (requestedMood != displayedMood) {
+                        transitionBlink = true
+                        delay(80)
+                        displayedMood = requestedMood // Use the latest request, even if interrupted.
+                        frame = transitionAnchor(displayedMood == PetMood.NEW)
+                        delay(80)
+                        transitionBlink = false
+                    }
+                    // The new companion lowers his head to read after the change.
+                    while (displayedMood == PetMood.NEW && frame > 0 && requestedMood == displayedMood) {
+                        frame--
+                        delay(18)
+                    }
+                } else {
+                    displayedMood = requestedMood
+                    frame = 0
+                }
             } else if (count != 96) {
                 // Older packs have different pose timing; play them as authored.
                 timeline = null
                 frame = (frame + 1) % count
+                delay(currentPack.frameMs)
             } else {
-                val active = timeline ?: RigPreviewTimeline(count, startWithAction = mood == PetMood.NEW).also { timeline = it }
+                val active = timeline ?: RigPreviewTimeline(count, startWithAction = displayedMood == PetMood.NEW).also { timeline = it }
                 frame = active.advance()
+                delay(currentPack.frameMs)
             }
         }
     }
@@ -165,7 +214,8 @@ internal fun RigRemotePreview() {
             Text("Rig preview", style = MaterialTheme.typography.titleMedium)
             Text(message, style = MaterialTheme.typography.bodySmall)
             Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
-                val picture = pack?.pictures?.get(mood)?.getOrNull(frame)
+                val picture = if (transitionBlink) pack?.transitionBlinks?.get(displayedMood)
+                              else pack?.pictures?.get(displayedMood)?.getOrNull(frame)
                 if (picture != null) Canvas(Modifier.size(220.dp)) {
                     val canvas = drawContext.canvas.nativeCanvas
                     val save = canvas.save()

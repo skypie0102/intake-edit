@@ -8,14 +8,14 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 - [ ] Blink naturally and vary pauses; avoid a predictable short loop. **In progress:** scripted blinks include a double blink. Preview playback now inserts variable idle intervals before each action; blink choreography inside the action is still fixed.
 - [ ] Glance at the page, pause, and look up before the existing sequential thinking dots and drawn question mark. **In progress:** the gaze now lowers and returns more slowly, with a brief hold. The preview runs a longer sequence with reading time; intermediate poses were inspected on a dark background. Full-speed and device review remain open.
 - [ ] Add small posture shifts and delayed tuft and bookmark follow-through without visible detachment. **In progress:** the tuft and bookmark movement has been increased again after feedback that it was still not noticeable. The preview uses a faster, wider sway, with the ribbon pivoting around its hidden attachment; user and device review remain open. Device review and posture shifts remain open.
-- [ ] Review intermediate poses and playback at actual in-app and 2×2 widget sizes.
+- [ ] Review intermediate poses and playback at actual in-app and 2×2 widget sizes. **In progress:** sampled neutral and closed-eye poses were rendered on light and dark backgrounds; launcher playback remains unverified.
 
 ## Shared animation and rigging
 
 - [ ] Use restrained idle movement so the character is present without constant bouncing.
 - [ ] Vary blink, glance, action and idle timing; provide a few spaced variations instead of synchronized repetition. **In progress:** the new preview player inserts randomized idle intervals between actions, returning to the neutral pose before each action. Blink and action choreography themselves remain fixed; widget playback is unchanged.
 - [ ] Lead actions with the eyes, followed by head and body; use anticipation, readable holds, recovery and follow-through. **In progress:** all five preview moods have a small anticipatory posture shift and recovery; hungry and sad move less. Tuft and bookmark follow-through is less uniform, and Waiting has a spaced double blink. Sampled poses were reviewed on alternating light and dark backgrounds; 24 rig and pack checks passed. Full-motion and device review remain open.
-- [ ] Animate compatible transitions between moods, including when an action is interrupted; keep status changes responsive.
+- [ ] Animate compatible transitions between moods, including when an action is interrupted; keep status changes responsive. **In progress:** the preview finishes the current action quickly, closes the eyes at a neutral pose, then changes to the latest requested mood and returns the new state to rest. There is no whole-scene fade. Expression and limb shapes still switch while the eyes are closed; this is not continuous path interpolation. The widget does not yet use these transitions.
 - [ ] Keep eyes, eyelids, head/body, tuft, arms, book, pen, and bookmark independently controllable but connected; preserve pivots, attachment, overlaps and drawing order.
 - [ ] Explore restrained soft body deformation without warping the face or silhouette.
 - [ ] Keep the book, visible page lines, hanging bookmark and gold monocle consistent; avoid whole-character fades or extra limbs.
@@ -32,7 +32,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 ## Validation and rollout
 
 - [ ] Review every state and transition on light and dark backgrounds, in motion and at actual device/widget size; check clipping, flicker, snapping, jitter, prop contact and repetition.
-- [ ] Test app and launcher behavior, resizing, sleep/resume and multiple widgets; record device, launcher, performance and known limitations.
+- [ ] Test app and launcher behavior, resizing, sleep/resume and multiple widgets; record device, launcher, performance and known limitations. **In progress:** the preview widget frame interval now matches the duration of the 96-frame pack when sampled into 16 frames. Launcher playback, reduced motion, resizing and power use remain unverified.
 - [ ] Preserve the existing project, feeding, progress and chapter-opening behavior. Keep preview and production separate until the revamp is accepted.
 - [ ] Update this tracker with implementation and review evidence as work lands.
 
