@@ -9,6 +9,7 @@ import generate_companion_rig as rig
 
 ROOT = Path(__file__).resolve().parents[1]
 FRAME_COUNT = 96
+SHARED_FRAME_COUNT = 32
 # Keep the whole outlined book inside the preview canvas, including antialiasing.
 PREVIEW_VIEWBOX = '92 87 320 320'
 
@@ -58,10 +59,34 @@ def generate():
             ['head_group', 'left_arm', 'book', 'turning_page', 'right_arm'],
             blinking=frame in (15, 16, 84, 85), phase=phase, idle_phase=t,
             view_box=PREVIEW_VIEWBOX, action='page_turn'))
+    shared_actions = {}
+    for mood in rig.MOODS:
+        shared_actions[mood] = {}
+        for action in ('reading', 'writing', 'page_turn'):
+            frames = []
+            for frame in range(SHARED_FRAME_COUNT):
+                t = frame / SHARED_FRAME_COUNT
+                phase = max(0, min(1, (t - .12) / .76))
+                reach = (rig.writing_pose(phase)[0] if action == 'writing'
+                         else rig.page_turn_pose(phase)[0] if action == 'page_turn' else 0)
+                # Keep the resting arm behind the book; place the same arm in
+                # front only as it reaches for a page or pen.
+                behind = reach <= 0 and mood != 'happy'
+                layers = (['head_group', 'left_arm', 'right_arm', 'book'] if behind
+                          else ['head_group', 'left_arm', 'book'])
+                if action == 'writing': layers += ['ink', 'pen']
+                if action == 'page_turn': layers += ['turning_page']
+                if not behind: layers += ['right_arm']
+                if mood == 'happy' and action == 'writing': layers += ['symbol']
+                frames.append(rig.svg_for(mood, layers, phase=phase, idle_phase=t,
+                    blinking=frame in (5, 27), view_box=PREVIEW_VIEWBOX,
+                    action='shared_' + action))
+            shared_actions[mood][action] = frames
     result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods,
                          'transition_blinks': transition_blinks,
                          'idle_blinks': idle_blinks,
-                         'page_turn': page_turn}, separators=(',', ':')) + '\n'
+                         'page_turn': page_turn,
+                         'shared_actions': shared_actions}, separators=(',', ':')) + '\n'
     for path in (ROOT / 'rig-preview/animation-pack.json', ROOT / 'app/src/debug/assets/rig-preview-pack.json'):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(result, encoding='utf-8')

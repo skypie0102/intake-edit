@@ -8,6 +8,21 @@ import generate_companion_rig as rig
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_shared_actions_cover_every_mood_and_keep_their_expression(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        self.assertEqual(set(pack['shared_actions']), set(rig.MOODS))
+        for mood, actions in pack['shared_actions'].items():
+            self.assertEqual(set(actions), {'reading', 'writing', 'page_turn'})
+            for name, frames in actions.items():
+                self.assertEqual(len(frames), 32, (mood, name))
+                self.assertTrue(all(len(frame) < 30_000 for frame in frames))
+                self.assertEqual(frames[16].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
+            self.assertIn('#654e70', actions['writing'][16])
+            self.assertIn('M253 300 Q', actions['page_turn'][16])
+        for action in pack['shared_actions']['hungry'].values():
+            self.assertIn('M242 250.00 Q252 240.00 262 250.00', action[16])
+            self.assertNotIn('M239 240 Q252 253 265 240', action[16])
+
     def test_page_turn_is_anchored_and_returns_to_the_same_rest_pose(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         frames = pack['page_turn']
@@ -155,7 +170,7 @@ class PreviewPackTest(unittest.TestCase):
         published = (ROOT / 'rig-preview/animation-pack.json').read_bytes()
         bundled = (ROOT / 'app/src/debug/assets/rig-preview-pack.json').read_bytes()
         self.assertEqual(published, bundled)
-        self.assertLess(len(published), 4_000_000)
+        self.assertLess(len(published), 8_000_000)
         pack = json.loads(published)
         self.assertEqual(pack['format'], 1)
         self.assertEqual(set(pack['moods']), {'new', 'happy', 'waiting', 'hungry', 'sad'})

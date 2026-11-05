@@ -153,10 +153,16 @@ def add_turning_page(root, turn):
                 'fill':'none','stroke':'#b9a499','stroke-width':'3','stroke-linecap':'round','opacity':'.8'})
 
 
-def writing_arm(reach, writing, follow_x=0, follow_y=0):
+def writing_arm(reach, writing, follow_x=0, follow_y=0, mood='happy'):
     # The same single limb starts at the book and reaches toward the page.
     start = (305,254, 308,250,314,247,321,247, 330,248,335,253,334,262,
              334,266,332,270,330,272, 322,275,312,268,305,254)
+    if mood == 'waiting':
+        start = (303,269, 303,255,310,245,322,247, 330,248,335,253,334,262,
+                 334,266,332,270,330,272, 330,272,303,269,303,269)
+    elif mood in ('hungry', 'sad'):
+        start = (303,269, 303,255,310,245,322,247, 334,249,338,259,330,272,
+                 330,272,330,272,330,272, 330,272,303,269,303,269)
     end = (305,254, 316,258,325,260,333,267, 340,274,341,280,337,285,
            334,290,327,296,321,296, 313,296,307,293,302,288)
     vals = [a+(b-a)*reach for a,b in zip(start,end)]
@@ -377,10 +383,11 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
     for part in selected:
         if part == 'head_group':
             focus = happy_focus(phase) if mood == 'happy' and phase is not None else 0
-            look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None else (0, 0)
-            glance, settle, tear = sad_action(phase) if mood == 'sad' and phase is not None else (0, 0, 0)
+            shared = action in ('shared_reading', 'shared_writing', 'shared_page_turn')
+            look, sigh = hungry_action(phase) if mood == 'hungry' and phase is not None and not shared else (0, 0)
+            glance, settle, tear = sad_action(phase) if mood == 'sad' and phase is not None and not shared else (0, 0, 0)
             breath, page_glance = waiting_idle(idle_phase if idle_phase is not None else phase) if mood == 'waiting' and phase is not None else (0, 0)
-            reading = greeting_reading(phase) if mood == 'new' and idle_phase is not None else 0
+            reading = (1 if shared else greeting_reading(phase)) if mood == 'new' and idle_phase is not None else 0
             float_y = -1.2 * math.sin(2 * math.pi * idle_phase) if mood == 'new' and idle_phase is not None else 0
             transform = (f'translate(0 {-7*progress + 20*reading + float_y:.2f}) rotate({7*reading:.2f} 252 270)' if mood == 'new' and idle_phase is not None
                          else f'translate(0 {-7*progress:.2f})' if mood == 'new'
@@ -408,7 +415,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(head)
                 group.append(eyes)
             elif mood == 'new' and idle_phase is not None:
-                group.append(greeting_head(layers, idle_phase, phase, reading))
+                group.append(greeting_head(layers, idle_phase, 0 if shared else phase, reading))
                 eyes = deepcopy(layers['blink' if blinking else 'eyes'])
                 current = eyes[0].get('transform', '')
                 eye_x = 0 if blinking else greeting_reading_eye_x(idle_phase, reading)
@@ -424,26 +431,46 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             else:
                 group.append(deepcopy(layers['head']))
                 group.append(deepcopy(layers['blink' if blinking else 'eyes']))
-        elif part == 'ink' and mood == 'happy' and phase is not None:
+            if action == 'shared_reading' and not blinking and mood != 'new':
+                # The pupils and highlights stay together while scanning the page.
+                gaze = 5 * math.sin(4 * math.pi * idle_phase) * smooth(phase / .15) * smooth((1-phase) / .15)
+                eyes_group = group[-1][0]
+                eyes_group.set('transform', eyes_group.get('transform', '') + f' translate({gaze:.2f} 0)')
+        elif part == 'ink' and (mood == 'happy' or action == 'shared_writing') and phase is not None:
             add_writing(root, phase, 'ink')
-        elif part == 'pen' and mood == 'happy' and phase is not None:
+        elif part == 'pen' and (mood == 'happy' or action == 'shared_writing') and phase is not None:
             add_writing(root, phase, part)
-        elif part == 'turning_page' and mood == 'happy' and phase is not None:
+        elif part == 'turning_page' and (mood == 'happy' or action == 'shared_page_turn') and phase is not None:
             if .28 <= phase < .98:
                 _, turn = page_turn_pose(phase)
                 add_turning_page(root, turn)
-        elif part == 'right_arm' and mood == 'happy' and phase is not None:
+        elif part == 'right_arm' and (mood == 'happy' or action in ('shared_writing', 'shared_page_turn')) and phase is not None:
             arm = deepcopy(layers[part])
-            if action == 'page_turn':
+            if action == 'shared_reading':
+                arm[0][0].set('d', writing_arm(0, 0, mood=mood))
+            elif action in ('page_turn', 'shared_page_turn'):
                 reach, turn = page_turn_pose(phase)
-                arm[0][0].set('d', writing_arm(reach, 0, -70*turn, -22*math.sin(math.pi*turn)))
+                arm[0][0].set('d', writing_arm(reach, 0, -70*turn, -22*math.sin(math.pi*turn), mood=mood))
             else:
                 reach, writing = writing_pose(phase)
-                arm[0][0].set('d', writing_arm(reach, writing))
+                arm[0][0].set('d', writing_arm(reach, writing, mood=mood))
+            if action in ('shared_writing', 'shared_page_turn'):
+                # Their resting bodies use different offsets. Bring the arm
+                # into page coordinates as it reaches so the hand meets the
+                # pen/page instead of being clipped below the book.
+                factor = 1 - reach
+                transforms = {
+                    'new': f'rotate({3*factor:.2f} 252 270)',
+                    'waiting': f'rotate({-6*factor:.2f} 252 270)',
+                    'hungry': f'translate(0 {20*factor:.2f}) rotate({7*factor:.2f} 252 270)',
+                    'sad': f'translate(0 {23*factor:.2f}) rotate({-5*factor:.2f} 252 275)',
+                    'happy': '',
+                }
+                arm[0].set('transform', transforms[mood])
             root.append(arm)
         elif part == 'right_arm' and mood == 'new' and idle_phase is not None:
             arm = deepcopy(layers[part])
-            _, raised, wave = greeting_action(phase)
+            _, raised, wave = greeting_action(0 if action == 'shared_reading' else phase)
             arm[0][0].set('d', greeting_arm(raised))
             arm[0][0].set('transform', f'translate(0 10) rotate({wave:.2f} 305 254)')
             root.append(arm)

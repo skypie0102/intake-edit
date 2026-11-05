@@ -10,6 +10,15 @@ internal fun nextTransitionFrame(frame: Int, frameCount: Int): Int {
     return (frame + 1) % frameCount
 }
 
+/** One timing source for the foreground and widget previews. */
+internal fun moodFrameDuration(baseMs: Long, mood: String): Long = when (mood) {
+    "HAPPY" -> baseMs * 85 / 100
+    "WAITING" -> baseMs * 110 / 100
+    "HUNGRY" -> baseMs * 145 / 100
+    "SAD" -> baseMs * 155 / 100
+    else -> baseMs
+}.coerceAtLeast(40)
+
 /** Select evenly spaced widget poses; Happy can divide its slots between actions. */
 internal fun widgetPose(slot: Int, slots: Int, frameCount: Int, hasPageTurn: Boolean): Pair<Boolean, Int> {
     require(slots > 0 && slot in 0 until slots && frameCount >= slots && frameCount % slots == 0)
@@ -26,6 +35,7 @@ internal class RigPreviewTimeline(
     startWithAction: Boolean = false,
     private val allowIdleBlink: Boolean = false,
     private val allowPageTurn: Boolean = false,
+    private val allowSharedActions: Boolean = false,
 ) {
     init { require(frameCount >= 16) }
 
@@ -40,6 +50,9 @@ internal class RigPreviewTimeline(
         private set
     var pageTurn: Boolean = false
         private set
+    var sharedAction: String? = null
+        private set
+    private var nextShared = if (startWithAction) 1 else 0
     private var nextPageTurn = false
 
     private fun nextIdleLength() = random.nextInt(36, 109)
@@ -55,6 +68,7 @@ internal class RigPreviewTimeline(
                 idleRemaining = nextIdleLength()
                 playingAction = false
                 pageTurn = false
+                sharedAction = null
             }
             return frame
         }
@@ -72,8 +86,15 @@ internal class RigPreviewTimeline(
         blinkCountdown--
         if (idleRemaining-- <= 0 && idleStep == 0) {
             playingAction = true
-            pageTurn = allowPageTurn && nextPageTurn
-            if (allowPageTurn) nextPageTurn = !nextPageTurn
+            if (allowSharedActions) {
+                val actions = listOf(null, "reading", "writing", "page_turn")
+                sharedAction = actions[nextShared]
+                nextShared = (nextShared + 1) % actions.size
+                pageTurn = false
+            } else {
+                pageTurn = allowPageTurn && nextPageTurn
+                if (allowPageTurn) nextPageTurn = !nextPageTurn
+            }
             frame = 1
             return frame
         }

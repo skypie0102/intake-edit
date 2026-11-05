@@ -13,7 +13,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 ## Shared animation and rigging
 
 - [ ] Use restrained idle movement so the character is present without constant bouncing.
-- [ ] Vary blink, glance, action and idle timing; provide a few spaced variations instead of synchronized repetition. **In progress:** the new preview player inserts randomized idle intervals between actions, returning to the neutral pose before each action. Resting blinks are independently timed; action choreography remains fixed. Widget playback remains a repeating, launcher-controlled sequence.
+- [ ] Vary blink, glance, action and idle timing; provide a few spaced variations instead of synchronized repetition. **In progress:** each mood now shares reading, writing, and page turning as well as its own reaction. Happy uses a faster clock; waiting, hungry, and sad use progressively slower clocks. Shared actions preserve each expression and return to the same rendered rest pose. **In progress:** the new preview player inserts randomized idle intervals between actions, returning to the neutral pose before each action. Resting blinks are independently timed; action choreography remains fixed. Widget playback remains a repeating, launcher-controlled sequence.
 - [ ] Lead actions with the eyes, followed by head and body; use anticipation, readable holds, recovery and follow-through. **In progress:** all five preview moods have a small anticipatory posture shift and recovery; hungry and sad move less. Tuft and bookmark follow-through is less uniform, and Waiting has a spaced double blink. Sampled poses were reviewed on alternating light and dark backgrounds. The preview view box was expanded slightly after edge clipping was detected; 24 sampled frames per mood now render with a transparent outer edge at 160 px. Full-motion and device review remain open.
 - [ ] Animate compatible transitions between moods, including when an action is interrupted; keep status changes responsive. **In progress:** the preview finishes the current action quickly, closes the eyes at a neutral pose, then changes to the latest requested mood and returns the new state to rest. There is no whole-scene fade. Expression and limb shapes still switch while the eyes are closed; this is not continuous path interpolation. The widget does not yet use these transitions.
 - [ ] Keep eyes, eyelids, head/body, tuft, arms, book, pen, and bookmark independently controllable but connected; preserve pivots, attachment, overlaps and drawing order.
@@ -32,10 +32,12 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 ## Validation and rollout
 
 - [ ] Review every state and transition on light and dark backgrounds, in motion and at actual device/widget size; check clipping, flicker, snapping, jitter, prop contact and repetition.
-- [ ] Test app and launcher behavior, resizing, sleep/resume and multiple widgets; record device, launcher, performance and known limitations. **In progress:** the preview widget samples each normal mood into 16 frames at its authored duration. Happy divides those slots between writing and page turning and plays each at a shortened pace. Launcher playback, reduced motion, resizing and power use remain unverified.
+- [ ] Test app and launcher behavior, resizing, sleep/resume and multiple widgets; record device, launcher, performance and known limitations. **In progress:** the preview widget samples the mood reaction and three shared actions into 16 frames, with mood-specific timing. Four poses per action are a coarse launcher preview, not full app-quality playback. Launcher playback, reduced motion, resizing and power use remain unverified.
 - [ ] Preserve the existing project, feeding, progress and chapter-opening behavior. Keep preview and production separate until the revamp is accepted.
 - [ ] Update this tracker with implementation and review evidence as work lands.
 
 See [the animation revamp plan](COMPANION_ANIMATION_PLAN.md) for existing behavior, constraints and acceptance criteria.
 
 
+
+The shared-action preview pack contains 32 poses per action and mood. It is larger than earlier packs; Android memory use, loading time and power have not yet been measured. Existing preview APKs need an update to read packs over 4 MB and schedule shared actions.

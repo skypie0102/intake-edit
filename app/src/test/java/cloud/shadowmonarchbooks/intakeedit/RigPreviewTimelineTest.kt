@@ -5,6 +5,22 @@ import org.junit.Test
 import kotlin.random.Random
 
 class RigPreviewTimelineTest {
+    @Test fun sharedActionsCycleAndMoodChangesTheirPace() {
+        assertTrue(moodFrameDuration(83, "HAPPY") < moodFrameDuration(83, "WAITING"))
+        assertTrue(moodFrameDuration(83, "WAITING") < moodFrameDuration(83, "HUNGRY"))
+        assertTrue(moodFrameDuration(83, "HUNGRY") < moodFrameDuration(83, "SAD"))
+        val timeline = RigPreviewTimeline(96, Random(12), allowSharedActions = true)
+        val actions = mutableListOf<String?>()
+        var previous = 0
+        repeat(2400) {
+            val frame = timeline.advance()
+            if (frame == 10 && previous == 9) actions.add(timeline.sharedAction)
+            previous = frame
+        }
+        assertTrue(actions.size >= 4)
+        assertEquals(listOf(null, "reading", "writing", "page_turn"), actions.take(4))
+    }
+
     @Test fun widgetIncludesBothActionsWithoutAddingSlots() {
         val normal = (0 until 16).map { widgetPose(it, 16, 96, false) }
         assertTrue(normal.all { !it.first })
