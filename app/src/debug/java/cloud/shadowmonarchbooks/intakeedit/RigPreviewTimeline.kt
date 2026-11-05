@@ -2,13 +2,9 @@ package cloud.shadowmonarchbooks.intakeedit
 
 import kotlin.random.Random
 
-internal fun transitionAnchor(moodIsNew: Boolean) = if (moodIsNew) 36 else 0
-
-/** Advance through authored frames, wrapping at the end, rather than reverse a gesture. */
-internal fun nextTransitionFrame(frame: Int, frameCount: Int): Int {
-    require(frameCount > 0 && frame in 0 until frameCount)
-    return (frame + 1) % frameCount
-}
+/** Never render a stale frame from the previously selected mood. */
+internal fun <M, T> selectedPreviewFrame(selected: M, displayed: M, selectedRest: T?, current: T?): T? =
+    if (selected == displayed) current else selectedRest
 
 /** One timing source for the foreground and widget previews. */
 internal fun moodFrameDuration(baseMs: Long, mood: String): Long = when (mood) {

@@ -35,7 +35,6 @@ private const val DEMO_KEY = "demo_mood"
 
 private data class RigPack(
     val pictures: Map<PetMood, List<Picture>>,
-    val transitionBlinks: Map<PetMood, Picture>,
     val idleBlinks: Map<PetMood, Picture>,
     val pageTurn: List<Picture>,
     val sharedActions: Map<PetMood, Map<String, List<Picture>>>,
@@ -65,10 +64,6 @@ private object RigPackStore {
                 parsePicture(array.getString(index))
             }
         }
-        val blinkSource = root.optJSONObject("transition_blinks")
-        val blinks = if (blinkSource == null) emptyMap() else PetMood.entries.associateWith {
-            parsePicture(blinkSource.getString(it.name.lowercase()))
-        }
         val idleSource = root.optJSONObject("idle_blinks")
         val idleBlinks = if (idleSource == null) emptyMap() else PetMood.entries.associateWith {
             parsePicture(idleSource.getString(it.name.lowercase()))
@@ -83,11 +78,11 @@ private object RigPackStore {
             val entries = sharedSource.getJSONObject(mood.name.lowercase())
             listOf("reading", "writing", "page_turn").associateWith { action ->
                 val sequence = entries.getJSONArray(action)
-                require(sequence.length() == 32) { "Invalid shared action frame count" }
+                require(sequence.length() in listOf(32, 48)) { "Invalid shared action frame count" }
                 List(sequence.length()) { parsePicture(sequence.getString(it)) }
             }
         }
-        return RigPack(pictures, blinks, idleBlinks, pageTurn, shared, frameMs)
+        return RigPack(pictures, idleBlinks, pageTurn, shared, frameMs)
     }
 
     fun load(context: Context): RigPack {
@@ -177,6 +172,9 @@ internal object RigRemoteFrames {
                 }
                 views.setImageViewBitmap(view, bitmap(picture))
             }
+            // The launcher can preserve the previously shown child when the
+            // mood is replaced. Always begin the new mood at its first pose.
+            views.setDisplayedChild(R.id.pet_widget_portrait, 0)
         }
         return true
     }
@@ -193,11 +191,9 @@ internal fun RigRemotePreview() {
     var refreshCount by remember { mutableIntStateOf(0) }
     var frame by remember { mutableIntStateOf(0) }
     var displayedMood by remember { mutableStateOf(mood) }
-    var transitionBlink by remember { mutableStateOf(false) }
     var idleBlink by remember { mutableStateOf(false) }
     var turningPage by remember { mutableStateOf(false) }
     var sharedAction by remember { mutableStateOf<String?>(null) }
-    val requestedMood by rememberUpdatedState(mood)
 
     LaunchedEffect(refreshCount) {
         refreshing = true
@@ -213,10 +209,9 @@ internal fun RigRemotePreview() {
         }.onFailure { message = "Using saved animations. Update failed: ${it.message}" }
         refreshing = false
     }
-    LaunchedEffect(pack) {
+    LaunchedEffect(pack, mood) {
         frame = 0
-        displayedMood = requestedMood
-        transitionBlink = false
+        displayedMood = mood
         idleBlink = false
         turningPage = false
         sharedAction = null
@@ -229,52 +224,12 @@ internal fun RigRemotePreview() {
             val enabled = Build.VERSION.SDK_INT < 26 || ValueAnimator.areAnimatorsEnabled()
             if (!enabled) {
                 timeline = null
-                displayedMood = requestedMood
-                transitionBlink = false
+                displayedMood = mood
                 idleBlink = false
                 turningPage = false
                 sharedAction = null
                 frame = 0
                 delay(currentPack.frameMs)
-            } else if (requestedMood != displayedMood) {
-                timeline = null
-                idleBlink = false
-                if (currentPack.pictures.values.all { it.size == 96 } &&
-                    currentPack.transitionBlinks.size == PetMood.entries.size) {
-                    // Finish the current gesture quickly, preserving its drawing order.
-                    // New's raised-head pose precedes its surprise and wave.
-                    if (sharedAction != null) {
-                        while (frame != 0) {
-                            frame = nextTransitionFrame(frame, count)
-                            delay(12)
-                        }
-                        sharedAction = null
-                    }
-                    val anchor = transitionAnchor(displayedMood == PetMood.NEW)
-                    while (frame != anchor) {
-                        frame = nextTransitionFrame(frame, count)
-                        delay(12)
-                    }
-                    turningPage = false
-                    if (requestedMood != displayedMood) {
-                        transitionBlink = true
-                        delay(80)
-                        displayedMood = requestedMood // Use the latest request, even if interrupted.
-                        frame = transitionAnchor(displayedMood == PetMood.NEW)
-                        delay(80)
-                        transitionBlink = false
-                    }
-                    // The new companion lowers his head to read after the change.
-                    while (displayedMood == PetMood.NEW && frame > 0 && requestedMood == displayedMood) {
-                        frame--
-                        delay(18)
-                    }
-                } else {
-                    displayedMood = requestedMood
-                    frame = 0
-                    turningPage = false
-                    sharedAction = null
-                }
             } else if (count != 96) {
                 // Older packs have different pose timing; play them as authored.
                 timeline = null
@@ -303,14 +258,17 @@ internal fun RigRemotePreview() {
             Text(message, style = MaterialTheme.typography.bodySmall)
             Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                 val action = sharedAction
-                val picture = if (transitionBlink) pack?.transitionBlinks?.get(displayedMood)
-                              else if (idleBlink) pack?.idleBlinks?.get(displayedMood)
+                // A selected mood must never show the outgoing mood, even in
+                // the composition before its new playback effect starts.
+                val currentPicture = if (idleBlink) pack?.idleBlinks?.get(displayedMood)
                               else if (action != null) {
                                   val sequence = pack?.sharedActions?.get(displayedMood)?.get(action)
                                   sequence?.let { it.getOrNull(frame * it.size / (pack?.pictures?.get(displayedMood)?.size ?: 96)) }
                               }
                               else if (turningPage && displayedMood == PetMood.HAPPY) pack?.pageTurn?.getOrNull(frame)
                               else pack?.pictures?.get(displayedMood)?.getOrNull(frame)
+                val picture = selectedPreviewFrame(mood, displayedMood,
+                    pack?.pictures?.get(mood)?.firstOrNull(), currentPicture)
                 if (picture != null) Canvas(Modifier.size(220.dp)) {
                     val canvas = drawContext.canvas.nativeCanvas
                     val save = canvas.save()

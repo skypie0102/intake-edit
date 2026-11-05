@@ -126,20 +126,27 @@ def page_turn_pose(phase):
 
 
 def page_turn_edge(turn):
-    lift = 42 * math.sin(math.pi * turn)
-    return 392 - 278 * turn, 282 - lift
+    # At the midpoint the page is edge-on: its edge meets the spine instead
+    # of sticking up as a spike in front of the face.
+    curl = math.sin(math.pi * turn)
+    flat = curl ** 4
+    return 392 - 278 * turn, (282 - 10 * curl) * (1 - flat) + 300 * flat
 
 
 def add_turning_page(root, turn):
     """A curved sheet shares the book spine and settles onto the left page."""
     edge_x, edge_y = page_turn_edge(turn)
-    lift = 42 * math.sin(math.pi * turn)
+    curl = math.sin(math.pi * turn)
+    flat = curl ** 4
     lower_x = 391 - 276 * turn
     top_control = 321 - 135 * turn
     bottom_control = 321 - 139 * turn
+    top_y = (257 - 8 * curl) * (1 - flat) + 300 * flat
+    lower_y = (349 - 6 * curl) * (1 - flat) + 369 * flat
+    bottom_y = (335 - 5 * curl) * (1 - flat) + 369 * flat
     ET.SubElement(root, N+'path', {
-        'd': (f'M253 300 Q{top_control:.2f} {257-lift*.65:.2f} {edge_x:.2f} {edge_y:.2f} '
-              f'L{lower_x:.2f} {349-lift*.35:.2f} Q{bottom_control:.2f} {335-lift*.30:.2f} 253 369 Z'),
+        'd': (f'M253 300 Q{top_control:.2f} {top_y:.2f} {edge_x:.2f} {edge_y:.2f} '
+              f'L{lower_x:.2f} {lower_y:.2f} Q{bottom_control:.2f} {bottom_y:.2f} 253 369 Z'),
         'fill':'url(#paper)', 'stroke':'#ac8f87', 'stroke-width':'4', 'stroke-linejoin':'round'})
     # Line direction reverses with the sheet; both end poses match the book.
     if abs(edge_x - 253) > 12:
@@ -149,7 +156,7 @@ def add_turning_page(root, turn):
             (330,328,309,373,320,330,177,309,131,320)):
             a = lambda x,y: x+(y-x)*turn
             ET.SubElement(root, N+'path', {
-                'd':f'M{a(275,230):.2f} {a(sy,ly)-lift*.35:.2f} Q{a(cx,lcx):.2f} {a(cy,lcy)-lift*.60:.2f} {a(ex,lex):.2f} {a(ey,ley)-lift*.55:.2f}',
+                'd':f'M{a(275,230):.2f} {a(sy,ly)-4*curl:.2f} Q{a(cx,lcx):.2f} {a(cy,lcy)-6*curl:.2f} {a(ex,lex):.2f} {a(ey,ley)-5*curl:.2f}',
                 'fill':'none','stroke':'#b9a499','stroke-width':'3','stroke-linecap':'round','opacity':'.8'})
 
 
@@ -197,7 +204,10 @@ def add_writing(root, phase, layer):
         path = 'M' + ' L'.join(f'{x:.2f} {y:.2f}' for x, y in points)
         ET.SubElement(root, N+'path', {'d':path,
             'fill':'none','stroke':'#85617a','stroke-width':'2','stroke-linecap':'round','stroke-linejoin':'round'})
-    if layer == 'pen' and .15 < phase < .94:
+    # Keep the pen hidden until the hand reaches it, and put it away before
+    # the hand retracts. Showing it throughout the reach left it floating
+    # beside the book, particularly for the lower Hungry and Sad poses.
+    if layer == 'pen' and .25 <= phase < .81:
         x, y = pen_position(reach, writing)
         # The shaft follows the existing hand as it moves.
         ET.SubElement(root, N+'path', {'d':f'M{x:.2f} {y:.2f} L{x+21:.2f} {y-38:.2f}',
@@ -450,7 +460,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 arm[0][0].set('d', writing_arm(0, 0, mood=mood))
             elif action in ('page_turn', 'shared_page_turn'):
                 reach, turn = page_turn_pose(phase)
-                arm[0][0].set('d', writing_arm(reach, 0, -70*turn, -22*math.sin(math.pi*turn), mood=mood))
+                arm[0][0].set('d', writing_arm(reach, 0, -70*turn, -8*math.sin(math.pi*turn), mood=mood))
             else:
                 reach, writing = writing_pose(phase)
                 arm[0][0].set('d', writing_arm(reach, writing, mood=mood))

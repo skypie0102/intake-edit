@@ -9,7 +9,7 @@ import generate_companion_rig as rig
 
 ROOT = Path(__file__).resolve().parents[1]
 FRAME_COUNT = 96
-SHARED_FRAME_COUNT = 32
+SHARED_FRAME_COUNT = 48
 # Keep the whole outlined book inside the preview canvas, including antialiasing.
 PREVIEW_VIEWBOX = '92 87 320 320'
 
@@ -79,7 +79,7 @@ def generate():
                 if not behind: layers += ['right_arm']
                 if mood == 'happy' and action == 'writing': layers += ['symbol']
                 frames.append(rig.svg_for(mood, layers, phase=phase, idle_phase=t,
-                    blinking=frame in (5, 27), view_box=PREVIEW_VIEWBOX,
+                    blinking=frame in (7, 41), view_box=PREVIEW_VIEWBOX,
                     action='shared_' + action))
             shared_actions[mood][action] = frames
     result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods,

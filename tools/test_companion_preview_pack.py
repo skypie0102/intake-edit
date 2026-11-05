@@ -8,20 +8,35 @@ import generate_companion_rig as rig
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_pen_is_not_left_floating_during_the_hand_return(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        for mood in rig.MOODS:
+            frames = pack['shared_actions'][mood]['writing']
+            self.assertNotIn('#654e70', frames[40], mood)
+            self.assertIn('#654e70', frames[24], mood)
+
+    def test_preview_cancels_outgoing_mood_playback_on_selection(self):
+        source = (ROOT / 'app/src/debug/java/cloud/shadowmonarchbooks/intakeedit/RigRemotePreview.kt').read_text()
+        self.assertIn('LaunchedEffect(pack, mood)', source)
+        self.assertIn('selectedPreviewFrame(mood, displayedMood', source)
+        self.assertNotIn('delay(12)', source)
+        self.assertNotIn('delay(18)', source)
+        self.assertIn('views.setDisplayedChild(R.id.pet_widget_portrait, 0)', source)
+
     def test_shared_actions_cover_every_mood_and_keep_their_expression(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         self.assertEqual(set(pack['shared_actions']), set(rig.MOODS))
         for mood, actions in pack['shared_actions'].items():
             self.assertEqual(set(actions), {'reading', 'writing', 'page_turn'})
             for name, frames in actions.items():
-                self.assertEqual(len(frames), 32, (mood, name))
+                self.assertEqual(len(frames), 48, (mood, name))
                 self.assertTrue(all(len(frame) < 30_000 for frame in frames))
-                self.assertEqual(frames[16].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
-            self.assertIn('#654e70', actions['writing'][16])
-            self.assertIn('M253 300 Q', actions['page_turn'][16])
+                self.assertEqual(frames[24].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
+            self.assertIn('#654e70', actions['writing'][24])
+            self.assertIn('M253 300 Q', actions['page_turn'][24])
         for action in pack['shared_actions']['hungry'].values():
-            self.assertIn('M242 250.00 Q252 240.00 262 250.00', action[16])
-            self.assertNotIn('M239 240 Q252 253 265 240', action[16])
+            self.assertIn('M242 250.00 Q252 240.00 262 250.00', action[24])
+            self.assertNotIn('M239 240 Q252 253 265 240', action[24])
 
     def test_page_turn_is_anchored_and_returns_to_the_same_rest_pose(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
@@ -33,7 +48,7 @@ class PreviewPackTest(unittest.TestCase):
         self.assertEqual(rig.page_turn_pose(1), (0, 1))
         self.assertGreater(rig.page_turn_edge(0)[0], 253)
         self.assertLess(rig.page_turn_edge(1)[0], 253)
-        self.assertLess(rig.page_turn_edge(.5)[1], 250)
+        self.assertAlmostEqual(rig.page_turn_edge(.5)[1], 300)
         self.assertIn('M253 300 Q', frames[48])
         self.assertNotIn('#654e70', frames[48])
         self.assertEqual(frames[48].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
