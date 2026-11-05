@@ -19,7 +19,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 - [ ] Keep eyes, eyelids, head/body, tuft, arms, book, pen, and bookmark independently controllable but connected; preserve pivots, attachment, overlaps and drawing order.
 - [ ] Explore restrained soft body deformation without warping the face or silhouette.
 - [ ] Keep the book, visible page lines, hanging bookmark and gold monocle consistent; avoid whole-character fades or extra limbs.
-- [ ] Preserve a stable resting pose and support reduced motion; measure performance and power use. **In progress:** the preview app uses its resting frame while Android animations are disabled. Widget and device behavior and performance remain unverified.
+- [ ] Preserve a stable resting pose and support reduced motion; measure performance and power use. **In progress:** the preview app and widget use a resting frame while Android animations are disabled; the widget applies that setting at its next refresh. Device behavior and performance remain unverified.
 
 ## State-specific acting
 

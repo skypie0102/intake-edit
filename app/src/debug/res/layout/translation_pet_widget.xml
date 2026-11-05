@@ -30,5 +30,11 @@
         <ImageView android:id="@+id/pet_widget_frame_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_14" />
         <ImageView android:id="@+id/pet_widget_frame_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/companion_widget_waiting_15" />
     </ViewFlipper>
+    <ImageView
+        android:id="@+id/pet_widget_static"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="invisible" />
 </FrameLayout>
 

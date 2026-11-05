@@ -15,6 +15,10 @@ class PreviewPackTest(unittest.TestCase):
         flipper = layout.find('ViewFlipper')
         self.assertIsNotNone(flipper)
         self.assertEqual(len(flipper), 16)
+        static = layout.find('ImageView')
+        self.assertIsNotNone(static)
+        self.assertEqual(static.get(ns + 'id'), '@+id/pet_widget_static')
+        self.assertEqual(static.get(ns + 'visibility'), 'invisible')
         for frames in pack['moods'].values():
             self.assertEqual(int(flipper.get(ns + 'flipInterval')) * len(flipper),
                              pack['frame_ms'] * len(frames))

@@ -117,13 +117,25 @@ internal object RigRemoteFrames {
         val pack = RigPackStore.current ?: runCatching { RigPackStore.load(context) }.getOrNull() ?: return false
         val frames = pack.pictures[mood] ?: return false
         if (frames.size % frameViews.size != 0) return false
-        frameViews.forEachIndexed { index, view ->
-            val picture = frames[index * frames.size / frameViews.size]
+        fun bitmap(picture: Picture): Bitmap {
             val bitmap = Bitmap.createBitmap(160, 160, Bitmap.Config.ARGB_8888)
             val canvas = AndroidCanvas(bitmap)
             canvas.scale(.5f, .5f)
             canvas.drawPicture(picture)
-            views.setImageViewBitmap(view, bitmap)
+            return bitmap
+        }
+        val reducedMotion = Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled()
+        if (reducedMotion) {
+            views.setImageViewBitmap(R.id.pet_widget_static, bitmap(frames.first()))
+            views.setContentDescription(R.id.pet_widget_static, "Companion: ${mood.name.lowercase()}")
+            views.setViewVisibility(R.id.pet_widget_portrait, android.view.View.INVISIBLE)
+            views.setViewVisibility(R.id.pet_widget_static, android.view.View.VISIBLE)
+        } else {
+            views.setViewVisibility(R.id.pet_widget_static, android.view.View.INVISIBLE)
+            views.setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
+            frameViews.forEachIndexed { index, view ->
+                views.setImageViewBitmap(view, bitmap(frames[index * frames.size / frameViews.size]))
+            }
         }
         return true
     }
