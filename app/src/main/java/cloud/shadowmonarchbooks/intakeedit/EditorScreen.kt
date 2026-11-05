@@ -241,10 +241,13 @@ internal fun EditorScreen(
         require(index >= 0) { "Editor entry not found: $locator" }
         val entries = current.document.entries.toMutableList()
         entries[index] = entries[index].copy(english = english)
-        val document = EndnoteIntegrity.prune(
-            current.document.copy(entries = entries, editorReviewComplete = false),
+        val changed = current.document.copy(entries = entries, editorReviewComplete = false)
+        val document = if (changed.endnotes.isEmpty()) changed else EndnoteIntegrity.prune(changed)
+        val raw = IntakeParser.patchDocumentEntry(
+            current.raw, document, index, endnotesChanged = document.endnotes != current.document.endnotes,
         )
-        updateDocument(document)
+        current = current.copy(raw = raw, document = document, approved = false)
+        onDraft(current)
     }
 
     fun saveEndnote(locator: String, english: String, note: EndnoteDefinition) {

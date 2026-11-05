@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.29**.
+Current application version: **0.15.30**.
 
 All current development work is tracked in the [roadmap](ROADMAP.md). Earlier plans and trackers are preserved in the [archive](docs/archive/).
 
@@ -72,7 +72,7 @@ Chapter edits retain the existing atomic local-draft system. Drafts are restored
 
 ## CI artifact
 
-Every push runs unit tests and builds a debug APK. The GitHub Actions artifact is named:
+Android CI runs unit tests and builds debug and release APKs for application changes. The debug GitHub Actions artifact is named:
 
 `intake-edit-debug-apk`
 

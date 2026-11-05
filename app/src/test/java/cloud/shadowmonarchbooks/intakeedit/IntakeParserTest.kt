@@ -88,6 +88,51 @@ class IntakeParserTest {
     }
 
     @Test
+    fun singleEntryDocumentPatchPreservesOtherFieldsAndResetsReview() {
+        val raw = yaml.replace("editor_review_complete: false", "editor_review_complete: true")
+        val original = IntakeParser.parse(raw)
+        val entries = original.entries.toMutableList()
+        entries[1] = entries[1].copy(english = "A new \"line\".\nSecond line.")
+        val updated = original.copy(entries = entries, editorReviewComplete = false)
+        val patched = IntakeParser.patchDocumentEntry(raw, updated, 1, endnotesChanged = false)
+        assertTrue(patched.contains("english: 'It''s a test.'"))
+        assertEquals(updated, IntakeParser.parse(patched))
+        assertTrue(IntakeParser.validate(patched).isSuccess)
+    }
+
+    @Test
+    fun singleEntryDocumentPatchRemovesOrphanedEndnotes() {
+        val raw = yaml.replace("endnotes: []", "endnotes:\n- id: en-P1-01\n  locator: P1\n  content: A note")
+            .replace("english: 'It''s a test.'", "english: 'A [en=en-P1-01]note[/en].'")
+        val original = IntakeParser.parse(raw)
+        val entries = original.entries.toMutableList()
+        entries[0] = entries[0].copy(english = "Removed the note.")
+        val updated = EndnoteIntegrity.prune(original.copy(entries = entries, editorReviewComplete = false))
+        val patched = IntakeParser.patchDocumentEntry(raw, updated, 0, endnotesChanged = true)
+        assertTrue(IntakeParser.parse(patched).endnotes.isEmpty())
+        assertEquals(updated, IntakeParser.parse(patched))
+        assertTrue(IntakeParser.validate(patched).isSuccess)
+    }
+
+    @Test
+    fun singleEntryPatchPreservesJsonSemantics() {
+        val raw = """{
+          "schema_version": 6, "volume": 1, "chapter": 1,
+          "source_href": "source", "source_sha256": "abc", "reader_file": "reader",
+          "english_title": "Title", "editor_review_complete": true, "endnotes": [],
+          "entries": [{"locator": "P1", "source_japanese": "原文", "english": "Old"},
+                      {"locator": "P2", "source_japanese": "二", "english": "Other"}]
+        }""".trimIndent()
+        val original = IntakeParser.parse(raw)
+        val entries = original.entries.toMutableList()
+        entries[0] = entries[0].copy(english = "Revised")
+        val updated = original.copy(entries = entries, editorReviewComplete = false)
+        val patched = IntakeParser.patchDocumentEntry(raw, updated, 0, endnotesChanged = false)
+        assertEquals(updated, IntakeParser.parse(patched))
+        assertTrue(IntakeParser.validate(patched).isSuccess)
+    }
+
+    @Test
     fun upgradesSchemaV5YamlWhenEndnoteIsAdded() {
         val original = IntakeParser.parse(yaml)
         val entries = original.entries.toMutableList()

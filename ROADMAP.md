@@ -12,7 +12,7 @@ Not planned for now; retained for future reference, not marked complete.
 
 ## 2. Android performance and interaction polish
 
-Status: a first pass is implemented in [draft PR #52](https://github.com/skypie0102/intake-edit/pull/52), but has not been merged or profiled on a device. It caches chapter and glossary filter results across unrelated recompositions and stops the refresh animation while idle.
+Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. Representative-device profiling remains outstanding.
 
 - [ ] Profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File editing path on representative devices and chapter files.
 - [ ] Address measured input jank, background-work responsiveness, or interaction issues. Revisit spacing, button density, and screen-space use where profiling identifies a need.
@@ -33,7 +33,7 @@ The user confirmed on November 6, 2026 that the frame-fade flicker stopped. That
 ## 4. Companion mood transitions
 
 - [x] Review the first-pass in-app transition. The user approved the brief blink transition on November 6, 2026.
-- [ ] Merge the approved implementation from [draft PR #52](https://github.com/skypie0102/intake-edit/pull/52). The change has passed Android CI but is not yet on main.
+- [x] Integrate the approved implementation from [PR #52](https://github.com/skypie0102/intake-edit/pull/52).
 
 The approved transition switches immediately to the selected mood with a brief blink and keeps the character opaque; it does not geometrically morph between poses.
 

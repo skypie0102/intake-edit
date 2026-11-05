@@ -6,6 +6,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CompanionRigTest {
+    @Test fun moodChangeBlinkIsOnlyUsedForNewSelectionsWithAnimationEnabled() {
+        for (selected in PetMood.entries) {
+            assertEquals(false, shouldBlinkForMoodChange(null, selected, true))
+            assertEquals(false, shouldBlinkForMoodChange(selected, selected, true))
+            for (previous in PetMood.entries) {
+                assertEquals(previous != selected, shouldBlinkForMoodChange(previous, selected, true))
+                assertEquals(false, shouldBlinkForMoodChange(previous, selected, false))
+            }
+        }
+    }
+
     @Test fun eachMoodHasRigPartsAndCompleteWidgetLoop() {
         PetMood.entries.forEach { mood ->
             val rig = companionRigAssets(mood)

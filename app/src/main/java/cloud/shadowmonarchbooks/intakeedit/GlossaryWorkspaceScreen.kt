@@ -249,16 +249,18 @@ internal fun GlossaryWorkspaceScreen(onBack: () -> Unit, onOpenSettings: () -> U
                     GlossaryWorkspaceTab.QA_LOCKED,
                     GlossaryWorkspaceTab.APPROVED,
                     -> {
-                        val q = search.trim()
-                        val visible = snapshot.documents.effectiveEntries.filter { entry ->
-                            val tabMatch = tab != GlossaryWorkspaceTab.QA_LOCKED || entry.qaLock
-                            val sectionMatch = sectionFilter == null || entry.section == sectionFilter
-                            tabMatch && sectionMatch && (
-                                q.isBlank() ||
-                                    entry.translatedName.contains(q, true) ||
-                                    entry.sourceAliases.any { it.contains(q, true) } ||
-                                    entry.section.contains(q, true)
-                                )
+                        val visible = remember(snapshot.documents.effectiveEntries, tab, sectionFilter, search) {
+                            val query = search.trim()
+                            snapshot.documents.effectiveEntries.filter { entry ->
+                                val tabMatch = tab != GlossaryWorkspaceTab.QA_LOCKED || entry.qaLock
+                                val sectionMatch = sectionFilter == null || entry.section == sectionFilter
+                                tabMatch && sectionMatch && (
+                                    query.isBlank() ||
+                                        entry.translatedName.contains(query, true) ||
+                                        entry.sourceAliases.any { it.contains(query, true) } ||
+                                        entry.section.contains(query, true)
+                                    )
+                            }
                         }
                         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(visible, key = { it.id }) { entry ->

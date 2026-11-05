@@ -277,6 +277,10 @@ internal fun RigRemotePreview() {
                     canvas.restoreToCount(save)
                 } else CircularProgressIndicator()
             }
+            Text("Production mood transition", style = MaterialTheme.typography.titleSmall)
+            Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                ProductionBookSpirit(mood, mood.name.lowercase(), 150.dp)
+            }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PetMood.entries.forEach { item ->
                     FilterChip(selected = mood == item, onClick = {
