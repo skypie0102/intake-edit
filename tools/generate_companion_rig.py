@@ -268,6 +268,42 @@ def waiting_head(layers, phase):
     return head
 
 
+def greeting_action(phase):
+    surprise = smooth((phase - .19) / .05) * smooth((.46 - phase) / .08)
+    raised = smooth((phase - .23) / .14) * smooth((.88 - phase) / .15)
+    wave_envelope = smooth((phase - .38) / .05) * smooth((.76 - phase) / .05)
+    wave = 24 * math.sin(4 * math.pi * (phase - .38) / .38) * wave_envelope
+    return surprise, raised, wave
+
+
+def greeting_arm(raised):
+    # One connected arm morphs from its book-resting pose to the raised pose.
+    rest = (305,254, 308,250,314,247,321,247, 330,248,335,253,334,262,
+            334,266,332,270,330,272, 322,275,312,268,305,254)
+    up = (305,254, 318,247,324,231,327,220, 329,210,337,207,343,212,
+          352,220,346,232,341,241, 337,249,333,256,328,264)
+    v = [a + (b-a)*raised for a, b in zip(rest, up)]
+    return ('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
+            'C%.2f %.2f %.2f %.2f %.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
+            'C%.2f %.2f %.2f %.2f %.2f %.2f Z') % tuple(v)
+
+
+def greeting_head(layers, idle_phase, phase):
+    head = waiting_head(layers, idle_phase)
+    surprise, _, _ = greeting_action(phase)
+    group = head[0]
+    for node in group:
+        if node.tag == N+'ellipse' and node.get('cx') == '252' and node.get('cy') == '246':
+            node.set('opacity', f'{surprise:.3f}')
+            break
+    else:
+        raise ValueError('Greeting mouth no longer matches the approved artwork')
+    ET.SubElement(group, N+'path', {'d':'M239 240 Q252 253 265 240',
+        'fill':'none', 'stroke':'#70556d', 'stroke-width':'4',
+        'stroke-linecap':'round', 'opacity':f'{1-surprise:.3f}'})
+    return head
+
+
 def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None, idle_phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
@@ -298,7 +334,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(head)
                 group.append(eyes)
             elif mood == 'new' and idle_phase is not None:
-                group.append(waiting_head(layers, idle_phase))
+                group.append(greeting_head(layers, idle_phase, phase))
                 group.append(deepcopy(layers['blink' if blinking else 'eyes']))
             elif mood == 'waiting' and phase is not None:
                 group.append(waiting_head(layers, idle_phase if idle_phase is not None else phase))
@@ -318,6 +354,12 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             arm = deepcopy(layers[part])
             reach, writing = writing_pose(phase)
             arm[0][0].set('d', writing_arm(reach, writing))
+            root.append(arm)
+        elif part == 'right_arm' and mood == 'new' and idle_phase is not None:
+            arm = deepcopy(layers[part])
+            _, raised, wave = greeting_action(phase)
+            arm[0][0].set('d', greeting_arm(raised))
+            arm[0][0].set('transform', f'translate(0 10) rotate({wave:.2f} 305 254)')
             root.append(arm)
         elif part == 'right_arm' and mood == 'waiting' and progress:
             arm = deepcopy(layers[part])

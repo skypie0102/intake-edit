@@ -7,6 +7,21 @@ import generate_companion_rig as rig
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_new_greeting_has_smile_surprise_and_one_waving_arm(self):
+        frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
+        self.assertIn('opacity="0.000"', frames[0])
+        self.assertIn('M239 240 Q252 253 265 240', frames[0])
+        surprise, _, _ = rig.greeting_action(.30)
+        self.assertAlmostEqual(surprise, 1)
+        self.assertEqual(rig.greeting_action(0)[1], 0)
+        self.assertEqual(rig.greeting_action(1)[1], 0)
+        self.assertGreater(rig.greeting_action(.50)[1], .99)
+        self.assertGreater(abs(rig.greeting_action(.43)[2]), 15)
+        self.assertEqual(frames[0].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
+        self.assertEqual(frames[48].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
+        self.assertIn(rig.greeting_arm(0), frames[0])
+        self.assertIn(rig.greeting_arm(0), frames[-1])
+
     def test_new_greeting_dips_then_peeks_and_returns(self):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
         def height(frame):
