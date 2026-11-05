@@ -92,7 +92,8 @@ class TranslationPetWidget : AppWidgetProvider() {
                         R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
                         R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
                     )
-                    frameViews.zip(companionWidgetFrames(mood).asIterable()).forEach { (view, frame) ->
+                    val loadedRemote = isRigOnlyPreview(context) && RigRemoteFrames.apply(context, mood, this, frameViews)
+                    if (!loadedRemote) frameViews.zip(companionWidgetFrames(mood).asIterable()).forEach { (view, frame) ->
                         setImageViewResource(view, frame)
                     }
                     setContentDescription(R.id.pet_widget_portrait, "Companion: $message")
