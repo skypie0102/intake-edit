@@ -308,6 +308,21 @@ private fun ChapterIntakeApp(widgetOpenRequest: Int, onWidgetRequestConsumed: ()
     }
 }
 
+@Composable
+private fun ChapterRefreshIcon(refreshing: Boolean) {
+    if (refreshing) {
+        val transition = rememberInfiniteTransition(label = "chapter-list-refresh")
+        val rotation by transition.animateFloat(
+            initialValue = 0f, targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart),
+            label = "chapter-list-refresh-rotation",
+        )
+        Icon(Icons.Default.Refresh, "Refresh", Modifier.graphicsLayer { rotationZ = rotation })
+    } else {
+        Icon(Icons.Default.Refresh, "Refresh")
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChapterListScreen(
@@ -331,35 +346,29 @@ private fun ChapterListScreen(
     var filter by rememberSaveable { mutableStateOf(ChapterListFilter.ACTIVE) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showApproveAllConfirm by remember { mutableStateOf(false) }
-    val searched = files.filter {
-        val q = search.trim()
-        q.isBlank() || it.path.contains(q, true) || it.chapter.toString().contains(q)
+    val searched = remember(files, search) {
+        val query = search.trim()
+        files.filter { query.isBlank() || it.path.contains(query, true) || it.chapter.toString().contains(query) }
     }
-    val visible = searched.filter { file ->
-        val progress = progressByPath[file.path]
-        when (filter) {
-            ChapterListFilter.ACTIVE -> progress == null || progress.workflowState == ChapterWorkflowState.PENDING_REVIEW
-            ChapterListFilter.PENDING_QA -> progress?.workflowState == ChapterWorkflowState.PENDING_QA
-            ChapterListFilter.READY -> progress?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
-            ChapterListFilter.COMPLETED -> progress?.workflowState == ChapterWorkflowState.APPROVED
-            ChapterListFilter.ALL -> true
+    val visible = remember(searched, progressByPath, filter) {
+        searched.filter { file ->
+            val progress = progressByPath[file.path]
+            when (filter) {
+                ChapterListFilter.ACTIVE -> progress == null || progress.workflowState == ChapterWorkflowState.PENDING_REVIEW
+                ChapterListFilter.PENDING_QA -> progress?.workflowState == ChapterWorkflowState.PENDING_QA
+                ChapterListFilter.READY -> progress?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
+                ChapterListFilter.COMPLETED -> progress?.workflowState == ChapterWorkflowState.APPROVED
+                ChapterListFilter.ALL -> true
+            }
         }
     }
-    val readyForBulkApproval = files.filter { file ->
-        file.path !in approvalRequestedPaths &&
-            progressByPath[file.path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
+    val readyForBulkApproval = remember(files, approvalRequestedPaths, progressByPath) {
+        files.filter { file ->
+            file.path !in approvalRequestedPaths &&
+                progressByPath[file.path]?.workflowState == ChapterWorkflowState.READY_FOR_APPROVAL
+        }
     }
     val activeFilterCount = if (search.isNotBlank()) 1 else 0
-    val refreshTransition = rememberInfiniteTransition(label = "chapter-list-refresh")
-    val refreshRotation by refreshTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "chapter-list-refresh-rotation",
-    )
 
     Scaffold(
         topBar = {
@@ -381,13 +390,7 @@ private fun ChapterListScreen(
                         }
                     }
                     IconButton(onClick = onRefresh, enabled = !refreshing && !bulkApproving && openingPath == null) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            "Refresh",
-                            modifier = Modifier.graphicsLayer {
-                                rotationZ = if (refreshing) refreshRotation else 0f
-                            },
-                        )
+                        ChapterRefreshIcon(refreshing)
                     }
                     IconButton(onClick = onSettings, enabled = openingPath == null && !bulkApproving) {
                         Icon(Icons.Default.Settings, "Settings")

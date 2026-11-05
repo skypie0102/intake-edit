@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.caverock.androidsvg.SVG
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -25,7 +26,7 @@ import org.json.JSONObject
 /** The production pack is bundled with the release; no preview or network cache is used. */
 internal object CompanionAnimationPack {
     private var source: JSONObject? = null
-    private var cached: MoodAnimation? = null
+    @Volatile private var cached: MoodAnimation? = null
 
     private fun json(context: Context): JSONObject = synchronized(this) {
         source ?: JSONObject(context.applicationContext.assets.open("companion/animation-pack.json")
@@ -34,17 +35,28 @@ internal object CompanionAnimationPack {
 
     private fun picture(svg: String): Picture = SVG.getFromString(svg).renderToPicture(320, 320)
 
-    fun load(context: Context, mood: PetMood): MoodAnimation = synchronized(this) {
+    /** Small resting poses load independently of the longer action sequences. */
+    fun loadRest(context: Context, mood: PetMood): MoodRest {
+        val root = json(context)
+        val key = mood.name.lowercase()
+        return MoodRest(mood,
+            picture(root.getJSONObject("moods").getJSONArray(key).getString(0)),
+            picture(root.getJSONObject("idle_blinks").getString(key)))
+    }
+
+    fun load(context: Context, mood: PetMood): MoodAnimation {
         cached?.takeIf { it.mood == mood }?.let { return it }
         val root = json(context)
         val key = mood.name.lowercase()
         fun frames(array: org.json.JSONArray) = List(array.length()) { picture(array.getString(it)) }
         val actions = root.getJSONObject("shared_actions").getJSONObject(key)
-        MoodAnimation(mood, root.getLong("frame_ms"),
+        val result = MoodAnimation(mood, root.getLong("frame_ms"),
             frames(root.getJSONObject("moods").getJSONArray(key)),
             picture(root.getJSONObject("idle_blinks").getString(key)),
             listOf("reading", "writing", "page_turn").associateWith { frames(actions.getJSONArray(it)) }
-        ).also { cached = it }
+        )
+        cached = result
+        return result
     }
 
     fun widgetFrame(context: Context, mood: PetMood, position: Int): Picture {
@@ -62,6 +74,8 @@ internal object CompanionAnimationPack {
 
 }
 
+internal data class MoodRest(val mood: PetMood, val open: Picture, val blink: Picture)
+
 internal data class MoodAnimation(
     val mood: PetMood,
     val frameMs: Long,
@@ -70,22 +84,43 @@ internal data class MoodAnimation(
     val actions: Map<String, List<Picture>>,
 )
 
+/** Whether a new selection should start with a short blink, without hiding the character. */
+internal fun shouldBlinkForMoodChange(previous: PetMood?, selected: PetMood, animationsEnabled: Boolean): Boolean =
+    animationsEnabled && previous != null && previous != selected
+
 @Composable
-internal fun ProductionBookSpirit(mood: PetMood, description: String) {
+internal fun ProductionBookSpirit(mood: PetMood, description: String, size: Dp = 110.dp) {
     val context = LocalContext.current
+    // Resting poses for all moods are small compared with the full action pack.
+    // Keep the selected mood visible while its complete sequence loads.
+    val resting by produceState<Map<PetMood, MoodRest>>(emptyMap(), context) {
+        value = withContext(Dispatchers.IO) {
+            PetMood.entries.mapNotNull { selected ->
+                runCatching { selected to CompanionAnimationPack.loadRest(context, selected) }.getOrNull()
+            }.toMap()
+        }
+    }
     val animation by produceState<MoodAnimation?>(null, mood) {
         value = null
         value = withContext(Dispatchers.IO) { runCatching { CompanionAnimationPack.load(context, mood) }.getOrNull() }
     }
     val current = animation?.takeIf { it.mood == mood }
-    if (current == null) {
-        AnimatedBookSpirit(mood, description)
-        return
+    val rest = resting[mood]
+    var previousMood by remember { mutableStateOf<PetMood?>(null) }
+    var transition by remember(mood) {
+        mutableStateOf(shouldBlinkForMoodChange(previousMood, mood, ValueAnimator.areAnimatorsEnabled()))
+    }
+    LaunchedEffect(mood) {
+        previousMood = mood
+        if (transition) delay(150)
+        transition = false
     }
     var frame by remember(mood, current) { mutableIntStateOf(0) }
     var action by remember(mood, current) { mutableStateOf<String?>(null) }
     var blink by remember(mood, current) { mutableStateOf(false) }
     LaunchedEffect(mood, current) {
+        if (current == null) return@LaunchedEffect
+        if (transition) delay(150)
         val timeline = RigPreviewTimeline(current.frames.size, startWithAction = mood == PetMood.NEW,
             allowIdleBlink = true, allowSharedActions = true)
         while (true) {
@@ -101,13 +136,19 @@ internal fun ProductionBookSpirit(mood: PetMood, description: String) {
             delay(moodFrameDuration(current.frameMs, mood.name))
         }
     }
-    val sequence = action?.let { current.actions[it] }
+    if (rest == null && current == null) {
+        AnimatedBookSpirit(mood, description, size)
+        return
+    }
+    val sequence = action?.let { current?.actions?.get(it) }
     val picture = when {
+        transition -> rest?.blink ?: current?.blink
+        current == null -> rest?.open
         blink -> current.blink
         sequence != null -> sequence[(frame * sequence.size / current.frames.size).coerceIn(sequence.indices)]
         else -> current.frames[frame.coerceIn(current.frames.indices)]
-    }
-    Canvas(Modifier.size(110.dp).semantics { contentDescription = "Companion: $description" }) {
+    } ?: return
+    Canvas(Modifier.size(size).semantics { contentDescription = "Companion: $description" }) {
         val canvas = drawContext.canvas.nativeCanvas
         val save = canvas.save()
         canvas.scale(size.width / 320f, size.height / 320f)

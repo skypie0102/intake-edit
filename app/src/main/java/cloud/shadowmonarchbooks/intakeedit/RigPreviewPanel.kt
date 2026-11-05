@@ -2,6 +2,7 @@ package cloud.shadowmonarchbooks.intakeedit
 
 import android.content.Context
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
@@ -30,9 +31,9 @@ internal fun RigPreviewPanel() { RigRemotePreview() }
 @Composable
 internal fun RigOnlyPreviewScreen() {
     Scaffold(topBar = { TopAppBar(title = { Text("Companion rig preview") }) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RigPreviewPanel()
-            Text("New and Waiting include early actions; other actions are still being developed.")
+            Text("Select a mood to compare the preview with the production transition.")
             Text("Add Companion — Rig Preview from your launcher to check the widget.")
         }
     }
