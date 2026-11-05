@@ -85,7 +85,14 @@ class TranslationPetWidget : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             for (id in ids) {
-                val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
+                val layout = if (isRigOnlyPreview(context)) R.layout.translation_pet_widget else when (mood) {
+                    PetMood.NEW -> R.layout.companion_widget_new
+                    PetMood.HAPPY -> R.layout.companion_widget_happy
+                    PetMood.WAITING -> R.layout.companion_widget_waiting
+                    PetMood.HUNGRY -> R.layout.companion_widget_hungry
+                    PetMood.SAD -> R.layout.companion_widget_sad
+                }
+                val views = RemoteViews(context.packageName, layout).apply {
                     setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
                     if (isRigOnlyPreview(context)) {
                         val frameViews = listOf(

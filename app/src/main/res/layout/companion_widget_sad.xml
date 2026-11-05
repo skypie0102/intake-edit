@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pet_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:contentDescription="@string/pet_widget_description">
+    <AdapterViewFlipper
+        android:id="@+id/pet_widget_portrait"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:autoStart="true"
+        android:flipInterval="128"
+        android:visibility="invisible"
+        android:contentDescription="@string/pet_widget_description">
+    </AdapterViewFlipper>
+    <ImageView
+        android:id="@+id/pet_widget_static"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="invisible" />
+</FrameLayout>

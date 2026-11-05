@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /** The production pack is bundled with the release; no preview or network cache is used. */
-private object CompanionAnimationPack {
+internal object CompanionAnimationPack {
     private var source: JSONObject? = null
     private var cached: MoodAnimation? = null
 
@@ -62,7 +62,7 @@ private object CompanionAnimationPack {
 
 }
 
-private data class MoodAnimation(
+internal data class MoodAnimation(
     val mood: PetMood,
     val frameMs: Long,
     val frames: List<Picture>,
@@ -172,12 +172,24 @@ internal object ProductionWidgetFrames {
             }
             views.setViewVisibility(R.id.pet_widget_static, View.INVISIBLE)
             views.setViewVisibility(R.id.pet_widget_portrait, View.VISIBLE)
-            views.setRemoteAdapter(R.id.pet_widget_portrait, adapter)
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                val items = RemoteViews.RemoteCollectionItems.Builder().setHasStableIds(true).setViewTypeCount(1)
+                repeat(384) { index ->
+                    val item = RemoteViews(context.packageName, R.layout.companion_widget_frame)
+                    item.setImageViewUri(R.id.companion_widget_image,
+                        android.net.Uri.parse("content://${context.packageName}.companionframes/${mood.name}/$index"))
+                    item.setOnClickFillInIntent(R.id.companion_widget_image, android.content.Intent())
+                    items.addItem(index.toLong(), item)
+                }
+                views.setRemoteAdapter(R.id.pet_widget_portrait, items.build())
+            } else {
+                @Suppress("DEPRECATION")
+                views.setRemoteAdapter(R.id.pet_widget_portrait, adapter)
+            }
             val open = android.app.PendingIntent.getActivity(context, 0,
                 android.content.Intent(context, MainActivity::class.java).setAction(TranslationPetWidget.ACTION_OPEN_CHAPTER),
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
             views.setPendingIntentTemplate(R.id.pet_widget_portrait, open)
-            views.setInt(R.id.pet_widget_portrait, "setFlipInterval", moodFrameDuration(83, mood.name).toInt())
             views.setDisplayedChild(R.id.pet_widget_portrait, 0)
         }
         true

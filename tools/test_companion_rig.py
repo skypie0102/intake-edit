@@ -110,6 +110,11 @@ class RigTest(unittest.TestCase):
         self.assertIsNone(flipper.get('{'+ANDROID+'}inAnimation'))
         self.assertIsNone(flipper.get('{'+ANDROID+'}outAnimation'))
         self.assertEqual(len(layout.findall('.//TextView')), 0)
+        for mood, interval in [('new', 83), ('happy', 70), ('waiting', 91), ('hungry', 120), ('sad', 128)]:
+            mood_layout = ET.parse(rig.ROOT / f'app/src/main/res/layout/companion_widget_{mood}.xml').getroot()
+            mood_flipper = mood_layout.find('AdapterViewFlipper')
+            self.assertEqual(mood_flipper.get('{'+ANDROID+'}flipInterval'), str(interval))
+            self.assertEqual(len(mood_layout.findall('.//TextView')), 0)
 
 
 if __name__ == '__main__':
