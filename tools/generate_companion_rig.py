@@ -109,7 +109,7 @@ def smooth(value):
 def writing_pose(phase):
     """Return reach and pen travel; the existing hand replaces its resting pose."""
     reach = smooth((phase - .10) / .18) * smooth((.94 - phase) / .18)
-    writing = smooth((phase - .30) / .35)
+    writing = smooth((phase - .30) / .40)
     return reach, writing
 
 
@@ -121,30 +121,53 @@ def writing_arm(reach, writing):
            334,290,327,296,321,296, 313,296,307,293,302,288)
     vals = [a+(b-a)*reach for a,b in zip(start,end)]
     # A small horizontal hand movement follows the writing tip.
-    for i in (14,16,18,20,22,24): vals[i] += 12*writing*reach
+    travel = 25 * writing * reach
+    # The wrist and hand travel together; the shoulder remains connected.
+    for i, weight in zip(range(2, 26, 2), (.15, .35, .5, .7, .85, 1, 1, 1, 1, 1, 1, 1)):
+        vals[i] += travel * weight
     return ('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
             'C%.2f %.2f %.2f %.2f %.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
-            'C%.2f %.2f %.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(vals + [((vals[24]+vals[0])/2)*(1-reach) + 296*reach, ((vals[25]+vals[1])/2)*(1-reach) + 270*reach, vals[0], vals[1]])
+            'C%.2f %.2f %.2f %.2f %.2f %.2f Q%.2f %.2f %.2f %.2f Z') % tuple(vals + [((vals[24]+vals[0])/2)*(1-reach) + (296 + travel*.55)*reach, ((vals[25]+vals[1])/2)*(1-reach) + 270*reach, vals[0], vals[1]])
+
+
+def ink_point(progress):
+    """Tip and visible ink use the same curved path across the page."""
+    return 297 + 25*progress, 315 - 5*progress + 1.2*math.sin(6*math.pi*progress)
+
+
+def pen_position(reach, writing):
+    target_x, target_y = ink_point(writing)
+    # Follow the hand from the raised pose to the writing pose.
+    return (326 + (target_x - 326)*reach, 257 + (target_y - 257)*reach)
 
 
 def add_writing(root, phase, layer):
     reach, writing = writing_pose(phase)
-    if layer == 'ink' and .3 <= phase < .9:
-        x, y = 296 + 12*writing, 315 - 3*writing
-        ET.SubElement(root, N+'path', {'d':f'M296 315 L{x:.2f} {y:.2f}',
-            'fill':'none','stroke':'#85617a','stroke-width':'2','stroke-linecap':'round'})
-    if layer == 'pen' and .20 < phase < .9:
-        # The shaft is held in the moving hand; its tip touches the new ink.
-        x, y = 296 + 12*writing, 315 - 3*writing
-        lift = 20 * (1-reach)
-        ET.SubElement(root, N+'path', {'d':f'M{x:.2f} {y-lift:.2f} L{x+18:.2f} {y-30-lift:.2f}',
+    if layer == 'ink' and .30 <= phase < .94:
+        points = [ink_point(i / 48) for i in range(int(writing * 48) + 1)]
+        points.append(ink_point(writing))
+        path = 'M' + ' L'.join(f'{x:.2f} {y:.2f}' for x, y in points)
+        ET.SubElement(root, N+'path', {'d':path,
+            'fill':'none','stroke':'#85617a','stroke-width':'2','stroke-linecap':'round','stroke-linejoin':'round'})
+    if layer == 'pen' and .15 < phase < .94:
+        x, y = pen_position(reach, writing)
+        # The shaft passes through the fingers, which are layered above it.
+        ET.SubElement(root, N+'path', {'d':f'M{x:.2f} {y:.2f} L{x+21:.2f} {y-38:.2f}',
             'fill':'none','stroke':'#654e70','stroke-width':'4','stroke-linecap':'round'})
-        ET.SubElement(root, N+'circle', {'cx':f'{x:.2f}','cy':f'{y-lift:.2f}','r':'1.3','fill':'#a98458'})
+        ET.SubElement(root, N+'circle', {'cx':f'{x:.2f}','cy':f'{y:.2f}','r':'1.3','fill':'#a98458'})
+    if layer == 'grip' and .20 < phase < .90:
+        x, y = pen_position(reach, writing)
+        # A small thumb and finger belong to this hand and sit in front of the pen.
+        ET.SubElement(root, N+'path', {
+            'd':f'M{x+7:.2f} {y-15:.2f} Q{x+9:.2f} {y-20:.2f} {x+13:.2f} {y-20:.2f} '
+                f'Q{x+17:.2f} {y-20:.2f} {x+17:.2f} {y-16:.2f} '
+                f'Q{x+16:.2f} {y-12:.2f} {x+12:.2f} {y-12:.2f}',
+            'fill':'#dfd2f1','stroke':'#705c87','stroke-width':'2','stroke-linecap':'round','stroke-linejoin':'round'})
 
 
 def happy_focus(phase):
     # Look down before the pen touches the page, then look up when finished.
-    return smooth((phase - .08) / .18) * smooth((.80 - phase) / .18)
+    return smooth((phase - .08) / .18) * smooth((.84 - phase) / .16)
 
 
 def happy_facial_layers(layers, focus, blinking):
@@ -183,8 +206,8 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(deepcopy(layers['blink' if blinking else 'eyes']))
         elif part == 'ink' and mood == 'happy' and phase is not None:
             add_writing(root, phase, 'ink')
-        elif part == 'pen' and mood == 'happy' and phase is not None:
-            add_writing(root, phase, 'pen')
+        elif part in ('pen', 'grip') and mood == 'happy' and phase is not None:
+            add_writing(root, phase, part)
         elif part == 'right_arm' and mood == 'happy' and phase is not None:
             arm = deepcopy(layers[part])
             reach, writing = writing_pose(phase)
@@ -197,7 +220,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
         elif part == 'symbol' and show_symbol:
             for node in layers[part]: root.append(deepcopy(node))
         elif part == 'symbol' and mood == 'happy' and phase is not None:
-            if .66 <= phase < .82:
+            if .72 <= phase < .86:
                 for node in layers['symbol']:
                     root.append(deepcopy(node))
         elif part == 'symbol' and mood == 'new' and phase is not None:

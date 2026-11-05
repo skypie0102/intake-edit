@@ -1,6 +1,7 @@
 import json
 import unittest
 from pathlib import Path
+import generate_companion_rig as rig
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +29,17 @@ class PreviewPackTest(unittest.TestCase):
         self.assertNotIn('M305 254 C318 247 324 231', frames[20])
         self.assertEqual(frames[20].count('fill="#dfd2f1" stroke="#705c87" stroke-width="4"'), 2)
         self.assertGreater(len(set(frames)), 10)
+
+    def test_pen_tip_follows_longer_written_mark(self):
+        x0, y0 = rig.ink_point(0)
+        x1, y1 = rig.ink_point(1)
+        self.assertGreaterEqual(x1 - x0, 24)
+        for t in (0, .25, .5, .75, 1):
+            self.assertEqual(rig.pen_position(1, t), rig.ink_point(t))
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        writing = pack['moods']['happy'][24]
+        # The grip is drawn after the shaft and the existing arm.
+        self.assertGreater(writing.rfind('stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'), writing.find('#654e70'))
 
     def test_happy_looks_down_and_changes_expression_while_writing(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
