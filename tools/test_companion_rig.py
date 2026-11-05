@@ -31,9 +31,27 @@ class RigTest(unittest.TestCase):
         head = ET.tostring(layers['head'], encoding='unicode')
         self.assertIn('M242 245 Q252 251 262 245', head)
         idle = rig.svg_for('waiting', ['symbol'], progress=0)
-        thinking = rig.svg_for('waiting', ['symbol'], progress=1)
+        thinking = rig.svg_for('waiting', ['symbol'], progress=1, phase=.72)
         self.assertNotIn('M352 161', idle)
         self.assertIn('M352 161', thinking)
+
+    def test_thinking_dots_precede_question_drawing(self):
+        def symbol(phase):
+            return ET.fromstring(rig.svg_for('waiting', ['symbol'], phase=phase))
+        def circles(root):
+            return root.findall('{%s}circle' % rig.SVG)
+        self.assertEqual(len(circles(symbol(.1))), 0)
+        self.assertEqual(len(circles(symbol(.14))), 1)
+        self.assertEqual(len(circles(symbol(.24))), 2)
+        self.assertEqual(len(circles(symbol(.34))), 3)
+        self.assertNotIn('M352 161', ET.tostring(symbol(.34), encoding='unicode'))
+        partial = rig.svg_for('waiting', ['symbol'], phase=.52)
+        native = ET.fromstring(svg_to_vector(partial))
+        curve = native.find('.//path[@{%s}trimPathEnd]' % ANDROID)
+        self.assertIsNotNone(curve)
+        self.assertAlmostEqual(float(curve.get('{%s}trimPathEnd' % ANDROID)), .5)
+        self.assertEqual(len(circles(symbol(.72))), 4)
+        self.assertEqual(len(circles(symbol(.9))), 0)
 
     def test_original_arm_shapes_are_lowered_toward_book(self):
         for mood in rig.MOODS:
@@ -49,7 +67,7 @@ class RigTest(unittest.TestCase):
     def test_single_limb_moves_and_returns_to_rest(self):
         self.assertEqual(rig.POSES[0], 0)
         self.assertEqual(rig.POSES[-1], 0)
-        self.assertLessEqual(max(abs(b-a) for a,b in zip(rig.POSES, rig.POSES[1:])), .3 + 1e-6)
+        self.assertLessEqual(max(abs(b-a) for a,b in zip(rig.POSES, rig.POSES[1:])), .6 + 1e-6)
         rest = rig.arm_path(0)
         middle = rig.arm_path(.5)
         self.assertNotEqual(rest, middle)

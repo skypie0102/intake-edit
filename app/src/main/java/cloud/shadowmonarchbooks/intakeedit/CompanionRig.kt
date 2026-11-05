@@ -1,7 +1,7 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -42,9 +44,8 @@ internal fun AnimatedBookSpirit(mood: PetMood, description: String, size: Dp = 1
         if (mood == PetMood.WAITING) {
             while (true) {
                 delay(Random.nextLong(8000, 13000))
-                thought.animateTo(1f, tween(750, easing = FastOutSlowInEasing))
-                delay(1300)
-                thought.animateTo(0f, tween(750, easing = FastOutSlowInEasing))
+                thought.animateTo(1f, tween(4000, easing = LinearEasing))
+                thought.snapTo(0f)
             }
         }
     }
@@ -56,22 +57,27 @@ internal fun AnimatedBookSpirit(mood: PetMood, description: String, size: Dp = 1
             blinking = false
         }
     }
+    val phase = thought.value
+    val armAmount = when {
+        phase < .29f -> (phase / .29f).coerceIn(0f, 1f)
+        phase < .8f -> 1f
+        else -> ((1f - phase) / .2f).coerceIn(0f, 1f)
+    }
     Box(Modifier.size(size).semantics { contentDescription = "Companion: $description" }) {
         // The face, eyes and monocle share one pivot. The book never moves.
         Box(Modifier.fillMaxSize().graphicsLayer {
             transformOrigin = TransformOrigin(.5f, 178f / 310f)
-            rotationZ = thought.value * 1.5f
+            rotationZ = armAmount * 1.5f
         }) {
             Image(painterResource(assets.head), contentDescription = null, modifier = Modifier.fillMaxSize())
             Image(painterResource(if (blinking) assets.blink else assets.eyes), contentDescription = null, modifier = Modifier.fillMaxSize())
         }
         Image(painterResource(assets.leftArm), contentDescription = null, modifier = Modifier.fillMaxSize())
-        if (mood == PetMood.WAITING) ThinkingArm(thought.value)
+        if (mood == PetMood.WAITING) ThinkingArm(armAmount)
         else Image(painterResource(assets.rightArm), contentDescription = null, modifier = Modifier.fillMaxSize())
         Image(painterResource(R.drawable.companion_rig_book), contentDescription = null, modifier = Modifier.fillMaxSize())
         if (mood == PetMood.WAITING) {
-            Image(painterResource(assets.symbol), contentDescription = null,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = thought.value })
+            ThinkingSymbol(phase)
         }
     }
 }
@@ -96,6 +102,38 @@ private fun ThinkingArm(progress: Float) {
         }) {
             drawPath(path, Color(0xffdfd2f1))
             drawPath(path, Color(0xff705c87), style = Stroke(width = 4f))
+        }
+    }
+}
+
+@Composable
+private fun ThinkingSymbol(phase: Float) {
+    Canvas(Modifier.fillMaxSize()) {
+        if (phase >= .85f) return@Canvas
+        withTransform({
+            scale(size.width / 310f, size.height / 310f, pivot = Offset.Zero)
+            translate(-97f, -92f)
+        }) {
+            val ink = Color(0xffdcc2ec)
+            val dots = listOf(Offset(329f, 207f), Offset(339f, 195f), Offset(348f, 181f))
+            val starts = listOf(.14f, .24f, .34f)
+            dots.forEachIndexed { i, dot -> if (phase >= starts[i]) drawCircle(ink, 2.5f, dot) }
+            val amount = ((phase - .40f) / .24f).coerceIn(0f, 1f)
+            if (amount > 0f) {
+                val curve = Path().apply {
+                    moveTo(352f, 161f)
+                    quadraticTo(348f, 152f, 352f, 144f)
+                    quadraticTo(356f, 136f, 367f, 137f)
+                    quadraticTo(381f, 138f, 382f, 150f)
+                    quadraticTo(382f, 160f, 369f, 166f)
+                    quadraticTo(363f, 169f, 364f, 176f)
+                }
+                val measure = PathMeasure().apply { setPath(curve, false) }
+                val visible = Path()
+                measure.getSegment(0f, measure.length * amount, visible, true)
+                drawPath(visible, ink, style = Stroke(width = 5f, cap = StrokeCap.Round))
+            }
+            if (phase >= .64f) drawCircle(ink, 2.5f, Offset(364f, 186.5f))
         }
     }
 }

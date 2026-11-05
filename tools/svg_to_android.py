@@ -83,6 +83,8 @@ def svg_to_vector(svg_text):
                 attrs[A + "strokeLineCap"] = "round"
             if line or element.get("stroke-linejoin") == "round":
                 attrs[A + "strokeLineJoin"] = "round"
+        if element.get("data-trim") is not None:
+            attrs[A + "trimPathEnd"] = element.get("data-trim")
         path = ET.SubElement(parent, "path", attrs)
         if fill == "url(#paper)":
             attr = ET.SubElement(path, "{" + AAPT + "}attr", {"name": "android:fillColor"})

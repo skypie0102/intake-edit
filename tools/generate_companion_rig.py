@@ -6,6 +6,7 @@ animates the same named parts continuously. No bitmap generation is required.
 from copy import deepcopy
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import math
 from svg_to_android import svg_to_vector
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,7 +17,26 @@ N = '{' + SVG + '}'
 ET.register_namespace('', SVG)
 MOODS = ('new', 'happy', 'waiting', 'hungry', 'sad')
 PARTS = ('head', 'eyes', 'blink', 'left_arm', 'right_arm', 'symbol')
-POSES = (0, 0, 0, 0, 0, .12, .35, .65, .90, 1, 1, .8, .5, .22, 0, 0)
+POSES = (0, 0, .1, .3, .55, .8, 1, 1, 1, 1, 1, 1, 1, .9, .6, 0)
+PHASES = (0, .04, .09, .14, .19, .24, .29, .34, .40, .48, .56, .64, .72, .8, .9, 0)
+DOTS = ((329, 207), (339, 195), (348, 181))
+QUESTION_CURVE = 'M352 161 Q348 152 352 144 Q356 136 367 137 Q381 138 382 150 Q382 160 369 166 Q363 169 364 176'
+
+def question_length():
+    points = [(352,161), (348,152), (352,144), (356,136), (367,137),
+              (381,138), (382,150), (382,160), (369,166), (363,169), (364,176)]
+    length = 0
+    for i in range(0, 10, 2):
+        a, b, c = points[i:i+3]
+        previous = a
+        for step in range(1, 101):
+            t = step / 100
+            point = tuple((1-t)**2*a[k] + 2*(1-t)*t*b[k] + t*t*c[k] for k in (0, 1))
+            length += math.dist(previous, point)
+            previous = point
+    return length
+
+QUESTION_LENGTH = question_length()
 
 # One continuous limb; both poses have the same cubic segments and attachment.
 ARM_REST = (303,269, 303,255,310,245,322,247, 330,248,335,253,334,262, 334,266,332,270,330,272)
@@ -80,7 +100,7 @@ def parts(mood):
                            'book':[deepcopy(x) for x in list(art)[1:7]]}
 
 
-def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False):
+def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase=None):
     original, art, layers = parts(mood)
     root = svg_root(original)
     for part in selected:
@@ -94,9 +114,18 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False):
             root.append(arm)
         elif part == 'symbol' and show_symbol:
             for node in layers[part]: root.append(deepcopy(node))
-        elif part == 'symbol' and progress > 0 and mood == 'waiting':
-            marker = ET.SubElement(root, N+'g', {'opacity':f'{progress:.2f}'})
-            for node in layers[part]: marker.append(deepcopy(node))
+        elif part == 'symbol' and mood == 'waiting' and phase is not None:
+            if phase < .85:
+                for index, (x, y) in enumerate(DOTS):
+                    if phase >= (.14, .24, .34)[index]:
+                        ET.SubElement(root, N+'circle', {'cx':str(x), 'cy':str(y), 'r':'2.5', 'fill':'#dcc2ec'})
+                draw = max(0, min(1, (phase - .40) / .24))
+                if draw > 0:
+                    ET.SubElement(root, N+'path', {'d':QUESTION_CURVE, 'fill':'none', 'stroke':'#dcc2ec',
+                        'stroke-width':'5', 'stroke-linecap':'round', 'stroke-linejoin':'round',
+                        'stroke-dasharray':f'{QUESTION_LENGTH:.3f} {QUESTION_LENGTH:.3f}', 'stroke-dashoffset':f'{QUESTION_LENGTH*(1-draw):.3f}', 'data-trim':str(draw)})
+                if phase >= .64:
+                    ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'186.5', 'r':'2.5', 'fill':'#dcc2ec'})
         elif part == 'symbol':
             continue  # Symbols appear only with their corresponding actions.
         elif isinstance(layers[part], list):
@@ -119,7 +148,7 @@ def generate():
         for i in indices:
             amount = POSES[i]
             progress = amount if mood == 'waiting' else 0
-            svg = svg_for(mood,['head_group','left_arm','right_arm','book','symbol'],progress,blinking=i==3)
+            svg = svg_for(mood,['head_group','left_arm','right_arm','book','symbol'],progress,blinking=i==3,phase=PHASES[i] if mood == 'waiting' else None)
             write_vector(OUTPUT/f'companion_widget_{mood}_{i:02d}.xml',svg)
     write_vector(OUTPUT/'companion_rig_book.xml',svg_for('waiting',['book']))
 
