@@ -5,39 +5,19 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent"
     android:contentDescription="@string/pet_widget_description">
-    <ViewFlipper
+    <AdapterViewFlipper
         android:id="@+id/pet_widget_portrait"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:autoStart="true"
-        android:flipInterval="350"
-        android:inAnimation="@anim/companion_frame_in"
-        android:outAnimation="@anim/companion_frame_out"
+        android:flipInterval="250"
         android:visibility="invisible"
         android:contentDescription="@string/pet_widget_description">
-        <ImageView android:id="@+id/pet_widget_frame_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_00" />
-        <ImageView android:id="@+id/pet_widget_frame_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_01" />
-        <ImageView android:id="@+id/pet_widget_frame_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_02" />
-        <ImageView android:id="@+id/pet_widget_frame_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_03" />
-        <ImageView android:id="@+id/pet_widget_frame_4" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_04" />
-        <ImageView android:id="@+id/pet_widget_frame_5" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_05" />
-        <ImageView android:id="@+id/pet_widget_frame_6" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_06" />
-        <ImageView android:id="@+id/pet_widget_frame_7" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_07" />
-        <ImageView android:id="@+id/pet_widget_frame_8" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_08" />
-        <ImageView android:id="@+id/pet_widget_frame_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_09" />
-        <ImageView android:id="@+id/pet_widget_frame_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_10" />
-        <ImageView android:id="@+id/pet_widget_frame_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_11" />
-        <ImageView android:id="@+id/pet_widget_frame_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_12" />
-        <ImageView android:id="@+id/pet_widget_frame_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_13" />
-        <ImageView android:id="@+id/pet_widget_frame_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_14" />
-        <ImageView android:id="@+id/pet_widget_frame_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_15" />
-        <ImageView android:id="@+id/pet_widget_frame_16" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_16" />
-        <ImageView android:id="@+id/pet_widget_frame_17" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_17" />
-        <ImageView android:id="@+id/pet_widget_frame_18" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_18" />
-        <ImageView android:id="@+id/pet_widget_frame_19" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_19" />
-        <ImageView android:id="@+id/pet_widget_frame_20" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_20" />
-        <ImageView android:id="@+id/pet_widget_frame_21" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_21" />
-        <ImageView android:id="@+id/pet_widget_frame_22" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_22" />
-        <ImageView android:id="@+id/pet_widget_frame_23" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/book_spirit_waiting_idle_23" />
-    </ViewFlipper>
+    </AdapterViewFlipper>
+    <ImageView
+        android:id="@+id/pet_widget_static"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="invisible" />
 </FrameLayout>

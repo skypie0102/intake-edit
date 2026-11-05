@@ -15,8 +15,10 @@ import java.time.ZoneId
 class TranslationPetWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         render(context, manager, appWidgetIds)
-        scheduleNextDay(context)
-        schedulePetProjectSync(context)
+        if (!isRigOnlyPreview(context)) {
+            scheduleNextDay(context)
+            schedulePetProjectSync(context)
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -34,16 +36,21 @@ class TranslationPetWidget : AppWidgetProvider() {
     companion object {
         internal const val ACTION_OPEN_CHAPTER = "cloud.shadowmonarchbooks.intakeedit.OPEN_NEXT_CHAPTER"
         private const val ACTION_REFRESH = "cloud.shadowmonarchbooks.intakeedit.PET_WIDGET_REFRESH"
+        private fun isRigOnlyPreview(context: Context) = BuildConfig.DEBUG && context.packageName == RIG_PREVIEW_PACKAGE
 
         internal fun refreshAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, TranslationPetWidget::class.java))
             if (ids.isEmpty()) return
             render(context, manager, ids)
-            scheduleNextDay(context)
+            if (!isRigOnlyPreview(context)) scheduleNextDay(context)
         }
 
         private fun render(context: Context, manager: AppWidgetManager, ids: IntArray) {
+            if (isRigOnlyPreview(context)) {
+                renderMood(context, manager, ids, readRigDemoMood(context) ?: PetMood.WAITING)
+                return
+            }
             val settings = SettingsStore(context).load()
             val token = SecureTokenStore(context).load()
             val snapshot = PetProjectCache(context).get(settings, token)
@@ -54,6 +61,7 @@ class TranslationPetWidget : AppWidgetProvider() {
                 for (id in ids) {
                     val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
                         setViewVisibility(R.id.pet_widget_portrait, android.view.View.INVISIBLE)
+                        setViewVisibility(R.id.pet_widget_static, android.view.View.INVISIBLE)
                         setContentDescription(R.id.pet_widget_root, "Connect your project in Intake Edit")
                         setOnClickPendingIntent(R.id.pet_widget_root, open)
                     }
@@ -61,8 +69,11 @@ class TranslationPetWidget : AppWidgetProvider() {
                 }
                 return
             }
-            val status = PetStore(context).status(settings, count)
-            val message = when (status.mood) {
+            renderMood(context, manager, ids, PetStore(context).status(settings, count).mood)
+        }
+
+        private fun renderMood(context: Context, manager: AppWidgetManager, ids: IntArray, mood: PetMood) {
+            val message = when (mood) {
                 PetMood.NEW -> "Ready for a chapter!"
                 PetMood.HAPPY -> "Fed today!"
                 PetMood.WAITING -> "Time to feed me!"
@@ -74,18 +85,31 @@ class TranslationPetWidget : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             for (id in ids) {
-                val views = RemoteViews(context.packageName, R.layout.translation_pet_widget).apply {
+                val layout = if (isRigOnlyPreview(context)) R.layout.translation_pet_widget else when (mood) {
+                    PetMood.NEW -> R.layout.companion_widget_new
+                    PetMood.HAPPY -> R.layout.companion_widget_happy
+                    PetMood.WAITING -> R.layout.companion_widget_waiting
+                    PetMood.HUNGRY -> R.layout.companion_widget_hungry
+                    PetMood.SAD -> R.layout.companion_widget_sad
+                }
+                val views = RemoteViews(context.packageName, layout).apply {
                     setViewVisibility(R.id.pet_widget_portrait, android.view.View.VISIBLE)
-                    val frameViews = listOf(
-                        R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2, R.id.pet_widget_frame_3,
-                        R.id.pet_widget_frame_4, R.id.pet_widget_frame_5, R.id.pet_widget_frame_6, R.id.pet_widget_frame_7,
-                        R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
-                        R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
-                        R.id.pet_widget_frame_16, R.id.pet_widget_frame_17, R.id.pet_widget_frame_18, R.id.pet_widget_frame_19,
-                        R.id.pet_widget_frame_20, R.id.pet_widget_frame_21, R.id.pet_widget_frame_22, R.id.pet_widget_frame_23,
-                    )
-                    frameViews.zip(companionFrames(status.mood).asIterable()).forEach { (view, frame) ->
-                        setImageViewResource(view, frame)
+                    if (isRigOnlyPreview(context)) {
+                        val frameViews = listOf(
+                            R.id.pet_widget_frame_0, R.id.pet_widget_frame_1, R.id.pet_widget_frame_2, R.id.pet_widget_frame_3,
+                            R.id.pet_widget_frame_4, R.id.pet_widget_frame_5, R.id.pet_widget_frame_6, R.id.pet_widget_frame_7,
+                            R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
+                            R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
+                        )
+                        if (!RigRemoteFrames.apply(context, mood, this, frameViews)) {
+                            frameViews.zip(companionWidgetFrames(mood).asIterable()).forEach { (view, frame) ->
+                                setImageViewResource(view, frame)
+                            }
+                        }
+                    } else if (!ProductionWidgetFrames.apply(context, mood, this, id)) {
+                        setViewVisibility(R.id.pet_widget_portrait, android.view.View.GONE)
+                        setViewVisibility(R.id.pet_widget_static, android.view.View.VISIBLE)
+                        setImageViewResource(R.id.pet_widget_static, companionWidgetFrames(mood).first())
                     }
                     setContentDescription(R.id.pet_widget_portrait, "Companion: $message")
                     setOnClickPendingIntent(R.id.pet_widget_root, open)

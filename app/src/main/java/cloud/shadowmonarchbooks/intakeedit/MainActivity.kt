@@ -82,6 +82,10 @@ class MainActivity : ComponentActivity() {
     private var widgetOpenRequest by mutableStateOf(0)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.DEBUG && packageName == RIG_PREVIEW_PACKAGE) {
+            setContent { IntakeEditTheme { RigOnlyPreviewScreen() } }
+            return
+        }
         val launchPreferences = getSharedPreferences("app_launch", MODE_PRIVATE)
         val firstLaunch = if (savedInstanceState == null && !launchPreferences.getBoolean("launched", false)) {
             val packageInfo = packageManager.getPackageInfo(packageName, 0)

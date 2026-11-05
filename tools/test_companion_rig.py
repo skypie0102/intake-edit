@@ -1,0 +1,121 @@
+import unittest
+import xml.etree.ElementTree as ET
+import re
+
+import generate_companion_rig as rig
+from svg_to_android import ANDROID, svg_to_vector
+
+
+class RigTest(unittest.TestCase):
+    def test_moods_keep_two_single_arms_and_attached_monocle(self):
+        for mood in rig.MOODS:
+            with self.subTest(mood=mood):
+                _, _, layers = rig.parts(mood)
+                self.assertEqual(len(layers['left_arm'][0]), 1)
+                self.assertEqual(len(layers['right_arm'][0]), 1)
+                head = ET.tostring(layers['head'], encoding='unicode')
+                self.assertIn('#b9905e', head)
+                self.assertIn('url(#behind-book)', head)
+                self.assertIn('L315 335 L187 335', head)
+
+    def test_approved_book_and_mood_symbols_remain_distinct(self):
+        _, _, new = rig.parts('new')
+        _, _, waiting = rig.parts('waiting')
+        self.assertEqual(ET.tostring(new['book'][0]), ET.tostring(waiting['book'][0]))
+        self.assertIn('M307 340', ET.tostring(new['book'][0], encoding='unicode'))
+        self.assertIn('M364 139', ET.tostring(new['symbol'][0], encoding='unicode'))
+        self.assertIn('M352 161', ET.tostring(waiting['symbol'][0], encoding='unicode'))
+
+    def test_waiting_smiles_and_symbol_only_appears_during_thinking(self):
+        _, _, layers = rig.parts('waiting')
+        head = ET.tostring(layers['head'], encoding='unicode')
+        self.assertIn('M242 245 Q252 251 262 245', head)
+        idle = rig.svg_for('waiting', ['symbol'], progress=0)
+        thinking = rig.svg_for('waiting', ['symbol'], progress=1, phase=.72)
+        self.assertNotIn('M352 161', idle)
+        self.assertIn('M352 161', thinking)
+
+    def test_thinking_dots_precede_question_drawing(self):
+        def symbol(phase):
+            return ET.fromstring(rig.svg_for('waiting', ['symbol'], phase=phase))
+        def circles(root):
+            return root.findall('{%s}circle' % rig.SVG)
+        self.assertEqual(len(circles(symbol(.1))), 0)
+        self.assertEqual(len(circles(symbol(.14))), 1)
+        self.assertEqual(len(circles(symbol(.24))), 2)
+        self.assertEqual(len(circles(symbol(.34))), 3)
+        self.assertNotIn('M352 161', ET.tostring(symbol(.34), encoding='unicode'))
+        partial = rig.svg_for('waiting', ['symbol'], phase=.52)
+        native = ET.fromstring(svg_to_vector(partial))
+        curve = native.find('.//path[@{%s}trimPathEnd]' % ANDROID)
+        self.assertIsNotNone(curve)
+        self.assertAlmostEqual(float(curve.get('{%s}trimPathEnd' % ANDROID)), .5)
+        self.assertEqual(len(circles(symbol(.72))), 4)
+        self.assertEqual(len(circles(symbol(.9))), 0)
+
+    def test_new_greeting_peeks_and_shows_symbol_only_during_action(self):
+        idle = rig.svg_for('new', ['head_group', 'symbol'], progress=0, phase=0)
+        rising = rig.svg_for('new', ['head_group', 'symbol'], progress=1, phase=.48)
+        recovered = rig.svg_for('new', ['symbol'], phase=.9)
+        self.assertIn('translate(0 0.00)', idle)
+        self.assertIn('translate(0 -7.00)', rising)
+        self.assertNotIn('M364 139', idle)
+        self.assertIn('M364 139', rising)
+        self.assertNotIn('M364 139', recovered)
+        assets = (rig.ROOT / 'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/CompanionRigAssets.kt').read_text()
+        for frame in range(16):
+            self.assertIn(f'companion_widget_new_{frame:02d}', assets)
+
+    def test_original_arm_shapes_are_lowered_toward_book(self):
+        for mood in rig.MOODS:
+            with self.subTest(mood=mood):
+                _, _, layers = rig.parts(mood)
+                for arm in ('left_arm', 'right_arm'):
+                    node = layers[arm][0][0]
+                    self.assertEqual(node.get('transform'), 'translate(0 10)')
+                    self.assertNotIn('325', node.get('d'))
+        source = (rig.ROOT / 'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/CompanionRig.kt').read_text()
+        self.assertIn('translate(0f, 10f)', source)
+
+    def test_single_limb_moves_and_returns_to_rest(self):
+        self.assertEqual(rig.POSES[0], 0)
+        self.assertEqual(rig.POSES[-1], 0)
+        self.assertLessEqual(max(abs(b-a) for a,b in zip(rig.POSES, rig.POSES[1:])), .6 + 1e-6)
+        rest = rig.arm_path(0)
+        middle = rig.arm_path(.5)
+        self.assertNotEqual(rest, middle)
+        self.assertEqual(rest.count('M'), 1)
+        self.assertEqual(middle.count('M'), 1)
+
+    def test_app_and_widget_share_arm_pose_coordinates(self):
+        source = (rig.ROOT / 'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/CompanionRig.kt').read_text()
+        for name, expected in [('armRest', rig.ARM_REST), ('armThink', rig.ARM_THINK)]:
+            match = re.search(r'private val ' + name + r' = floatArrayOf\(([^)]*)\)', source)
+            self.assertIsNotNone(match)
+            actual = tuple(float(part.strip().removesuffix('f')) for part in match.group(1).split(','))
+            self.assertEqual(actual, tuple(float(x) for x in expected))
+
+    def test_native_vector_preserves_body_clip_and_book_gradient(self):
+        svg = rig.svg_for('waiting',['head_group','left_arm','right_arm','book','symbol'])
+        vector = ET.fromstring(svg_to_vector(svg))
+        self.assertGreaterEqual(len(vector.findall('.//clip-path')), 3)
+        self.assertEqual(len(vector.findall('.//gradient')), 2)
+        self.assertEqual(vector.get('{'+ANDROID+'}viewportWidth'), '310')
+
+    def test_widget_has_no_whole_image_fades_or_visible_text(self):
+        layout = ET.parse(rig.ROOT / 'app/src/main/res/layout/translation_pet_widget.xml').getroot()
+        flipper = layout.find('AdapterViewFlipper')
+        self.assertIsNotNone(flipper)
+        self.assertEqual(len(flipper), 0)
+        self.assertIsNone(flipper.get('{'+ANDROID+'}inAnimation'))
+        self.assertIsNone(flipper.get('{'+ANDROID+'}outAnimation'))
+        self.assertEqual(len(layout.findall('.//TextView')), 0)
+        for mood, interval in [('new', 83), ('happy', 70), ('waiting', 91), ('hungry', 120), ('sad', 128)]:
+            mood_layout = ET.parse(rig.ROOT / f'app/src/main/res/layout/companion_widget_{mood}.xml').getroot()
+            mood_flipper = mood_layout.find('AdapterViewFlipper')
+            self.assertEqual(mood_flipper.get('{'+ANDROID+'}flipInterval'), str(interval))
+            self.assertEqual(len(mood_layout.findall('.//TextView')), 0)
+
+
+if __name__ == '__main__':
+    unittest.main()

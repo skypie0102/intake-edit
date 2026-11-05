@@ -1,0 +1,97 @@
+"""Build the downloadable preview pack from the editable vector rig.
+
+Publish the resulting rig-preview/animation-pack.json on the preview branch.
+The preview app accepts this data format without an APK update.
+"""
+import json
+from pathlib import Path
+import generate_companion_rig as rig
+
+ROOT = Path(__file__).resolve().parents[1]
+FRAME_COUNT = 96
+SHARED_FRAME_COUNT = 48
+# Keep the whole outlined book inside the preview canvas, including antialiasing.
+PREVIEW_VIEWBOX = '92 87 320 320'
+
+
+def interpolate(values, t):
+    x = t * len(values)
+    i = int(x) % len(values)
+    return values[i] + (values[(i + 1) % len(values)] - values[i]) * (x - int(x))
+
+
+def generate():
+    moods = {}
+    transition_blinks = {}
+    idle_blinks = {}
+    for mood in rig.MOODS:
+        frames = []
+        count = FRAME_COUNT
+        for frame in range(count):
+            t = frame / count
+            # Leave time to read before and after the thinking gesture.
+            phase = (max(0, min(1, (t - .30) / .58)) if mood == 'waiting'
+                     else max(0, min(1, (t - .20) / .65)) if mood == 'new'
+                     else max(0, min(1, (t - .12) / .76)) if mood in ('happy', 'hungry')
+                     else max(0, min(1, (t - .10) / .80)) if mood == 'sad'
+                     else (t if t < .94 else 0))
+            amount = (interpolate(rig.POSES, phase) if mood == 'waiting'
+                      else interpolate(rig.GREETING_POSES, phase) if mood == 'new' else 0)
+            layers = (['head_group', 'left_arm', 'book', 'ink', 'pen', 'right_arm', 'symbol']
+                      if mood == 'happy' else ['head_group', 'left_arm', 'right_arm', 'book', 'symbol'])
+            frames.append(rig.svg_for(mood, layers,
+                progress=amount, blinking=frame in ((12, 13, 70, 71, 75, 76) if mood == 'waiting' else (25, 26, 77, 78) if mood == 'new' else (15, 16, 84, 85) if mood == 'happy' else (10, 11, 80, 81) if mood == 'hungry' else (15, 16, 84, 85)),
+                phase=phase, idle_phase=t, view_box=PREVIEW_VIEWBOX))
+            # Neutral, closed-eye pose for a change of mood. The greeting's
+            # frame 36 has raised its head but has not started reacting.
+            if frame == (36 if mood == 'new' else 0):
+                transition_blinks[mood] = rig.svg_for(mood, layers,
+                    progress=amount, blinking=True, phase=phase, idle_phase=t, view_box=PREVIEW_VIEWBOX)
+            if frame == 0:
+                idle_blinks[mood] = rig.svg_for(mood, layers,
+                    progress=amount, blinking=True, phase=phase, idle_phase=t, view_box=PREVIEW_VIEWBOX)
+        moods[mood] = frames
+    page_turn = []
+    for frame in range(FRAME_COUNT):
+        t = frame / FRAME_COUNT
+        phase = max(0, min(1, (t - .12) / .76))
+        page_turn.append(rig.svg_for('happy',
+            ['head_group', 'left_arm', 'book', 'turning_page', 'right_arm'],
+            blinking=frame in (15, 16, 84, 85), phase=phase, idle_phase=t,
+            view_box=PREVIEW_VIEWBOX, action='page_turn'))
+    shared_actions = {}
+    for mood in rig.MOODS:
+        shared_actions[mood] = {}
+        for action in ('reading', 'writing', 'page_turn'):
+            frames = []
+            for frame in range(SHARED_FRAME_COUNT):
+                t = frame / SHARED_FRAME_COUNT
+                phase = max(0, min(1, (t - .12) / .76))
+                reach = (rig.writing_pose(phase)[0] if action == 'writing'
+                         else rig.page_turn_pose(phase)[0] if action == 'page_turn' else 0)
+                # Keep the resting arm behind the book; place the same arm in
+                # front only as it reaches for a page or pen.
+                behind = reach <= 0 and mood != 'happy'
+                layers = (['head_group', 'left_arm', 'right_arm', 'book'] if behind
+                          else ['head_group', 'left_arm', 'book'])
+                if action == 'writing': layers += ['ink', 'pen']
+                if action == 'page_turn': layers += ['turning_page']
+                if not behind: layers += ['right_arm']
+                if mood == 'happy' and action == 'writing': layers += ['symbol']
+                frames.append(rig.svg_for(mood, layers, phase=phase, idle_phase=t,
+                    blinking=frame in (7, 41), view_box=PREVIEW_VIEWBOX,
+                    action='shared_' + action))
+            shared_actions[mood][action] = frames
+    result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods,
+                         'transition_blinks': transition_blinks,
+                         'idle_blinks': idle_blinks,
+                         'page_turn': page_turn,
+                         'shared_actions': shared_actions}, separators=(',', ':')) + '\n'
+    for path in (ROOT / 'rig-preview/animation-pack.json', ROOT / 'app/src/main/assets/companion/animation-pack.json'):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(result, encoding='utf-8')
+    print(f'Generated {FRAME_COUNT} frames per mood ({len(result)} bytes).')
+
+if __name__ == '__main__':
+    generate()
+
