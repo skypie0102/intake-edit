@@ -36,7 +36,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 - [ ] Preserve the existing project, feeding, progress and chapter-opening behavior. Keep preview and production separate until the revamp is accepted.
 - [ ] Update this tracker with implementation and review evidence as work lands.
 
-See [the animation revamp plan](COMPANION_ANIMATION_PLAN.md) for existing behavior, constraints and acceptance criteria.
+See [the animation revamp plan](COMPANION_ANIMATION_PLAN_PREVIEW.md) for existing behavior, constraints and acceptance criteria.
 
 
 

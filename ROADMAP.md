@@ -1,13 +1,29 @@
 # Intake Edit roadmap
 
-## Companion animation delivery
+This is the single current roadmap for unfinished work. Historical plans and trackers are preserved in [the archive](docs/archive/).
 
-- [x] Add the accepted New, Waiting, Happy, Hungry and Sad reactions to the production companion.
-- [x] Share reading, writing and page turning across moods with mood-specific pacing.
-- [x] Bundle the animation pack and keep project progress, feeding and chapter navigation separate from animation playback.
-- [x] Implement full-sequence widget playback through a launcher adapter and provide a reduced-motion resting pose.
-- [x] Remove the frame fades that caused flicker; the user confirmed that flickering stopped on November 6, 2026.
-- [ ] Verify full widget playback, touch navigation, mood changes, resizing, sleep/resume, multiple widgets, and performance on actual devices and launchers. Launcher behavior can differ.
-- [ ] Explore smooth mood-to-mood interpolation without delaying state changes.
+## 1. Release signing and data safety
 
-See [companion animation notes](docs/COMPANION_ANIMATION_PLAN.md) for implementation and validation details. Earlier preview planning is preserved in [the archive](docs/archive/COMPANION_LIVELINESS_TRACKER_PREVIEW.md).
+- [ ] Establish a persistent, securely stored Android release signing key and configure the release workflow to use it. Verify that a subsequent release signed with the same key installs as an update and retains app data.
+- [ ] Document the migration from prior one-off-signed releases, including their update incompatibility and the risk to local settings, drafts, and companion history. Do not assume an old one-off key can be recovered.
+- [ ] Determine and provide a reliable way to preserve or migrate local data before any required reinstall.
+
+## 2. Android performance and interaction polish
+
+- [ ] Profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File editing path on representative devices and chapter files.
+- [ ] Address measured input jank, background-work responsiveness, or interaction issues. Revisit spacing, button density, and screen-space use where profiling identifies a need.
+- [ ] Verify navigation stays responsive and regression tests and CI pass.
+
+Preserve the existing single-entry typing path, debounced off-main draft persistence, off-main XLIFF processing, and editor state across QA override refreshes.
+
+## 3. Companion widget validation
+
+- [ ] Verify the complete animation sequence, tempo, tap-to-open behavior, mood changes, and reduced-motion behavior on devices and launchers, including light and dark wallpapers.
+- [ ] Verify resizing, multiple widgets, app updates, reboot, sleep and resume, and offline loading.
+- [ ] Measure memory use, loading performance, and battery consumption; fix issues found and record device and launcher results.
+
+The user confirmed on November 6, 2026 that the frame-fade flicker stopped. That confirmation does not establish completion of the other checks.
+
+## 4. Companion mood transitions
+
+- [ ] Explore and, if suitable, implement smooth transitions between moods without delaying a status change. The current implementation immediately switches to the newly selected mood.

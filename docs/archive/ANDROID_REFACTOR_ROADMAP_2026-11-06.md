@@ -1,6 +1,8 @@
 # Android architecture refactor roadmap
 
-Milestones 1–6 are complete. Their goals, implementation scope, and acceptance criteria are preserved in the [completed milestones archive](docs/archive/ANDROID_REFACTOR_MILESTONES_1_6.md). Milestone 7 remains open pending representative-device profiling and any fixes justified by the results.
+> Archived on November 6, 2026. This is a historical snapshot; current work is tracked only in the [current roadmap](../../ROADMAP.md).
+
+Milestones 1–6 are complete. Their goals, implementation scope, and acceptance criteria are preserved in the [completed milestones archive](ANDROID_REFACTOR_MILESTONES_1_6.md). Milestone 7 remains open pending representative-device profiling and any fixes justified by the results.
 
 ## Milestone 7 — UI polish and performance verification
 

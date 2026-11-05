@@ -1,6 +1,6 @@
 # Android architecture refactor — completed milestones 1–6
 
-Historical record. Milestones 1–6 were marked complete in the Android architecture roadmap. The remaining device-verification and polish work is tracked in the [active roadmap](../../ANDROID_REFACTOR_ROADMAP.md).
+Historical record. Milestones 1–6 were marked complete in the Android architecture roadmap. The remaining device-verification and polish work is tracked in the [active roadmap](../../ROADMAP.md).
 
 ## Current status
 
