@@ -47,14 +47,14 @@ class HappyHummingPreviewTest(unittest.TestCase):
         tongue = next(node for node in head.iter() if node.get('fill') == '#ef9eaa')
         self.assertEqual(mouth.get('d').count('Q'), 4)
         self.assertEqual(tongue.get('opacity'), '0.000')
-        self.assertIn('M244.00 247.00', mouth.get('d'))
+        self.assertIn('M247.50 247.00', mouth.get('d'))
 
     def test_o_is_held_through_the_humming_phrase(self):
         for t in (.35, .42, .5, .58, .66, .74):
             head = ET.fromstring(humming.make_frame(t))[1]
             mouth = next(node for node in head.iter() if node.get('fill') == '#57364f')
             coords = [float(x) for x in re.findall(r'-?\d+\.\d+', mouth.get('d'))]
-            self.assertGreater(coords[0], 243)
+            self.assertGreater(coords[0], 246)
 
     def test_preview_has_no_extra_arms(self):
         for t in (0, .3, .5, .7, 1):
