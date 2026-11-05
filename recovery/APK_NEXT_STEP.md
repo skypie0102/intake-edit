@@ -1,5 +1,7 @@
 # APK recovery next step
 
+> Historical recovery note: this document records an earlier recovery proposal. It is not the current project roadmap; see the [active roadmap](../ROADMAP.md) for current work.
+
 Upload the surviving latest Intake Edit APK to the recovery workspace. Preserve the original APK unchanged.
 
 Useful outputs:

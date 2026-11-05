@@ -4,7 +4,7 @@ Android editor for the Pure Love x Violation translation workflow.
 
 Current application version: **0.15.29**.
 
-Current development priorities are tracked in the [roadmap](ROADMAP.md). Companion playback and outstanding launcher checks are tracked in the [companion animation notes](docs/COMPANION_ANIMATION_PLAN.md).
+Current development priorities are tracked in the [roadmap](ROADMAP.md); the remaining Android performance work is in the [architecture refactor roadmap](ANDROID_REFACTOR_ROADMAP.md). Companion playback and outstanding launcher checks are tracked in the [companion animation notes](docs/COMPANION_ANIMATION_PLAN.md).
 
 ## Workspace sections
 

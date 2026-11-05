@@ -1,5 +1,7 @@
 # Recovery manifest
 
+> Historical recovery note: this document records an earlier recovery proposal. It is not the current project roadmap; see the [active roadmap](../ROADMAP.md) for current work.
+
 - `app/build.gradle.kts` — EXACT recovered file.
 - `.github/workflows/release.yml` — EXACT recovered workflow.
 - `app/src/main/java/cloud/shadowmonarchbooks/intakeedit/InlineMarkup.kt` — EXACT recovered file.
