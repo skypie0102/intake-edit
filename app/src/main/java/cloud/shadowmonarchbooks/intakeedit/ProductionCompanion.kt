@@ -89,7 +89,7 @@ internal fun shouldBlinkForMoodChange(previous: PetMood?, selected: PetMood, ani
     animationsEnabled && previous != null && previous != selected
 
 @Composable
-internal fun ProductionBookSpirit(mood: PetMood, description: String, size: Dp = 110.dp) {
+internal fun ProductionBookSpirit(mood: PetMood, description: String, displaySize: Dp = 110.dp) {
     val context = LocalContext.current
     // Resting poses for all moods are small compared with the full action pack.
     // Keep the selected mood visible while its complete sequence loads.
@@ -137,7 +137,7 @@ internal fun ProductionBookSpirit(mood: PetMood, description: String, size: Dp =
         }
     }
     if (rest == null && current == null) {
-        AnimatedBookSpirit(mood, description, size)
+        AnimatedBookSpirit(mood, description, displaySize)
         return
     }
     val sequence = action?.let { current?.actions?.get(it) }
@@ -148,7 +148,7 @@ internal fun ProductionBookSpirit(mood: PetMood, description: String, size: Dp =
         sequence != null -> sequence[(frame * sequence.size / current.frames.size).coerceIn(sequence.indices)]
         else -> current.frames[frame.coerceIn(current.frames.indices)]
     } ?: return
-    Canvas(Modifier.size(size).semantics { contentDescription = "Companion: $description" }) {
+    Canvas(Modifier.size(displaySize).semantics { contentDescription = "Companion: $description" }) {
         val canvas = drawContext.canvas.nativeCanvas
         val save = canvas.save()
         canvas.scale(size.width / 320f, size.height / 320f)
