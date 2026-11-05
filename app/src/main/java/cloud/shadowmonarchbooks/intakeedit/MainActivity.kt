@@ -91,7 +91,8 @@ class MainActivity : ComponentActivity() {
         widgetOpenRequest = savedInstanceState?.getInt("widgetOpenRequest") ?: 0
         if (savedInstanceState == null && intent?.action == TranslationPetWidget.ACTION_OPEN_CHAPTER) widgetOpenRequest++
         TranslationPetWidget.refreshAll(this)
-        setContent { IntakeEditTheme { IntakeAppShell(widgetOpenRequest, firstLaunch) } }
+        val showInitialSettings = firstLaunch && !(BuildConfig.DEBUG && BuildConfig.APPLICATION_ID == RIG_PREVIEW_PACKAGE)
+        setContent { IntakeEditTheme { IntakeAppShell(widgetOpenRequest, showInitialSettings) } }
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("widgetOpenRequest", widgetOpenRequest)

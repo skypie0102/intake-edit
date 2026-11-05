@@ -48,7 +48,8 @@ class TranslationPetWidget : AppWidgetProvider() {
             val token = SecureTokenStore(context).load()
             val snapshot = PetProjectCache(context).get(settings, token)
             val count = snapshot?.completed
-            if (count == null) {
+            val demoMood = readRigDemoMood(context)
+            if (count == null && demoMood == null) {
                 val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_CHAPTER),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 for (id in ids) {
@@ -61,8 +62,8 @@ class TranslationPetWidget : AppWidgetProvider() {
                 }
                 return
             }
-            val status = PetStore(context).status(settings, count)
-            val message = when (status.mood) {
+            val mood = demoMood ?: PetStore(context).status(settings, requireNotNull(count)).mood
+            val message = when (mood) {
                 PetMood.NEW -> "Ready for a chapter!"
                 PetMood.HAPPY -> "Fed today!"
                 PetMood.WAITING -> "Time to feed me!"
@@ -82,7 +83,7 @@ class TranslationPetWidget : AppWidgetProvider() {
                         R.id.pet_widget_frame_8, R.id.pet_widget_frame_9, R.id.pet_widget_frame_10, R.id.pet_widget_frame_11,
                         R.id.pet_widget_frame_12, R.id.pet_widget_frame_13, R.id.pet_widget_frame_14, R.id.pet_widget_frame_15,
                     )
-                    frameViews.zip(companionWidgetFrames(status.mood).asIterable()).forEach { (view, frame) ->
+                    frameViews.zip(companionWidgetFrames(mood).asIterable()).forEach { (view, frame) ->
                         setImageViewResource(view, frame)
                     }
                     setContentDescription(R.id.pet_widget_portrait, "Companion: $message")

@@ -47,6 +47,7 @@ internal fun WorkspaceHomeScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Workspace", style = MaterialTheme.typography.titleLarge)
+            if (BuildConfig.DEBUG && BuildConfig.APPLICATION_ID == RIG_PREVIEW_PACKAGE) RigPreviewPanel()
             TranslationPetCard()
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

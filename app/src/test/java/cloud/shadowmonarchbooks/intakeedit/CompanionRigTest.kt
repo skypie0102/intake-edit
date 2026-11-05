@@ -26,4 +26,10 @@ class CompanionRigTest {
         assertTrue(thinkingArmCoordinates(-1f).contentEquals(rest))
         assertTrue(thinkingArmCoordinates(2f).contentEquals(thinking))
     }
+
+    @Test fun demoMoodCannotOverrideTheProductionCompanion() {
+        assertEquals(PetMood.WAITING, rigDemoMood(RIG_PREVIEW_PACKAGE, "WAITING"))
+        assertEquals(null, rigDemoMood("cloud.shadowmonarchbooks.intakeedit", "WAITING"))
+        assertEquals(null, rigDemoMood(RIG_PREVIEW_PACKAGE, "UNKNOWN"))
+    }
 }
