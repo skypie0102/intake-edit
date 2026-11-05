@@ -27,7 +27,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 - [ ] **Waiting:** read, look puzzled, and retain the sequential dots and question mark; use the polished idle as the basis for other states.
 - [ ] **Happy:** look at the page, write several strokes with pauses and a longer mark, then smile with twinkling stars. Keep the pen aligned with the hand and writing; do not add a finger grip. **In progress:** the preview adds a longer writing sequence with a pause between strokes, a resting hand, blinking and tuft/bookmark movement; user and device review remain open.
 - [ ] **Hungry:** retain a weary, downturned expression; imagine steaming food and settle with a gentle sigh. Do not introduce a smile. **In progress:** longer food-thought and sigh preview, with slower body, tuft and ribbon movement; rendered poses reviewed, user and device review remain open.
-- [ ] **Sad:** retreat toward the book and occasionally glance up; use the tear sparingly.
+- [ ] **Sad:** retreat toward the book and occasionally glance up; use the tear sparingly. **In progress:** longer preview with a more visible upward glance, retreat, single tear, and softer tuft/bookmark movement; rendered poses reviewed, user and device review remain open.
 
 ## Validation and rollout
 

@@ -96,7 +96,7 @@ class PreviewPackTest(unittest.TestCase):
         self.assertEqual(pack['format'], 1)
         self.assertEqual(set(pack['moods']), {'new', 'happy', 'waiting', 'hungry', 'sad'})
         for mood, frames in pack['moods'].items():
-            self.assertEqual(len(frames), 96 if mood in ('waiting', 'new', 'happy', 'hungry') else 48)
+            self.assertEqual(len(frames), 96)
             self.assertTrue(all(frame.startswith('<svg ') and len(frame) < 30_000 for frame in frames))
 
     def test_happy_writing_uses_one_hand_and_a_timed_pen(self):
@@ -163,9 +163,9 @@ class PreviewPackTest(unittest.TestCase):
     def test_sad_glance_and_single_timed_cheek_tear(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         frames = pack['moods']['sad']
-        rest, glance, tear, returned = frames[0], frames[18], frames[33], frames[-1]
+        rest, glance, tear, returned = frames[0], frames[39], frames[62], frames[-1]
         self.assertIn('cy="223.00"', rest)
-        self.assertIn('cy="220.00"', glance)
+        self.assertIn('cy="218.00"', glance)
         self.assertIn('opacity="0.000"', rest)
         self.assertIn('opacity="1.000"', tear)
         self.assertIn('opacity="0.000"', returned)
