@@ -189,8 +189,8 @@ def hungry_action(phase):
     return look, sigh
 
 
-def hungry_facial_layers(layers, look, blinking):
-    head = deepcopy(layers['head'])
+def hungry_facial_layers(layers, look, blinking, idle_phase=None):
+    head = waiting_head(layers, idle_phase, .6) if idle_phase is not None else deepcopy(layers['head'])
     eyes = deepcopy(layers['blink' if blinking else 'eyes'])
     for node in head[0]:
         path = node.get('d', '')
@@ -253,9 +253,10 @@ def waiting_follow_through(phase):
     return tuft, ribbon
 
 
-def waiting_head(layers, phase):
+def waiting_head(layers, phase, strength=1):
     head = deepcopy(layers['head'])
     tuft, _ = waiting_follow_through(phase)
+    tuft *= strength
     silhouette = head[0][0]
     path = silhouette.get('d')
     original = 'C228 146 231 123 230 113 C250 132 254 142 253 148 C269 134 271 119 269 107 C285 120 288 136 286 153'
@@ -332,6 +333,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
             transform = (f'translate(0 {-7*progress + 20*reading + float_y:.2f}) rotate({7*reading:.2f} 252 270)' if mood == 'new' and idle_phase is not None
                          else f'translate(0 {-7*progress:.2f})' if mood == 'new'
                          else f'translate(0 {-1.4*math.sin(2*math.pi*idle_phase):.2f}) rotate({2*focus:.2f} 252 270)' if mood == 'happy' and idle_phase is not None
+                         else f'translate(0 {-3*look + 2*sigh - 1.8*math.sin(2*math.pi*idle_phase):.2f})' if mood == 'hungry' and idle_phase is not None
                          else f'translate(0 {-3*look + 2*sigh:.2f})' if mood == 'hungry'
                          else f'translate(0 {-3*glance + 2*settle:.2f})' if mood == 'sad'
                          else f'translate(0 {-1.2*breath:.2f}) rotate({1.5*progress:.2f} 252 270)' if mood == 'waiting' and phase is not None
@@ -342,7 +344,7 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(head)
                 group.append(eyes)
             elif mood == 'hungry' and phase is not None:
-                head, eyes = hungry_facial_layers(layers, look, blinking)
+                head, eyes = hungry_facial_layers(layers, look, blinking, idle_phase)
                 group.append(head)
                 group.append(eyes)
             elif mood == 'sad' and phase is not None:
@@ -454,9 +456,10 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                     ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'186.5', 'r':'2.5', 'fill':'#dcc2ec'})
         elif part == 'symbol':
             continue  # Symbols appear only with their corresponding actions.
-        elif part == 'book' and mood in ('waiting', 'new', 'happy') and phase is not None and (mood == 'waiting' or idle_phase is not None):
+        elif part == 'book' and mood in ('waiting', 'new', 'happy', 'hungry') and phase is not None and (mood == 'waiting' or idle_phase is not None):
             nodes = deepcopy(layers[part])
             _, ribbon = waiting_follow_through(idle_phase if idle_phase is not None else phase)
+            if mood == 'hungry': ribbon *= .6
             # Rotate only the ribbon, behind the stable book, around its hidden attachment.
             nodes[0].set('transform', f'rotate({ribbon:.2f} 313 341)')
             for node in nodes: root.append(node)

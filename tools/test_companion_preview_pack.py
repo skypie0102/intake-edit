@@ -96,7 +96,7 @@ class PreviewPackTest(unittest.TestCase):
         self.assertEqual(pack['format'], 1)
         self.assertEqual(set(pack['moods']), {'new', 'happy', 'waiting', 'hungry', 'sad'})
         for mood, frames in pack['moods'].items():
-            self.assertEqual(len(frames), 96 if mood in ('waiting', 'new', 'happy') else 48)
+            self.assertEqual(len(frames), 96 if mood in ('waiting', 'new', 'happy', 'hungry') else 48)
             self.assertTrue(all(frame.startswith('<svg ') and len(frame) < 30_000 for frame in frames))
 
     def test_happy_writing_uses_one_hand_and_a_timed_pen(self):
@@ -146,12 +146,12 @@ class PreviewPackTest(unittest.TestCase):
     def test_hungry_looks_up_then_sighs_and_returns_to_rest(self):
         pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
         frames = pack['moods']['hungry']
-        rest, looking_up, sighing, returned = frames[0], frames[20], frames[37], frames[-1]
+        rest, looking_up, sighing, returned = frames[0], frames[41], frames[68], frames[-1]
         self.assertIn('M242 250.00 Q252 240.00 262 250.00', rest)
         self.assertIn('M242 249.00 Q252 243.00 262 249.00', looking_up)
         self.assertIn('cy="221.00"', looking_up)
-        self.assertIn('M343 171 C340 159', frames[24])
-        self.assertIn('M351 174 Q354 187', frames[24])
+        self.assertIn('M343 171 C340 159', frames[48])
+        self.assertIn('M351 174 Q354 187', frames[48])
         self.assertNotIn('M343 171 C340 159', rest)
         self.assertNotIn('M343 171 C340 159', returned)
         self.assertNotIn('M146 226 q-8', rest)
