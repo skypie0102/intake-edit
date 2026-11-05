@@ -18,6 +18,7 @@ android {
         targetSdk = 37
         versionCode = 63
         versionName = "0.15.28"
+        manifestPlaceholders["appLabel"] = "Intake Edit"
     }
     signingConfigs {
         if (hasReleaseSigning) {
@@ -32,6 +33,11 @@ android {
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     buildTypes {
+        debug {
+            applicationIdSuffix = ".vectorpreview"
+            versionNameSuffix = "-vector-preview"
+            manifestPlaceholders["appLabel"] = "Intake Edit Vector Preview"
+        }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
