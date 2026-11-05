@@ -36,6 +36,7 @@ private const val DEMO_KEY = "demo_mood"
 private data class RigPack(
     val pictures: Map<PetMood, List<Picture>>,
     val transitionBlinks: Map<PetMood, Picture>,
+    val idleBlinks: Map<PetMood, Picture>,
     val frameMs: Long,
 )
 
@@ -66,7 +67,11 @@ private object RigPackStore {
         val blinks = if (blinkSource == null) emptyMap() else PetMood.entries.associateWith {
             parsePicture(blinkSource.getString(it.name.lowercase()))
         }
-        return RigPack(pictures, blinks, frameMs)
+        val idleSource = root.optJSONObject("idle_blinks")
+        val idleBlinks = if (idleSource == null) emptyMap() else PetMood.entries.associateWith {
+            parsePicture(idleSource.getString(it.name.lowercase()))
+        }
+        return RigPack(pictures, blinks, idleBlinks, frameMs)
     }
 
     fun load(context: Context): RigPack {
@@ -136,6 +141,7 @@ internal fun RigRemotePreview() {
     var frame by remember { mutableIntStateOf(0) }
     var displayedMood by remember { mutableStateOf(mood) }
     var transitionBlink by remember { mutableStateOf(false) }
+    var idleBlink by remember { mutableStateOf(false) }
     val requestedMood by rememberUpdatedState(mood)
 
     LaunchedEffect(refreshCount) {
@@ -156,6 +162,7 @@ internal fun RigRemotePreview() {
         frame = 0
         displayedMood = requestedMood
         transitionBlink = false
+        idleBlink = false
         var timeline: RigPreviewTimeline? = null
         while (true) {
             val currentPack = pack
@@ -167,10 +174,12 @@ internal fun RigRemotePreview() {
                 timeline = null
                 displayedMood = requestedMood
                 transitionBlink = false
+                idleBlink = false
                 frame = 0
                 delay(currentPack.frameMs)
             } else if (requestedMood != displayedMood) {
                 timeline = null
+                idleBlink = false
                 if (currentPack.pictures.values.all { it.size == 96 } &&
                     currentPack.transitionBlinks.size == PetMood.entries.size) {
                     // Finish the current gesture quickly, preserving its drawing order.
@@ -200,11 +209,15 @@ internal fun RigRemotePreview() {
             } else if (count != 96) {
                 // Older packs have different pose timing; play them as authored.
                 timeline = null
+                idleBlink = false
                 frame = (frame + 1) % count
                 delay(currentPack.frameMs)
             } else {
-                val active = timeline ?: RigPreviewTimeline(count, startWithAction = displayedMood == PetMood.NEW).also { timeline = it }
+                val active = timeline ?: RigPreviewTimeline(count,
+                    startWithAction = displayedMood == PetMood.NEW,
+                    allowIdleBlink = currentPack.idleBlinks.containsKey(displayedMood)).also { timeline = it }
                 frame = active.advance()
+                idleBlink = active.blinking
                 delay(currentPack.frameMs)
             }
         }
@@ -215,6 +228,7 @@ internal fun RigRemotePreview() {
             Text(message, style = MaterialTheme.typography.bodySmall)
             Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                 val picture = if (transitionBlink) pack?.transitionBlinks?.get(displayedMood)
+                              else if (idleBlink) pack?.idleBlinks?.get(displayedMood)
                               else pack?.pictures?.get(displayedMood)?.getOrNull(frame)
                 if (picture != null) Canvas(Modifier.size(220.dp)) {
                     val canvas = drawContext.canvas.nativeCanvas

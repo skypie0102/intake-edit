@@ -32,6 +32,17 @@ class PreviewPackTest(unittest.TestCase):
             self.assertEqual([ET.tostring(node) for node in neutral[2:]],
                              [ET.tostring(node) for node in blink[2:]])
 
+    def test_idle_blinks_match_the_resting_pose(self):
+        pack = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())
+        self.assertEqual(set(pack['idle_blinks']), set(rig.MOODS))
+        for mood in rig.MOODS:
+            rest = ET.fromstring(pack['moods'][mood][0])
+            blink = ET.fromstring(pack['idle_blinks'][mood])
+            self.assertEqual(ET.tostring(rest[1][0]), ET.tostring(blink[1][0]))
+            self.assertNotEqual(ET.tostring(rest[1][1]), ET.tostring(blink[1][1]))
+            self.assertEqual([ET.tostring(node) for node in rest[2:]],
+                             [ET.tostring(node) for node in blink[2:]])
+
     def test_new_companion_scans_page_and_centres_gaze_to_greet(self):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
         self.assertGreater(rig.greeting_reading_eye_x(.05, 1), 6.9)

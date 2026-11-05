@@ -20,6 +20,7 @@ def interpolate(values, t):
 def generate():
     moods = {}
     transition_blinks = {}
+    idle_blinks = {}
     for mood in rig.MOODS:
         frames = []
         count = FRAME_COUNT
@@ -43,9 +44,13 @@ def generate():
             if frame == (36 if mood == 'new' else 0):
                 transition_blinks[mood] = rig.svg_for(mood, layers,
                     progress=amount, blinking=True, phase=phase, idle_phase=t)
+            if frame == 0:
+                idle_blinks[mood] = rig.svg_for(mood, layers,
+                    progress=amount, blinking=True, phase=phase, idle_phase=t)
         moods[mood] = frames
     result = json.dumps({'format': 1, 'frame_ms': 83, 'moods': moods,
-                         'transition_blinks': transition_blinks}, separators=(',', ':')) + '\n'
+                         'transition_blinks': transition_blinks,
+                         'idle_blinks': idle_blinks}, separators=(',', ':')) + '\n'
     for path in (ROOT / 'rig-preview/animation-pack.json', ROOT / 'app/src/debug/assets/rig-preview-pack.json'):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(result, encoding='utf-8')

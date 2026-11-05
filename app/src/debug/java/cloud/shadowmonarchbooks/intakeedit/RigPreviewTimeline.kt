@@ -15,6 +15,7 @@ internal class RigPreviewTimeline(
     private val frameCount: Int,
     private val random: Random = Random.Default,
     startWithAction: Boolean = false,
+    private val allowIdleBlink: Boolean = false,
 ) {
     init { require(frameCount >= 16) }
 
@@ -23,11 +24,16 @@ internal class RigPreviewTimeline(
     private var idleStep = 0
     private var idleRemaining = if (startWithAction) 0 else nextIdleLength()
     private var playingAction = startWithAction
+    private var blinkCountdown = random.nextInt(16, 52)
+    private var blinkTicks = 0
+    var blinking: Boolean = false
+        private set
 
     private fun nextIdleLength() = random.nextInt(36, 109)
 
     /** Every call advances one frame interval. The action is never skipped. */
     fun advance(): Int {
+        blinking = false
         if (playingAction) {
             frame++
             if (frame >= frameCount) {
@@ -38,6 +44,18 @@ internal class RigPreviewTimeline(
             }
             return frame
         }
+        if (blinkTicks > 0) {
+            blinkTicks--
+            blinking = true
+            return 0
+        }
+        if (allowIdleBlink && idleStep == 0 && idleRemaining > 0 && blinkCountdown <= 0) {
+            blinkCountdown = random.nextInt(16, 52)
+            blinkTicks = 1
+            blinking = true
+            return 0
+        }
+        blinkCountdown--
         if (idleRemaining-- <= 0 && idleStep == 0) {
             playingAction = true
             frame = 1

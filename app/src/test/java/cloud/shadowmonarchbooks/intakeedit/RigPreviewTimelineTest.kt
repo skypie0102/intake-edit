@@ -5,6 +5,22 @@ import org.junit.Test
 import kotlin.random.Random
 
 class RigPreviewTimelineTest {
+    @Test fun idleBlinksOccurAtRestAndDoNotSkipActions() {
+        val timeline = RigPreviewTimeline(96, Random(8), allowIdleBlink = true)
+        var blinkTicks = 0
+        var actions = 0
+        repeat(1600) {
+            val frame = timeline.advance()
+            if (timeline.blinking) {
+                blinkTicks++
+                assertEquals(0, frame)
+            }
+            if (frame == 95) actions++
+        }
+        assertTrue(blinkTicks >= 2)
+        assertTrue(actions > 0)
+    }
+
     @Test fun interruptedActionsReachAnAnchorInAtMostOneCycle() {
         for (moodIsNew in listOf(false, true)) {
             val anchor = transitionAnchor(moodIsNew)
