@@ -43,7 +43,7 @@ The following are intended visual behaviors, not new workflow semantics. Transit
 | NEW | Curious, alert eyes, a welcoming pose, and an exclamation mark. | Peek over the book, look toward the viewer, and settle back. |
 | HAPPY | Warm smile, lively but restrained breathing, bright eyes, softly animated sparkles. | Turn a page with interest or write a short note, then react with a pleased expression. |
 | WAITING | Attentive and expectant, glance between the page and viewer, question mark when curious. | Raise a hand to his chin, pause thoughtfully, then return to reading. |
-| HUNGRY | Slower movement, slightly drooped posture and weary eyes; hungry marks remain subtle. | Pause over the page, look up hopefully, then settle back with a gentle sigh-like motion. |
+| HUNGRY | Slower movement, slightly drooped posture and weary eyes; hungry marks remain subtle. | Pause over the page, imagine a bowl of food, then settle back with a gentle sigh; keep the mouth downturned. |
 | SAD | Lower posture, subdued eyes and slow breathing, with an understated tear/droplet. | Peek up briefly, then curl back toward the book without exaggerated distress. |
 
 Actions must communicate status without spoken text or widget labels. Mood-specific poses should be visually distinct at 2×2. Do not require an action to complete before a status update; finish or transition safely from the current pose.

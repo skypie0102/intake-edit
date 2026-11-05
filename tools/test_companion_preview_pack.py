@@ -65,8 +65,12 @@ class PreviewPackTest(unittest.TestCase):
         frames = pack['moods']['hungry']
         rest, looking_up, sighing, returned = frames[0], frames[20], frames[37], frames[-1]
         self.assertIn('M242 250.00 Q252 240.00 262 250.00', rest)
-        self.assertIn('M242 247.00 Q252 251.00 262 247.00', looking_up)
+        self.assertIn('M242 249.00 Q252 243.00 262 249.00', looking_up)
         self.assertIn('cy="221.00"', looking_up)
+        self.assertIn('M343 171 C340 159', frames[24])
+        self.assertIn('M351 174 Q354 187', frames[24])
+        self.assertNotIn('M343 171 C340 159', rest)
+        self.assertNotIn('M343 171 C340 159', returned)
         self.assertNotIn('M146 226 q-8', rest)
         self.assertIn('M146 226 q-8', sighing)
         self.assertNotIn('M146 226 q-8', returned)

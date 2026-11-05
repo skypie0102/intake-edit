@@ -194,8 +194,8 @@ def hungry_facial_layers(layers, look, blinking):
     for node in head[0]:
         path = node.get('d', '')
         if path.startswith('M242 250 Q252 240 262 250'):
-            # The weary frown relaxes into a small hopeful smile.
-            node.set('d', f'M242 {250-3*look:.2f} Q252 {240+11*look:.2f} 262 {250-3*look:.2f}')
+            # Keep his mouth downturned while his eyes look up.
+            node.set('d', f'M242 {250-look:.2f} Q252 {240+3*look:.2f} 262 {250-look:.2f}')
         elif path.startswith('M215 197 L230 201'):
             node.set('d', f'M215 {197-2*look:.2f} L230 {201-3*look:.2f} '
                           f'M275 {201-3*look:.2f} L290 {197-2*look:.2f}')
@@ -248,6 +248,27 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
         elif part == 'symbol' and show_symbol:
             for node in layers[part]: root.append(deepcopy(node))
         elif part == 'symbol' and mood == 'hungry' and phase is not None:
+            # Thought bubbles lead to a small bowl of food, only during the action.
+            if .20 <= phase < .72:
+                for threshold, x, y, radius in ((.20,333,224,2), (.26,340,214,3), (.32,347,203,4)):
+                    if phase >= threshold:
+                        ET.SubElement(root, N+'circle', {'cx':str(x),'cy':str(y),'r':str(radius),
+                            'fill':'#fbf5ef','stroke':'#b7a6c5','stroke-width':'1.5'})
+                if phase >= .38:
+                    group = ET.SubElement(root, N+'g', {'opacity':f'{smooth((.72-phase)/.08):.3f}'})
+                    ET.SubElement(group, N+'path', {'d':'M343 171 C340 159 350 152 359 154 C366 146 377 150 380 156 C392 155 397 164 392 173 C397 181 391 190 382 191 C375 198 365 196 360 192 C349 196 340 187 343 179 C340 176 341 173 343 171 Z',
+                        'fill':'#fbf5ef','stroke':'#b7a6c5','stroke-width':'2.5','stroke-linejoin':'round'})
+                    if phase >= .44:
+                        # Rice mound and bowl, sized to remain legible in the widget.
+                        ET.SubElement(group, N+'path', {'d':'M352 174 Q355 167 361 169 Q366 163 371 169 Q377 167 381 174 Z',
+                            'fill':'#ffffff','stroke':'#ae9aa8','stroke-width':'1.5','stroke-linejoin':'round'})
+                        ET.SubElement(group, N+'path', {'d':'M351 174 Q354 187 365 188 Q377 188 382 174 Z',
+                            'fill':'#d78b7d','stroke':'#8b6272','stroke-width':'2','stroke-linejoin':'round'})
+                        ET.SubElement(group, N+'path', {'d':'M354 177 Q366 181 379 177 M360 189 L374 189',
+                            'fill':'none','stroke':'#f5dbb8','stroke-width':'1.6','stroke-linecap':'round'})
+                    if phase >= .50:
+                        ET.SubElement(group, N+'path', {'d':'M360 165 Q357 162 360 159 M370 165 Q367 162 370 159',
+                            'fill':'none','stroke':'#b7a6c5','stroke-width':'1.5','stroke-linecap':'round'})
             _, sigh = hungry_action(phase)
             if sigh > .01:
                 # Two soft breath marks rise briefly while he settles back.
