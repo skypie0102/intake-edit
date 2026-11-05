@@ -35,13 +35,16 @@ class RigTest(unittest.TestCase):
         self.assertNotIn('M352 161', idle)
         self.assertIn('M352 161', thinking)
 
-    def test_arms_extend_behind_book_in_every_mood(self):
+    def test_original_arm_shapes_are_lowered_toward_book(self):
         for mood in rig.MOODS:
             with self.subTest(mood=mood):
                 _, _, layers = rig.parts(mood)
                 for arm in ('left_arm', 'right_arm'):
-                    self.assertIn('325', ET.tostring(layers[arm], encoding='unicode'))
-        self.assertIn('325', rig.arm_path(1))
+                    node = layers[arm][0][0]
+                    self.assertEqual(node.get('transform'), 'translate(0 10)')
+                    self.assertNotIn('325', node.get('d'))
+        source = (rig.ROOT / 'app/src/main/java/cloud/shadowmonarchbooks/intakeedit/CompanionRig.kt').read_text()
+        self.assertIn('translate(0f, 10f)', source)
 
     def test_single_limb_moves_and_returns_to_rest(self):
         self.assertEqual(rig.POSES[0], 0)

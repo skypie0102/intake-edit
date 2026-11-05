@@ -29,7 +29,7 @@ def arm_path(progress):
     v = [a + (b-a)*progress for a,b in zip(ARM_REST, ARM_THINK)]
     return (('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
              'C%.2f %.2f %.2f %.2f %.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f') % tuple(v)
-            + f' L{v[18]:.2f} 325 L303 325 Z')
+            + ' Z')
 
 
 def scene(mood):
@@ -68,13 +68,12 @@ def parts(mood):
         blink = body_part([lids])
     arm = elements[-1]
     left, right = arm.get('d').split(' M',1)
-    # Extend both limbs beneath the foreground book: no visible straight cutoff.
-    left_node = deepcopy(arm); left_node.set('d',left+' L201 325 L174 325 Z')
-    right_node = deepcopy(arm)
-    right_start = float(right.split()[0])
-    right_end = float(right.split()[-2])
-    right_node.set('d',f'M{right} L{right_end:g} 325 L{right_start:g} 325 Z')
-    if mood == 'waiting': right_node.set('d',arm_path(0))
+    # Keep the approved limb shapes; lower each one so the book hides its base.
+    left_node = deepcopy(arm); left_node.set('d', left + ' Z')
+    right_node = deepcopy(arm); right_node.set('d', 'M' + right + ' Z')
+    if mood == 'waiting': right_node.set('d', arm_path(0))
+    for node in (left_node, right_node):
+        node.set('transform', 'translate(0 10)')
     return original, art, {'head':head, 'eyes':eyes, 'blink':blink,
                            'left_arm':body_part([left_node]), 'right_arm':body_part([right_node]),
                            'symbol':[deepcopy(x) for x in list(art)[7:]],

@@ -84,7 +84,7 @@ private fun ThinkingArm(progress: Float) {
             moveTo(v[0], v[1]); cubicTo(v[2], v[3], v[4], v[5], v[6], v[7])
             cubicTo(v[8], v[9], v[10], v[11], v[12], v[13])
             cubicTo(v[14], v[15], v[16], v[17], v[18], v[19])
-            lineTo(v[18], 325f); lineTo(303f, 325f); close()
+            close()
         }
         val sx = size.width / 310f
         val sy = size.height / 310f
@@ -92,6 +92,7 @@ private fun ThinkingArm(progress: Float) {
             scale(sx, sy, pivot = Offset.Zero)
             translate(-97f, -92f)
             rotate(-6f, pivot = Offset(252f, 270f))
+            translate(0f, 10f)
         }) {
             drawPath(path, Color(0xffdfd2f1))
             drawPath(path, Color(0xff705c87), style = Stroke(width = 4f))
