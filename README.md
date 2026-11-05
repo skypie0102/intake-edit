@@ -72,7 +72,7 @@ Chapter edits retain the existing atomic local-draft system. Drafts are restored
 
 ## CI artifact
 
-Every push runs unit tests and builds a debug APK. The GitHub Actions artifact is named:
+Android CI runs unit tests and builds debug and release APKs for application changes. The debug GitHub Actions artifact is named:
 
 `intake-edit-debug-apk`
 
