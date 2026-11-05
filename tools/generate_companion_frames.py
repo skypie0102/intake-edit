@@ -1,19 +1,13 @@
-"""Render the companion's independent vector parts into lightweight widget frames.
-
-Requires Inkscape and ImageMagick with WebP support. The checked-in SVG remains
-the editable source of truth.
-"""
-from concurrent.futures import ThreadPoolExecutor
+"""Convert the editable companion SVG into native Android vector frames."""
 from copy import deepcopy
 from math import sin, pi
 from pathlib import Path
-import subprocess
-import tempfile
+import re
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "app/src/main/assets/companion/book_spirit_moods.svg"
-OUTPUT = ROOT / "app/src/main/res/drawable-nodpi"
+OUTPUT = ROOT / "app/src/main/res/drawable"
 SVG = "http://www.w3.org/2000/svg"
 ET.register_namespace("", SVG)
 N = "{" + SVG + "}"
@@ -80,19 +74,102 @@ def frame(mood, index):
     return ET.tostring(root, encoding="unicode")
 
 
+ANDROID = "http://schemas.android.com/apk/res/android"
+AAPT = "http://schemas.android.com/aapt"
+ET.register_namespace("android", ANDROID)
+ET.register_namespace("aapt", AAPT)
+A = "{" + ANDROID + "}"
+
+
+def vector_frame(mood, index):
+    """Convert the deliberately small SVG subset used by the companion artwork."""
+    source = ET.fromstring(frame(mood, index))
+    root = ET.Element("vector", {A + "width": "320dp", A + "height": "320dp",
+                                 A + "viewportWidth": "310", A + "viewportHeight": "310"})
+    canvas = ET.SubElement(root, "group", {A + "translateX": "-97", A + "translateY": "-92"})
+
+    def color(value):
+        if value == "white":
+            return "#ffffff"
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+            raise ValueError(f"Unsupported SVG color: {value}")
+        return value
+
+    def transforms(parent, spec):
+        rest = spec.strip()
+        while rest:
+            match = re.match(r"(translate|rotate)\(([^)]*)\)\s*", rest)
+            if not match:
+                raise ValueError(f"Unsupported SVG transform: {rest}")
+            values = [float(x) for x in re.split(r"[ ,]+", match.group(2).strip())]
+            if match.group(1) == "translate" and len(values) in (1, 2):
+                attrs = {A + "translateX": str(values[0]), A + "translateY": str(values[1] if len(values) == 2 else 0)}
+            elif match.group(1) == "rotate" and len(values) == 3:
+                attrs = {A + "rotation": str(values[0]), A + "pivotX": str(values[1]), A + "pivotY": str(values[2])}
+            else:
+                raise ValueError(f"Unsupported SVG transform: {match.group(0)}")
+            parent = ET.SubElement(parent, "group", attrs)
+            rest = rest[match.end():]
+        return parent
+
+    def append_element(element, parent, inherited_alpha=1.0):
+        name = element.tag.removeprefix(N)
+        if name in ("defs", "style"):
+            return
+        parent = transforms(parent, element.get("transform", ""))
+        opacity = inherited_alpha * float(element.get("opacity", "1"))
+        if name == "g":
+            for child in element:
+                append_element(child, parent, opacity)
+            return
+        if name == "path":
+            path_data = element.get("d")
+        elif name in ("circle", "ellipse"):
+            x, y = float(element.get("cx")), float(element.get("cy"))
+            rx = float(element.get("r") if name == "circle" else element.get("rx"))
+            ry = float(element.get("r") if name == "circle" else element.get("ry"))
+            path_data = f"M{x-rx},{y} a{rx},{ry} 0 1,0 {rx*2},0 a{rx},{ry} 0 1,0 {-rx*2},0 Z"
+        else:
+            raise ValueError(f"Unsupported SVG element: {name}")
+        line = element.get("class") == "line"
+        fill = element.get("fill", "none" if line else "#000000")
+        attrs = {A + "pathData": path_data}
+        fill_alpha = opacity * float(element.get("fill-opacity", "1"))
+        if fill not in ("none", "url(#paper)"):
+            attrs[A + "fillColor"] = color(fill)
+        if fill != "none" and fill_alpha != 1:
+            attrs[A + "fillAlpha"] = str(fill_alpha)
+        stroke = element.get("stroke")
+        if stroke and stroke != "none":
+            attrs[A + "strokeColor"] = color(stroke)
+            attrs[A + "strokeWidth"] = element.get("stroke-width", "1")
+            if opacity != 1:
+                attrs[A + "strokeAlpha"] = str(opacity)
+            if line or element.get("stroke-linecap") == "round":
+                attrs[A + "strokeLineCap"] = "round"
+            if line or element.get("stroke-linejoin") == "round":
+                attrs[A + "strokeLineJoin"] = "round"
+        path = ET.SubElement(parent, "path", attrs)
+        if fill == "url(#paper)":
+            attr = ET.SubElement(path, "{" + AAPT + "}attr", {"name": "android:fillColor"})
+            ET.SubElement(attr, "gradient", {A + "type": "linear", A + "startX": "0", A + "startY": "275",
+                                           A + "endX": "0", A + "endY": "369",
+                                           A + "startColor": "#fff6df", A + "endColor": "#d8c5ad"})
+
+    for element in source:
+        append_element(element, canvas)
+    return ET.tostring(root, encoding="unicode")
+
+
 def render(item):
     mood, index = item
-    with tempfile.TemporaryDirectory() as temp:
-        svg = Path(temp) / "frame.svg"
-        svg.write_text(frame(mood, index), encoding="utf-8")
-        png = Path(temp) / "frame.png"
-        webp = OUTPUT / f"book_spirit_{mood}_idle_{index:02d}.webp"
-        subprocess.run(["inkscape", str(svg), "--export-type=png", f"--export-filename={png}", "--export-width=320", "--export-height=320"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-        subprocess.run(["convert", str(png), "-quality", "90", str(webp)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    destination = OUTPUT / f"book_spirit_{mood}_idle_{index:02d}.xml"
+    destination.write_text(vector_frame(mood, index), encoding="utf-8")
 
 
 if __name__ == "__main__":
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        list(pool.map(render, ((mood, i) for mood in MOODS for i in range(FRAMES))))
+    for mood in MOODS:
+        for index in range(FRAMES):
+            render((mood, index))
     print(f"Rendered {len(MOODS) * FRAMES} companion frames.")

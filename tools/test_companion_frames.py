@@ -1,7 +1,7 @@
 import unittest
 import xml.etree.ElementTree as ET
 
-from generate_companion_frames import FRAMES, MOODS, frame
+from generate_companion_frames import ANDROID, FRAMES, MOODS, frame, vector_frame
 
 
 class CompanionFrameTest(unittest.TestCase):
@@ -23,6 +23,15 @@ class CompanionFrameTest(unittest.TestCase):
         self.assertTrue(any(e.get("stroke") == "#70506a" for e in writing.iter()))
         self.assertTrue(any(e.get("fill") == "#fff5df" for e in page.iter()))
         self.assertGreater(sum(e.get("fill") == "#c8aed5" for e in thinking.iter()), 0)
+
+    def test_android_vectors_keep_paths_gradients_and_viewport(self):
+        for mood in MOODS:
+            for index in range(FRAMES):
+                with self.subTest(mood=mood, frame=index):
+                    vector = ET.fromstring(vector_frame(mood, index))
+                    self.assertEqual(vector.get("{" + ANDROID + "}viewportWidth"), "310")
+                    self.assertGreater(len(vector.findall(".//path")), 15)
+                    self.assertEqual(len(vector.findall(".//gradient")), 2)
 
 
 if __name__ == "__main__":
