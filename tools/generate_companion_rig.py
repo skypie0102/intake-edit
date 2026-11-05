@@ -269,7 +269,7 @@ def waiting_head(layers, phase):
 
 
 def greeting_action(phase):
-    surprise = smooth((phase - .19) / .05) * smooth((.46 - phase) / .08)
+    surprise = .34 <= phase < .53
     raised = smooth((phase - .23) / .14) * smooth((.88 - phase) / .15)
     wave_envelope = smooth((phase - .38) / .05) * smooth((.76 - phase) / .05)
     wave = 24 * math.sin(4 * math.pi * (phase - .38) / .38) * wave_envelope
@@ -294,13 +294,15 @@ def greeting_head(layers, idle_phase, phase):
     group = head[0]
     for node in group:
         if node.tag == N+'ellipse' and node.get('cx') == '252' and node.get('cy') == '246':
-            node.set('opacity', f'{surprise:.3f}')
+            if not surprise:
+                group.remove(node)
             break
     else:
         raise ValueError('Greeting mouth no longer matches the approved artwork')
-    ET.SubElement(group, N+'path', {'d':'M239 240 Q252 253 265 240',
-        'fill':'none', 'stroke':'#70556d', 'stroke-width':'4',
-        'stroke-linecap':'round', 'opacity':f'{1-surprise:.3f}'})
+    if not surprise:
+        ET.SubElement(group, N+'path', {'d':'M239 240 Q252 253 265 240',
+            'fill':'none', 'stroke':'#70556d', 'stroke-width':'4',
+            'stroke-linecap':'round'})
     return head
 
 
@@ -415,14 +417,11 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                             'transform':f'translate({x} {y}) scale({size:.3f}) translate({-x} {-y})'})
                         group.append(deepcopy(node))
         elif part == 'symbol' and mood == 'new' and phase is not None:
-            # Draw the approved exclamation only while he greets the viewer.
-            if .34 <= phase < .8:
-                draw = max(0, min(1, (phase - .34) / .18))
-                if draw > 0:
-                    ET.SubElement(root, N+'path', {'d':f'M364 139 L364 {139 + 32*draw:.2f}',
-                        'fill':'none', 'stroke':'#dcc2ec', 'stroke-width':'6', 'stroke-linecap':'round'})
-                if phase >= .52:
-                    ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'185.5', 'r':'3', 'fill':'#dcc2ec'})
+            # The full mark appears and disappears with the surprised mouth.
+            if greeting_action(phase)[0]:
+                ET.SubElement(root, N+'path', {'d':'M364 139 L364 171',
+                    'fill':'none', 'stroke':'#dcc2ec', 'stroke-width':'6', 'stroke-linecap':'round'})
+                ET.SubElement(root, N+'circle', {'cx':'364', 'cy':'185.5', 'r':'3', 'fill':'#dcc2ec'})
         elif part == 'symbol' and mood == 'waiting' and phase is not None:
             if phase < .85:
                 for index, (x, y) in enumerate(DOTS):

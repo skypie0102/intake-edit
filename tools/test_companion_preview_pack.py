@@ -9,10 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 class PreviewPackTest(unittest.TestCase):
     def test_new_greeting_has_smile_surprise_and_one_waving_arm(self):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
-        self.assertIn('opacity="0.000"', frames[0])
         self.assertIn('M239 240 Q252 253 265 240', frames[0])
-        surprise, _, _ = rig.greeting_action(.30)
-        self.assertAlmostEqual(surprise, 1)
+        surprise, _, _ = rig.greeting_action(.40)
+        self.assertTrue(surprise)
+        for frame in frames:
+            surprised = '<ellipse cx="252" cy="246" rx="5" ry="7"' in frame
+            exclamation = 'M364 139 L364 171' in frame
+            smiling = 'M239 240 Q252 253 265 240' in frame
+            self.assertEqual(surprised, exclamation)
+            self.assertNotEqual(smiling, surprised)
         self.assertEqual(rig.greeting_action(0)[1], 0)
         self.assertEqual(rig.greeting_action(1)[1], 0)
         self.assertGreater(rig.greeting_action(.50)[1], .99)

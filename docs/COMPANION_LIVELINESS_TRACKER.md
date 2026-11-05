@@ -23,7 +23,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 
 ## State-specific acting
 
-- [ ] **New:** dip behind the book, peek up, notice the viewer, show the exclamation mark, and settle with secondary motion. **In progress:** the preview adds a dip and peek, a brief surprised expression that resolves into a smile, and a single hand that raises, waves visibly and lowers to rest. Viewer-directed eye movement, user feedback and device review remain open.
+- [ ] **New:** dip behind the book, peek up, notice the viewer, show the exclamation mark, and settle with secondary motion. **In progress:** the preview adds a dip and peek, a brief surprised expression synchronized with the exclamation mark, a direct switch to a smile without fading, and a single hand that raises, waves visibly and lowers to rest. Viewer-directed eye movement, user feedback and device review remain open.
 - [ ] **Waiting:** read, look puzzled, and retain the sequential dots and question mark; use the polished idle as the basis for other states.
 - [ ] **Happy:** look at the page, write several strokes with pauses and a longer mark, then smile with twinkling stars. Keep the pen aligned with the hand and writing; do not add a finger grip.
 - [ ] **Hungry:** retain a weary, downturned expression; imagine steaming food and settle with a gentle sigh. Do not introduce a smile.
