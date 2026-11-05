@@ -281,6 +281,11 @@ def greeting_reading(phase):
     return 1 - look_up
 
 
+def greeting_reading_eye_x(idle_phase, reading):
+    # Scan across the page and back; settle in the centre when looking up.
+    return 7 * math.sin(10 * math.pi * idle_phase) * reading
+
+
 def greeting_arm(raised):
     # One connected arm morphs from its book-resting pose to the raised pose.
     rest = (305,254, 308,250,314,247,321,247, 330,248,335,253,334,262,
@@ -346,7 +351,8 @@ def svg_for(mood, selected, progress=0, blinking=False, show_symbol=False, phase
                 group.append(greeting_head(layers, idle_phase, phase, reading))
                 eyes = deepcopy(layers['blink' if blinking else 'eyes'])
                 current = eyes[0].get('transform', '')
-                eyes[0].set('transform', f'{current} translate(0 {8*reading:.2f})')
+                eye_x = 0 if blinking else greeting_reading_eye_x(idle_phase, reading)
+                eyes[0].set('transform', f'{current} translate({eye_x:.2f} {8*reading:.2f})')
                 group.append(eyes)
             elif mood == 'waiting' and phase is not None:
                 group.append(waiting_head(layers, idle_phase if idle_phase is not None else phase))

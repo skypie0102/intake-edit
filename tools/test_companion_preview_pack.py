@@ -7,6 +7,15 @@ import generate_companion_rig as rig
 ROOT = Path(__file__).resolve().parents[1]
 
 class PreviewPackTest(unittest.TestCase):
+    def test_new_companion_scans_page_and_centres_gaze_to_greet(self):
+        frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
+        self.assertGreater(rig.greeting_reading_eye_x(.05, 1), 6.9)
+        self.assertLess(rig.greeting_reading_eye_x(.15, 1), -6.9)
+        self.assertEqual(rig.greeting_reading_eye_x(.05, 0), 0)
+        self.assertIn('translate(6.99 8.00)', frames[5])
+        self.assertIn('translate(-6.94 8.00)', frames[14])
+        self.assertIn('translate(0.00 0.00)', frames[48])
+
     def test_new_greeting_has_smile_surprise_and_one_waving_arm(self):
         frames = json.loads((ROOT / 'rig-preview/animation-pack.json').read_text())['moods']['new']
         self.assertIn('M242 246 Q252 248 262 246', frames[0])
