@@ -1,10 +1,12 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import android.content.Context
+import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Picture
 import android.widget.RemoteViews
+import android.os.Build
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -139,9 +141,23 @@ internal fun RigRemotePreview() {
     }
     LaunchedEffect(pack, mood) {
         frame = 0
+        var timeline: RigPreviewTimeline? = null
         while (true) {
             delay(pack?.frameMs ?: 83)
-            frame = (frame + 1) % (pack?.pictures?.get(mood)?.size ?: 1)
+            val count = pack?.pictures?.get(mood)?.size ?: continue
+            // Honor Android's animation setting without fading the character.
+            val enabled = Build.VERSION.SDK_INT < 26 || ValueAnimator.areAnimatorsEnabled()
+            if (!enabled) {
+                timeline = null
+                frame = 0
+            } else if (count != 96) {
+                // Older packs have different pose timing; play them as authored.
+                timeline = null
+                frame = (frame + 1) % count
+            } else {
+                val active = timeline ?: RigPreviewTimeline(count, startWithAction = mood == PetMood.NEW).also { timeline = it }
+                frame = active.advance()
+            }
         }
     }
     Card(Modifier.fillMaxWidth()) {
@@ -171,3 +187,4 @@ internal fun RigRemotePreview() {
         }
     }
 }
+

@@ -5,7 +5,7 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 ## First pass: Waiting
 
 - [ ] Subtle breathing with a stable book and connected face, eyes and monocle. **In progress:** generated preview adds a gentle body rise and fall; intermediate poses reviewed, device playback pending.
-- [ ] Blink naturally and vary pauses; avoid a predictable short loop. **In progress:** two blinks are spaced across the longer preview sequence; it still repeats deterministically.
+- [ ] Blink naturally and vary pauses; avoid a predictable short loop. **In progress:** scripted blinks include a double blink. Preview playback now inserts variable idle intervals before each action; blink choreography inside the action is still fixed.
 - [ ] Glance at the page, pause, and look up before the existing sequential thinking dots and drawn question mark. **In progress:** the gaze now lowers and returns more slowly, with a brief hold. The preview runs a longer sequence with reading time; intermediate poses were inspected on a dark background. Full-speed and device review remain open.
 - [ ] Add small posture shifts and delayed tuft and bookmark follow-through without visible detachment. **In progress:** the tuft and bookmark movement has been increased again after feedback that it was still not noticeable. The preview uses a faster, wider sway, with the ribbon pivoting around its hidden attachment; user and device review remain open. Device review and posture shifts remain open.
 - [ ] Review intermediate poses and playback at actual in-app and 2×2 widget sizes.
@@ -13,13 +13,13 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 ## Shared animation and rigging
 
 - [ ] Use restrained idle movement so the character is present without constant bouncing.
-- [ ] Vary blink, glance, action and idle timing; provide a few spaced variations instead of synchronized repetition.
+- [ ] Vary blink, glance, action and idle timing; provide a few spaced variations instead of synchronized repetition. **In progress:** the new preview player inserts randomized idle intervals between actions, returning to the neutral pose before each action. Blink and action choreography themselves remain fixed; widget playback is unchanged.
 - [ ] Lead actions with the eyes, followed by head and body; use anticipation, readable holds, recovery and follow-through. **In progress:** all five preview moods have a small anticipatory posture shift and recovery; hungry and sad move less. Tuft and bookmark follow-through is less uniform, and Waiting has a spaced double blink. Sampled poses were reviewed on alternating light and dark backgrounds; 24 rig and pack checks passed. Full-motion and device review remain open.
 - [ ] Animate compatible transitions between moods, including when an action is interrupted; keep status changes responsive.
 - [ ] Keep eyes, eyelids, head/body, tuft, arms, book, pen, and bookmark independently controllable but connected; preserve pivots, attachment, overlaps and drawing order.
 - [ ] Explore restrained soft body deformation without warping the face or silhouette.
 - [ ] Keep the book, visible page lines, hanging bookmark and gold monocle consistent; avoid whole-character fades or extra limbs.
-- [ ] Preserve a stable resting pose and support reduced motion; measure performance and power use.
+- [ ] Preserve a stable resting pose and support reduced motion; measure performance and power use. **In progress:** the preview app uses its resting frame while Android animations are disabled. Widget and device behavior and performance remain unverified.
 
 ## State-specific acting
 
@@ -37,4 +37,5 @@ Work in progress on `preview/companion-rig-first-action`. The five rigs are prev
 - [ ] Update this tracker with implementation and review evidence as work lands.
 
 See [the animation revamp plan](COMPANION_ANIMATION_PLAN.md) for existing behavior, constraints and acceptance criteria.
+
 
