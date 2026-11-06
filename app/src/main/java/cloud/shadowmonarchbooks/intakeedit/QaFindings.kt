@@ -63,8 +63,10 @@ data class QaFindingsDocument(
         return QaFindingsParser.protectedContentSha256(editor, mutableLocators.toSet()) == pass.protectedContentSha256
     }
 
-    fun disposition(finding: QaFinding, editor: EditorDocument, editorContentSha256: String): QaFindingDisposition {
-        val currentScope = QaFindingsParser.findingContentSha256(editor, finding.locator)
+    fun disposition(finding: QaFinding, editor: EditorDocument, editorContentSha256: String): QaFindingDisposition =
+        disposition(finding, editorContentSha256, QaFindingsParser.findingContentSha256(editor, finding.locator))
+
+    internal fun disposition(finding: QaFinding, editorContentSha256: String, currentScope: String): QaFindingDisposition {
         if (finding.resolution?.contentSha256 == currentScope) return QaFindingDisposition.RESOLVED
         val override = finding.override
         if (override != null) {
@@ -83,10 +85,13 @@ data class QaFindingsDocument(
     fun canResolve(finding: QaFinding, editor: EditorDocument): Boolean =
         canResolve(finding, editor, qaPassReusable(editor))
 
-    internal fun canResolve(finding: QaFinding, editor: EditorDocument, reusablePass: Boolean): Boolean {
+    internal fun canResolve(finding: QaFinding, editor: EditorDocument, reusablePass: Boolean): Boolean =
+        canResolve(finding, reusablePass) { QaFindingsParser.findingContentSha256(editor, finding.locator) }
+
+    internal fun canResolve(finding: QaFinding, reusablePass: Boolean, currentScope: () -> String): Boolean {
         if (!reusablePass) return false
         val baseline = finding.baselineContentSha256 ?: return false
-        return QaFindingsParser.findingContentSha256(editor, finding.locator) != baseline
+        return currentScope() != baseline
     }
 
     fun withOverride(findingId: String, override: QaOverride) = copy(
@@ -345,4 +350,10 @@ object QaFindingsParser {
     private fun JSONArray.toStringList(): List<String> = buildList {
         for (index in 0 until length()) add(getString(index))
     }
+}
+
+/** Reuses per-locator hashes while one immutable editor snapshot is displayed. */
+internal class QaScopeHashes(private val document: EditorDocument, private val compute: (EditorDocument, String) -> String = QaFindingsParser::findingContentSha256) {
+    private val values = mutableMapOf<String, String>()
+    fun get(locator: String): String = values.getOrPut(locator) { compute(document, locator) }
 }
