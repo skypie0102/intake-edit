@@ -26,6 +26,7 @@ internal data class EditorUiState(
     val loadingPath: String? = null,
     val actionInProgress: Boolean = false,
     val notice: String? = null,
+    val recoveryDrafts: List<LocalDraft> = emptyList(),
 )
 
 internal sealed interface EditorEvent {
@@ -61,6 +62,8 @@ internal class EditorViewModel(
                 val repository = repositoryFactory.create(settings, token)
                 val remoteChapter = repository.loadChapter(file)
                 val draft = draftRepository.load(file.path)
+                if (draft != null && draft.baseSha != remoteChapter.remote.sha) draftRepository.archive(draft)
+                val recoveryDrafts = draftRepository.archived(file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
                     try {
                         withContext(parseDispatcher) { repository.restoreRaw(remoteChapter, draft.raw) }
@@ -77,10 +80,11 @@ internal class EditorViewModel(
                 _uiState.update {
                     it.copy(
                         open = opened,
+                        recoveryDrafts = recoveryDrafts,
                         loadingPath = null,
                         notice = when {
                             opened.rawNeedsRepair -> "Your saved draft is incomplete. Repair it in Whole File mode; the saved text has been preserved."
-                            draft != null && draft.baseSha != remoteChapter.remote.sha -> "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
+                            draft != null && draft.baseSha != remoteChapter.remote.sha -> "An older local draft was preserved. Open Saved drafts to inspect or copy it."
                             else -> null
                         },
                     )
@@ -129,7 +133,7 @@ internal class EditorViewModel(
                     draftRepository.persist(current)
                     latest = null
                     touched = false
-                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
+                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = null, recoveryDrafts = emptyList()) }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
@@ -140,7 +144,7 @@ internal class EditorViewModel(
             pending?.cancel()
             latest = null
             touched = false
-            _uiState.update { it.copy(open = null, actionInProgress = false) }
+            _uiState.update { it.copy(open = null, actionInProgress = false, recoveryDrafts = emptyList()) }
         }
     }
 
