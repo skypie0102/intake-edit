@@ -179,6 +179,34 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun switchingVolumesCancelsIndexLoadWithoutStartingStaleFallback() = runTest(dispatcher) {
+        val first = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val second = ChapterFile("editor_input/vol-02/chapters/ch_0001.yml", 2, 1)
+        val blockedIndex = CompletableDeferred<Unit>()
+        val repository = FakeChapterRepository(
+            files = listOf(first, second),
+            progress = mapOf(first.path to ChapterProgress(1, 2, false), second.path to ChapterProgress(1, 2, false)),
+            qaProgress = mapOf(first.path to QaProgressCounts(0, 0), second.path to QaProgressCounts(0, 0)),
+            beforeIndex = { volume -> if (volume == 2) blockedIndex.await() },
+        )
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository },
+            cacheDispatcher = dispatcher,
+        )
+
+        viewModel.refresh(RepoSettings(), "token")
+        runCurrent()
+        assertEquals(2, viewModel.uiState.value.selectedVolume)
+        viewModel.selectVolume(1, RepoSettings(), "token")
+        advanceUntilIdle()
+
+        assertEquals(listOf(1), repository.requestedVolumes)
+        assertEquals(1, viewModel.uiState.value.selectedVolume)
+        assertEquals(listOf(first), viewModel.uiState.value.files)
+        assertFalse(viewModel.uiState.value.refreshing)
+    }
+
+    @Test
     fun approveAllReadyDispatchesOneBatchWorkflowForAllReadyChapters() = runTest(dispatcher) {
         val readyOne = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
         val readyTwo = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
@@ -376,6 +404,7 @@ private class FakeChapterRepository(
     private val progress: Map<String, ChapterProgress>,
     private val qaProgress: Map<String, QaProgressCounts>,
     private val beforeList: suspend () -> Unit = {},
+    private val beforeIndex: suspend (Int) -> Unit = {},
     private val beforeQa: suspend () -> Unit = {},
     private val indexedStatus: IndexedVolumeStatus? = null,
 ) : ChapterRepository {
@@ -385,7 +414,10 @@ private class FakeChapterRepository(
     val approvalEvents = mutableListOf<String>()
 
     override suspend fun listVolumes(): List<Int> = files.map { it.volume }.distinct().sorted()
-    override suspend fun loadVolumeStatus(volume: Int): IndexedVolumeStatus? = indexedStatus?.takeIf { it.files.firstOrNull()?.volume == volume }
+    override suspend fun loadVolumeStatus(volume: Int): IndexedVolumeStatus? {
+        beforeIndex(volume)
+        return indexedStatus?.takeIf { it.files.firstOrNull()?.volume == volume }
+    }
 
     override suspend fun listFiles(volume: Int): List<ChapterFile> {
         requestedVolumes += volume
