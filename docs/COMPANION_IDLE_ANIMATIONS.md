@@ -26,13 +26,13 @@ Scan across the page, stop, and look back slightly. Tilt his head, follow the li
 
 ### Quietly thinking
 
-Pause and look up to one side. Shift his eyes as if considering something; show the existing thinking dots and question mark in sequence. Hold, let the mark disappear, and return to the page. Build on the existing thinking action with varied pauses.
+Lower the book with both hands, pause, and look up to one side with a thoughtful expression. Turn his head and gaze to the other side, hold, nod, and lift the book to resume reading. This is a distinct performance from the established hand-to-chin thinking action. Preview awaiting review.
 
 ## Hungry
 
 ### Distracted by the thought of food
 
-Try to read, then let his eyes drift away. Form a thought bubble with steaming food and hold his hopeful gaze briefly. As the bubble disappears, give a weary sigh and return to the book. Develop the existing food-thought sequence without introducing a smile.
+Try to read, let the book sink with both hands, and glance toward a daydream of warm bread. Hold, let the bread fade, slump tiredly, and return to the book without smiling. This differs from the established rice-bowl thought bubble. Preview awaiting review.
 
 ### Stomach rumble
 
