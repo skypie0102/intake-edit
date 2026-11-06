@@ -44,6 +44,27 @@ class DraftStorageAndroidTest {
         assertTrue(reopened.archived(second, path).isEmpty())
     }
 
+    @Test fun legacyPreferenceDraftRemainsRecoverableAfterScopedSave() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val path = "test-${UUID.randomUUID()}/chapter.yml"
+        val key = "draft_" + Base64.encodeToString(path.toByteArray(Charsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
+        val prefs = context.getSharedPreferences("local_intake_drafts", Context.MODE_PRIVATE)
+        val payload = JSONObject().put("path", path).put("base_sha", "old").put("raw", "preference draft").put("saved_at_ms", 2).toString()
+        assertTrue(prefs.edit().putString(key, payload).commit())
+        val settings = RepoSettings(owner = "owner", repo = "repo")
+        val store = DraftStore(context)
+        try {
+            assertNull(store.load(settings, path))
+            assertEquals("preference draft", store.archived(settings, path).single().raw)
+            assertTrue(store.archived(settings, path).single().legacyUnassigned)
+            assertTrue(store.save(settings, path, "new", "new scoped draft"))
+            assertEquals(payload, prefs.getString(key, null))
+        } finally {
+            store.delete(settings, path)
+            prefs.edit().remove(key).commit()
+        }
+    }
+
     @Test fun legacyDraftIsVisibleButNeverClaimedOrDeletedAutomatically() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val path = "test-${UUID.randomUUID()}/chapter.yml"
