@@ -720,7 +720,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             },
             dismissButton = {
                 Row {
-                    if (draft.baseSha == current.remote.sha) {
+                    if (draft.baseSha == current.remote.sha && current.raw == current.remote.content && current.endnoteProposals?.changed != true) {
                         TextButton(onClick = {
                             current = current.copy(raw = draft.raw, approved = false, rawNeedsRepair = true)
                             showWholeFile = true
