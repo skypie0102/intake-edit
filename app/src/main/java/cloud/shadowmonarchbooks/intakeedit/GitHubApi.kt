@@ -88,7 +88,8 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                 ?: throw GitHubException("Chapter directory not found: $relative")
             treeSha = folder.getString("sha")
         }
-        return chapterFilesFromTree(request("GET", "$repoBase/git/trees/${encode(treeSha)}"), relative, volume)
+        val tree = request("GET", "$repoBase/git/trees/${encode(treeSha)}")
+        return withContext(Dispatchers.Default) { chapterFilesFromTree(tree, relative, volume) }
     }
 
     suspend fun getBranchHead(): GitHubBranchHead {
@@ -296,8 +297,10 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
 
     internal suspend fun getFileAtRef(path: String, ref: String): FileSnapshot {
         val response = request("GET", "$repoBase/contents/${encodePath(path)}?ref=${encode(ref)}")
-        val bytes = Base64.decode(response.getString("content").replace("\n", ""), Base64.DEFAULT)
-        return FileSnapshot(path, response.getString("sha"), String(bytes, StandardCharsets.UTF_8))
+        return withContext(Dispatchers.Default) {
+            val bytes = Base64.decode(response.getString("content").replace("\n", ""), Base64.DEFAULT)
+            FileSnapshot(path, response.getString("sha"), String(bytes, StandardCharsets.UTF_8))
+        }
     }
 
     private fun encodePath(path: String) = path.split('/').joinToString("/") { encode(it) }
@@ -308,15 +311,17 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
     private suspend fun request(method: String, path: String, body: JSONObject? = null): JSONObject {
         val text = requestText(method, path, body)
         if (text.isBlank()) return JSONObject()
-        return runCatching { JSONObject(text) }
-            .getOrElse { throw GitHubException("GitHub returned an unexpected response.") }
+        return withContext(Dispatchers.Default) {
+            runCatching { JSONObject(text) }.getOrElse { throw GitHubException("GitHub returned an unexpected response.") }
+        }
     }
 
     private suspend fun requestArray(method: String, path: String): JSONArray {
         val text = requestText(method, path)
         if (text.isBlank()) return JSONArray()
-        return runCatching { JSONArray(text) }
-            .getOrElse { throw GitHubException("GitHub returned an unexpected directory response.") }
+        return withContext(Dispatchers.Default) {
+            runCatching { JSONArray(text) }.getOrElse { throw GitHubException("GitHub returned an unexpected directory response.") }
+        }
     }
 
     private suspend fun requestText(method: String, path: String, body: JSONObject? = null): String =
