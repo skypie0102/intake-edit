@@ -1,36 +1,46 @@
 # Intake Edit roadmap
 
-This is the single current roadmap for unfinished work. Historical plans and trackers are preserved in [the archive](docs/archive/).
+This is the single current roadmap. Completed plans and superseded roadmaps are in [the archive](docs/archive/). Priorities below reflect the app-wide review; device testing and the previously deferred release-signing and widget-validation work remain deferred.
 
-## ~~1. Release signing and data safety~~ — deferred
+## 1. Draft safety and recovery
 
-Not planned for now; retained for future reference, not marked complete.
+- [x] Report draft-save failures, retain unsaved edits, and allow retry before closing.
+- [ ] Report draft deletion failures without misreporting successful remote commits.
+- [x] Reopen incomplete Whole File drafts in a repairable raw editor without losing their contents.
+- [ ] Preserve and provide a way to recover or export drafts whose base revision changed.
+- [ ] Isolate drafts by repository, branch, and chapter, with a safe migration for existing drafts.
+- [ ] Add regression tests for failed writes, interrupted editing, stale drafts, and recovery.
 
-- [ ] Establish a persistent, securely stored Android release signing key and configure the release workflow to use it. Verify that a subsequent release signed with the same key installs as an update and retains app data.
-- [ ] Document the migration from prior one-off-signed releases, including their update incompatibility and the risk to local settings, drafts, and companion history. Do not assume an old one-off key can be recovered.
-- [ ] Determine and provide a reliable way to preserve or migrate local data before any required reinstall.
+## 2. Complete chapter lists and reliable QA state
 
-## 2. Android performance and interaction polish
+- [ ] Replace the 1,000-entry-limited GitHub Contents fallback with a complete listing strategy; detect truncation and test large volumes.
+- [ ] Distinguish missing QA data from network, permission, and parse errors; offer retry and keep findings from disappearing silently.
+- [ ] Isolate imported translation references by project and branch, with safe migration.
 
-Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. The next pass loads a consistent glossary snapshot with bounded concurrent requests, moves its parsing and indexing off the UI thread, reuses editor derived data across unrelated recompositions, and cancels obsolete volume refreshes without starting a stale compatibility fallback. The latest pass bounds fallback refresh workers, reuses QA pass calculations, and parses and validates Whole File edits off the UI thread. Physical-device testing and profiling are deferred at the user's request; revisit them if issues are reported.
+## 3. Network resilience and interaction clarity
 
-- [ ] Deferred: profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and Whole File editing on representative Android devices and chapter files.
-- [ ] Deferred: investigate device performance or interaction issues if reported, including spacing and screen-space use where needed.
-- [x] Run available regression tests and Android CI builds.
-- [ ] Deferred: verify navigation responsiveness on a physical Android device.
+- [ ] Distinguish offline, rate-limit, permissions, stale-index, and other failures; offer useful retry actions.
+- [ ] Show whether chapter status comes from cache or a fresh index and explain incomplete refreshes.
+- [ ] Review editing, navigation, and approval interactions for clear feedback and recovery.
 
-Preserve the existing single-entry typing path, debounced off-main draft persistence, off-main XLIFF processing, and editor state across QA override refreshes.
+## 4. Accessibility and automated Android interaction tests
 
-## ~~3. Companion widget validation~~ — deferred
+- [ ] Add emulator-based tests for chapter opening, editing, view switching, QA, and navigation where feasible.
+- [ ] Review screen-reader labels, keyboard focus, large text, and compact screens; address issues found.
+- [ ] Keep the automated unit, animation, and Android build checks passing.
 
-Not planned for now; retained for future reference, not marked complete.
+## 5. Further performance investigation
 
-- [ ] Verify the complete animation sequence, tempo, tap-to-open behavior, mood changes, and reduced-motion behavior on devices and launchers, including light and dark wallpapers.
-- [ ] Verify resizing, multiple widgets, app updates, reboot, sleep and resume, and offline loading.
-- [ ] Measure memory use, loading performance, and battery consumption; fix issues found and record device and launcher results.
+- [ ] Investigate large-chapter QA calculations, import alignment, cache size, and companion memory use; measure before claiming improvements.
+- [ ] Preserve the current single-entry typing path, background parsing and draft persistence, and full companion animations.
+- [ ] Deferred at the user's request: physical-device profiling and interaction testing; revisit if problems are reported.
 
-The user confirmed on November 6, 2026 that the frame-fade flicker stopped. That confirmation does not establish completion of the other checks.
+## Deferred: release signing and data safety
 
-Completed companion transitions and idle animations are documented in the [animation milestone archive](docs/archive/COMPANION_ANIMATION_MILESTONE_2026-11.md). Device and launcher validation remains deferred under item 3.
+Not planned for now; not complete. Establish a persistent release key, verify update compatibility, document one-off-key migration, and determine a reliable way to preserve local data before any required reinstall.
 
-Physical Android device testing and profiling are deferred at the user's request and may be revisited if issues are reported. The current performance work is in [PR #54](https://github.com/skypie0102/intake-edit/pull/54).
+## Deferred: companion widget validation
+
+Not planned for now; not complete. Validate animation sequences, speed, interactions, mood changes, accessibility, resizing, launchers, memory, battery, reboot, and offline behavior on devices. The user confirmed that the earlier frame-fade flicker stopped.
+
+Completed companion transitions and idle animations are documented in the [animation milestone archive](docs/archive/COMPANION_ANIMATION_MILESTONE_2026-11.md). Additional idle designs remain a [reference](docs/COMPANION_IDLE_ANIMATIONS.md).
