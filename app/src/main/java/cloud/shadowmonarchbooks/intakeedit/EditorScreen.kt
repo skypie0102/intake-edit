@@ -119,6 +119,7 @@ internal fun EditorScreen(
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
     var wholeFilePending by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
     var wholeFileValidating by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
+    var wholeFileInvalid by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
@@ -141,6 +142,7 @@ internal fun EditorScreen(
                     current = current.copy(document = parsed)
                     onDraft(current)
                 }
+                wholeFileInvalid = parsed == null
                 wholeFilePending = false
             }
         }
@@ -382,7 +384,9 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val (suppliedEntries, missingEnglish) = remember(current.document.entries) {
         current.document.entries.partition { it.isSupplied }
     }
-    val editorContentSha = remember(current.raw) { QaFindingsParser.editorContentSha256(current.raw) }
+    val editorContentSha = remember(current.raw) {
+        runCatching { QaFindingsParser.editorContentSha256(current.raw) }.getOrDefault("")
+    }
     val attentionState = remember(current.document, current.qa?.document, current.endnoteProposals?.document, current.file, editorContentSha) { buildAttentionState(
         document = current.document,
         qa = current.qa?.document,
@@ -489,7 +493,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 showWholeFile = !showWholeFile
                                 showQa = false
                             },
-                            enabled = !busy && !wholeFilePending && !wholeFileValidating,
+                            enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid,
                         )
                         imported?.let { overlay ->
                             DropdownMenuItem(
@@ -550,6 +554,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     onRawChange = { raw ->
                         current = current.copy(raw = raw, approved = false)
                         wholeFilePending = true
+                        wholeFileInvalid = false
                         onDraft(current)
                         editorNotice = null
                     },
@@ -567,6 +572,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 result.onSuccess { parsed ->
                                     current = current.copy(document = parsed, approved = false)
                                     wholeFilePending = false
+                                    wholeFileInvalid = false
                                     onDraft(current)
                                     editorNotice = "Whole file is valid and synced."
                                 }.onFailure {
@@ -578,6 +584,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     },
                     validating = wholeFileValidating,
                     pending = wholeFilePending,
+                    invalid = wholeFileInvalid,
                     modifier = Modifier.weight(1f),
                 )
             } else {
@@ -644,7 +651,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) {
                     IconButton(
                         onClick = { jumpToFirstMissing() },
-                        enabled = !busy && !wholeFilePending && !wholeFileValidating && missingEnglish.isNotEmpty(),
+                        enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && missingEnglish.isNotEmpty(),
                     ) {
                         Icon(Icons.Default.NavigateNext, "Go to first unsupplied English")
                     }
@@ -654,7 +661,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) {
                     IconButton(
                         onClick = { cycleAttention() },
-                        enabled = !busy && !wholeFilePending && !wholeFileValidating && unresolvedAttentionCount > 0,
+                        enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && unresolvedAttentionCount > 0,
                     ) {
                         Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
                     }
@@ -665,7 +672,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 Spacer(Modifier.weight(1f))
                 Button(
                     onClick = { if (readyForApproval) showApprove = true else showCommit = true },
-                    enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !current.approved,
+                    enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && !current.approved,
                 ) { Text(primaryCommitLabel) }
             }
         }
@@ -1424,13 +1431,17 @@ LaunchedEffect(qaFindings) {
 }
 
 @Composable
-private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, validating: Boolean, pending: Boolean, modifier: Modifier = Modifier) {
+private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, validating: Boolean, pending: Boolean, invalid: Boolean, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Direct schema-v6 YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
             IconButton(onClick = onValidate, enabled = !validating) { Icon(Icons.Default.CheckCircle, "Validate whole file") }
         }
-        Text(if (pending) "Syncing edits…" else "Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)
+        Text(when {
+            pending -> "Syncing edits…"
+            invalid -> "This draft could not be parsed. Fix it or validate for details before switching views."
+            else -> "Exceptional edits only. Normal editing should change English fields in Cards view."
+        }, style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(value = raw, onValueChange = onRawChange, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
     }
 }
