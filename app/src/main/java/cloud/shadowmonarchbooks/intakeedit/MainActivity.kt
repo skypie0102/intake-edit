@@ -26,7 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -192,6 +192,7 @@ internal data class OpenChapter(
     val qa: QaFindingsSnapshot?,
     val endnoteProposals: EndnoteProposalSnapshot? = null,
     val approved: Boolean = false,
+    val rawNeedsRepair: Boolean = false,
 )
 
 @Composable
@@ -270,6 +271,7 @@ private fun ChapterIntakeApp(widgetOpenRequest: Int, onWidgetRequestConsumed: ()
             initial = chapter,
             busy = editorBusy,
             notice = editorState.notice,
+            recoveryDrafts = editorState.recoveryDrafts,
             onBack = editorViewModel::closeEditor,
             onDraft = editorViewModel::onDraft,
             onCommit = { next, markReviewed ->
@@ -294,6 +296,7 @@ private fun ChapterIntakeApp(widgetOpenRequest: Int, onWidgetRequestConsumed: ()
             availableVolumes = chapterListState.availableVolumes,
             selectedVolume = chapterListState.selectedVolume,
             refreshing = chapterListState.refreshing,
+            dataSource = chapterListState.dataSource,
             bulkApproving = chapterListState.bulkApproving,
             approvalRequestedPaths = chapterListState.approvalRequestedPaths,
             openingPath = openingPath,
@@ -325,12 +328,13 @@ private fun ChapterRefreshIcon(refreshing: Boolean) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChapterListScreen(
+internal fun ChapterListScreen(
     files: List<ChapterFile>,
     progressByPath: Map<String, ChapterProgress>,
     availableVolumes: List<Int>,
     selectedVolume: Int?,
     refreshing: Boolean,
+    dataSource: ChapterDataSource?,
     bulkApproving: Boolean,
     approvalRequestedPaths: Set<String>,
     openingPath: String?,
@@ -376,7 +380,7 @@ private fun ChapterListScreen(
                 title = { Text(selectedVolume?.let { "Chapter Intake • V$it" } ?: "Chapter Intake") },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = openingPath == null && !bulkApproving) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
@@ -412,6 +416,14 @@ private fun ChapterListScreen(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            dataSource?.let { source ->
+                val label = when (source) {
+                    ChapterDataSource.CACHED -> "Saved chapter status"
+                    ChapterDataSource.INDEX -> "Workflow index"
+                    ChapterDataSource.DIRECT -> "Direct chapter refresh"
+                }
+                Text(if (refreshing) "$label • refreshing…" else label, style = MaterialTheme.typography.labelSmall)
+            }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -555,7 +567,7 @@ private fun SettingsScreen(
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("Repository settings") },
-            navigationIcon = { if (canCancel) IconButton(onClick = onCancel) { Icon(Icons.Default.ArrowBack, "Back") } },
+            navigationIcon = { if (canCancel) IconButton(onClick = onCancel) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
         )
     }) { padding ->
         Column(

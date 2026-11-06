@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
@@ -25,6 +26,7 @@ internal data class EditorUiState(
     val loadingPath: String? = null,
     val actionInProgress: Boolean = false,
     val notice: String? = null,
+    val recoveryDrafts: List<LocalDraft> = emptyList(),
 )
 
 internal sealed interface EditorEvent {
@@ -46,6 +48,7 @@ internal class EditorViewModel(
 
     private var latest: OpenChapter? = null
     private var touched = false
+    private var activeDraftSettings: RepoSettings? = null
     private var draftSaveJob: Job? = null
     private var draftFlushJob: Job? = null
 
@@ -59,21 +62,34 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 val repository = repositoryFactory.create(settings, token)
                 val remoteChapter = repository.loadChapter(file)
-                val draft = draftRepository.load(file.path)
+                val draft = draftRepository.load(settings, file.path)
+                if (draft != null && draft.baseSha != remoteChapter.remote.sha) draftRepository.archive(settings, draft)
+                val recoveryDrafts = draftRepository.archived(settings, file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
-                    withContext(parseDispatcher) { repository.restoreRaw(remoteChapter, draft.raw) }
+                    try {
+                        withContext(parseDispatcher) { repository.restoreRaw(remoteChapter, draft.raw) }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        remoteChapter.copy(raw = draft.raw, approved = false, rawNeedsRepair = true)
+                    }
                 } else {
                     remoteChapter
                 }
                 latest = opened
+                activeDraftSettings = settings
                 touched = false
                 _uiState.update {
                     it.copy(
                         open = opened,
+                        recoveryDrafts = recoveryDrafts,
                         loadingPath = null,
-                        notice = if (draft != null && draft.baseSha != remoteChapter.remote.sha) {
-                            "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
-                        } else null,
+                        notice = when {
+                            opened.rawNeedsRepair -> "Your saved draft is incomplete. Repair it in Whole File mode; the saved text has been preserved."
+                            draft != null && draft.baseSha != remoteChapter.remote.sha -> "An older local draft was preserved. Open Saved drafts to inspect or copy it."
+                            recoveryDrafts.any { it.legacyUnassigned } -> "A draft from an older app version is available in Saved drafts. Its original project is unknown; inspect it before restoring."
+                            else -> null
+                        },
                     )
                 }
             } catch (t: Throwable) {
@@ -88,30 +104,54 @@ internal class EditorViewModel(
     }
 
     fun onDraft(next: OpenChapter) {
+        val draftSettings = activeDraftSettings ?: return
         latest = next
         touched = true
         draftSaveJob?.cancel()
         draftSaveJob = viewModelScope.launch {
             delay(EDITOR_DRAFT_SAVE_DEBOUNCE_MS)
-            draftRepository.persist(next)
+            try {
+                draftRepository.persist(draftSettings, next)
+                _uiState.update { state ->
+                    if (state.notice?.startsWith("Local draft save failed:") == true) state.copy(notice = null) else state
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _uiState.update { it.copy(notice = "Local draft save failed: ${error.message ?: "unknown error"}. Keep the editor open and retry by editing or closing it.") }
+            }
         }
     }
 
     fun closeEditor() {
+        if (_uiState.value.actionInProgress) return
         val current = latest ?: _uiState.value.open
         val shouldPersist = touched
+        val draftSettings = activeDraftSettings
         val pending = draftSaveJob
         draftSaveJob = null
-        latest = null
-        touched = false
-        _uiState.update { it.copy(open = null, actionInProgress = false) }
-        if (current != null && shouldPersist) {
+        if (current != null && shouldPersist && draftSettings != null) {
+            _uiState.update { it.copy(actionInProgress = true) }
             draftFlushJob = viewModelScope.launch {
-                pending?.cancelAndJoin()
-                draftRepository.persist(current)
+                try {
+                    pending?.cancelAndJoin()
+                    draftRepository.persist(draftSettings, current)
+                    latest = null
+                    activeDraftSettings = null
+                    touched = false
+                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = null, recoveryDrafts = emptyList()) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    _uiState.update { it.copy(actionInProgress = false, notice = "Local draft save failed: ${error.message ?: "unknown error"}. Your edits remain open; try again.") }
+                }
             }
         } else {
             pending?.cancel()
+            latest = null
+            activeDraftSettings = null
+            touched = false
+            _uiState.update { it.copy(open = null, actionInProgress = false, recoveryDrafts = emptyList()) }
         }
     }
 
@@ -123,15 +163,22 @@ internal class EditorViewModel(
                 draftSaveJob?.cancelAndJoin()
                 draftSaveJob = null
                 draftFlushJob?.join()
-                draftRepository.persist(next)
+                draftRepository.persist(settings, next)
                 val repository = repositoryFactory.create(settings, token)
                 val committedResult = repository.commitChapter(next, tagForQa)
                 if (tagForQa) runCatching { onTaggedForQa(settings, next.file) }
-                draftRepository.delete(next.file.path)
+                val cleanupWarning = try {
+                    draftRepository.delete(settings, next.file.path)
+                    null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    "The local draft could not be removed; it remains on this device."
+                }
                 touched = false
                 if (tagForQa) {
                     latest = null
-                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
+                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = cleanupWarning?.let { message -> "Chapter committed. $message" }) }
                     eventChannel.send(EditorEvent.ReturnChapterList)
                 } else {
                     val restored = withContext(parseDispatcher) { repository.restoreRaw(next, committedResult.remote.content) }
@@ -145,7 +192,7 @@ internal class EditorViewModel(
                         it.copy(
                             open = committed,
                             actionInProgress = false,
-                            notice = "Committed as Pending Review.",
+                            notice = listOfNotNull("Committed as Pending Review.", cleanupWarning).joinToString(" "),
                         )
                     }
                     eventChannel.send(EditorEvent.RefreshChapterList)
@@ -171,14 +218,21 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 val repository = repositoryFactory.create(settings, token)
                 repository.approveChapter(next)
-                draftRepository.delete(next.file.path)
+                val cleanupWarning = try {
+                    draftRepository.delete(settings, next.file.path)
+                    null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    "The local draft could not be removed; it remains on this device."
+                }
                 latest = null
                 touched = false
                 _uiState.update {
                     it.copy(
                         open = null,
                         actionInProgress = false,
-                        notice = "Approval workflow started. Refresh to check when the chapter becomes Approved.",
+                        notice = listOfNotNull("Approval workflow started. Refresh to check when the chapter becomes Approved.", cleanupWarning).joinToString(" "),
                     )
                 }
                 eventChannel.send(EditorEvent.ReturnChapterList)

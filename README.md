@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.30**.
+Current application version: **0.15.31**. The latest merged changes may not yet be included in a published release.
 
 All current development work is tracked in the [roadmap](ROADMAP.md). Earlier plans and trackers are preserved in the [archive](docs/archive/).
 
@@ -64,11 +64,11 @@ SDLXLIFF whole-XHTML imports preserve translatable block order across `h1`, `h2`
 
 In a chapter, tap the **Translation reference** button on the bottom bar, then choose **Import Translation** or **Machine Translation**. Machine Translation detects the source language automatically and translates it into English using the Google Translate web service. This is an unofficial integration and does not require an API key. It sends chapter text to Google and needs a network connection. The app packs multiple entries into each request, validates the returned line markers, honors retry guidance, and saves completed entries if a rate limit or connection error interrupts translation; retrying resumes the chapter. Chapters that fit within the request size limit use one request. Google may still rate-limit or change the service.
 
-The first complete translation is saved locally for the project, chapter, and source revision. Open the translation reference dialog and choose Hide; choose Show saved translation to restore it without sending a new request. An imported XLIFF reference remains separate and can be selected in the same dialog. Machine translations are references and do not change the English fields until explicitly applied.
+The first complete translation is saved locally for the project, chapter, and source revision. Open the translation reference dialog and choose Hide; choose Show saved translation to restore it without sending a new request. An imported XLIFF reference remains separate and can be selected in the same dialog. Machine translations are references and do not change the English fields until explicitly applied. Imported references are stored per project and branch; an older reference without project information can be explicitly copied to the current project after review.
 
 ## Chapter draft safety
 
-Chapter edits retain the existing atomic local-draft system. Drafts are restored only when their base GitHub SHA still matches the remote chapter, preventing a stale local draft from silently overwriting a newer remote revision.
+Chapter edits use atomic local drafts. A draft is restored only when its base GitHub SHA still matches the remote chapter. Incomplete Whole File drafts reopen in raw mode for repair. If saving a draft fails, the editor reports the error and keeps the edits open for retry. Drafts based on older remote revisions are preserved: open **Saved drafts** in the chapter editor to inspect, copy, or export them. New drafts are isolated by repository, branch, and chapter. Older drafts did not record a project; they remain available under Saved drafts as “project unknown” for inspection and explicit recovery when the base revision matches.
 
 ## CI artifact
 

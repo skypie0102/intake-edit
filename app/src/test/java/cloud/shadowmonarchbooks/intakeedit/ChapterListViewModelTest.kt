@@ -127,6 +127,7 @@ class ChapterListViewModelTest {
         var state = viewModel.uiState.value
         assertEquals(listOf(file), state.files)
         assertEquals(cachedProgress, state.progressByPath[file.path])
+        assertEquals(ChapterDataSource.CACHED, state.dataSource)
         assertEquals(1, state.selectedVolume)
         assertTrue(state.refreshing)
 
@@ -135,6 +136,7 @@ class ChapterListViewModelTest {
 
         state = viewModel.uiState.value
         assertFalse(state.refreshing)
+        assertEquals(ChapterDataSource.DIRECT, state.dataSource)
         assertEquals(ChapterProgress(4, 6, false, qaActive = 1, qaTotal = 2), state.progressByPath[file.path])
         assertEquals(state.files, cache.saved?.files)
         assertEquals(state.progressByPath, cache.saved?.progressByPath)
@@ -204,6 +206,37 @@ class ChapterListViewModelTest {
         assertEquals(1, viewModel.uiState.value.selectedVolume)
         assertEquals(listOf(first), viewModel.uiState.value.files)
         assertFalse(viewModel.uiState.value.refreshing)
+    }
+
+    @Test
+    fun connectionFailureDoesNotMasqueradeAsMissingIndex() = runTest(dispatcher) {
+        val file = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val repository = FakeChapterRepository(
+            files = listOf(file), progress = emptyMap(), qaProgress = emptyMap(),
+            beforeIndex = { throw GitHubException("Cannot reach GitHub. Check your internet connection and retry.") },
+        )
+        val viewModel = ChapterListViewModel(repositoryFactory = ChapterRepositoryFactory { _, _ -> repository }, cacheDispatcher = dispatcher)
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("internet connection"))
+        assertTrue(repository.requestedVolumes.isEmpty())
+        assertFalse(viewModel.uiState.value.refreshing)
+    }
+
+    @Test
+    fun invalidIndexExplainsFallbackAndListsChapters() = runTest(dispatcher) {
+        val file = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val repository = FakeChapterRepository(
+            files = listOf(file), progress = mapOf(file.path to ChapterProgress(1, 2, false)),
+            qaProgress = mapOf(file.path to QaProgressCounts(0, 0)),
+            beforeIndex = { throw WorkflowIndexUnavailable("unsupported schema") },
+        )
+        val viewModel = ChapterListViewModel(repositoryFactory = ChapterRepositoryFactory { _, _ -> repository }, cacheDispatcher = dispatcher)
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        assertEquals(ChapterDataSource.DIRECT, viewModel.uiState.value.dataSource)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("unsupported schema"))
+        assertEquals(listOf(file), viewModel.uiState.value.files)
     }
 
     @Test

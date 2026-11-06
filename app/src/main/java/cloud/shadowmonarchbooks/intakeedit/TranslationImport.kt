@@ -32,8 +32,13 @@ data class ImportedTranslationOverlay(
 class TranslationImportStore(context: Context) {
     private val dir = File(context.filesDir, "translation_imports").also { it.mkdirs() }
 
-    private fun file(path: String, machine: Boolean = false, machineKey: String? = null): File {
+    private fun file(path: String, machine: Boolean = false, machineKey: String? = null, projectKey: String? = null): File {
         val key = Base64.encodeToString(path.toByteArray(Charsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
+        if (!machine && projectKey != null) {
+            val identity = (path + "\u0000" + projectKey).toByteArray(Charsets.UTF_8)
+            val hash = java.security.MessageDigest.getInstance("SHA-256").digest(identity).joinToString("") { "%02x".format(it) }
+            return File(dir, "import-$hash.json")
+        }
         if (machine && machineKey != null) {
             val identity = (path + "\u0000" + machineKey).toByteArray(Charsets.UTF_8)
             val hash = java.security.MessageDigest.getInstance("SHA-256").digest(identity).joinToString("") { "%02x".format(it) }
@@ -42,7 +47,7 @@ class TranslationImportStore(context: Context) {
         return File(dir, if (machine) "$key.machine.json" else "$key.json")
     }
 
-    fun save(overlay: ImportedTranslationOverlay, machine: Boolean = false, machineKey: String? = null): Boolean = runCatching {
+    fun save(overlay: ImportedTranslationOverlay, machine: Boolean = false, machineKey: String? = null, projectKey: String? = null): Boolean = runCatching {
         val translations = JSONObject()
         overlay.translations.forEach { (locator, text) -> translations.put(locator, text) }
         val payload = JSONObject()
@@ -57,7 +62,7 @@ class TranslationImportStore(context: Context) {
             .put("imported_at_ms", overlay.importedAtMillis)
             .put("translations", translations)
             .toString()
-        val atomic = AtomicFile(file(overlay.chapterPath, machine, machineKey))
+        val atomic = AtomicFile(file(overlay.chapterPath, machine, machineKey, projectKey))
         var stream: java.io.FileOutputStream? = null
         try {
             stream = atomic.startWrite()
@@ -70,8 +75,8 @@ class TranslationImportStore(context: Context) {
         true
     }.getOrDefault(false)
 
-    fun load(path: String, sourceSha256: String, machine: Boolean = false, machineKey: String? = null): ImportedTranslationOverlay? {
-        val target = file(path, machine, machineKey)
+    fun load(path: String, sourceSha256: String, machine: Boolean = false, machineKey: String? = null, projectKey: String? = null): ImportedTranslationOverlay? {
+        val target = file(path, machine, machineKey, projectKey)
         if (!target.exists()) return null
         return runCatching {
             val root = JSONObject(String(AtomicFile(target).readFully(), Charsets.UTF_8))
@@ -98,9 +103,9 @@ class TranslationImportStore(context: Context) {
         }.getOrNull()
     }
 
-    fun delete(path: String, machine: Boolean = false, machineKey: String? = null): Boolean {
-        AtomicFile(file(path, machine, machineKey)).delete()
-        return !file(path, machine, machineKey).exists()
+    fun delete(path: String, machine: Boolean = false, machineKey: String? = null, projectKey: String? = null): Boolean {
+        AtomicFile(file(path, machine, machineKey, projectKey)).delete()
+        return !file(path, machine, machineKey, projectKey).exists()
     }
 }
 
@@ -373,3 +378,16 @@ object XliffTranslationImporter {
     }
 }
 
+
+internal fun readTranslationFile(input: java.io.InputStream, maxBytes: Int = 20 * 1024 * 1024): ByteArray {
+    require(maxBytes >= 0)
+    val output = java.io.ByteArrayOutputStream(minOf(maxBytes, 8192))
+    val buffer = ByteArray(8192)
+    while (true) {
+        val count = input.read(buffer)
+        if (count < 0) break
+        require(count <= maxBytes - output.size()) { "Translation file is too large to import safely (20 MB limit)." }
+        output.write(buffer, 0, count)
+    }
+    return output.toByteArray()
+}

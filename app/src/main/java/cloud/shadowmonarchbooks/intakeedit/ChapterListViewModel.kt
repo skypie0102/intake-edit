@@ -21,12 +21,15 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
+internal enum class ChapterDataSource { CACHED, INDEX, DIRECT }
+
 internal data class ChapterListUiState(
     val files: List<ChapterFile> = emptyList(),
     val progressByPath: Map<String, ChapterProgress> = emptyMap(),
     val availableVolumes: List<Int> = emptyList(),
     val selectedVolume: Int? = null,
     val refreshing: Boolean = false,
+    val dataSource: ChapterDataSource? = null,
     val bulkApproving: Boolean = false,
     val approvalRequestedPaths: Set<String> = emptySet(),
     val notice: String? = null,
@@ -61,6 +64,7 @@ internal class ChapterListViewModel(
                         progressByPath = cached.progressByPath.filterKeys { it in cachedPaths },
                         availableVolumes = (state.availableVolumes + cached.files.map { it.volume }).distinct().sorted(),
                         selectedVolume = cachedVolume,
+                        dataSource = ChapterDataSource.CACHED,
                         refreshing = true,
                     )
                 }
@@ -81,6 +85,7 @@ internal class ChapterListViewModel(
                         availableVolumes = volumes,
                         selectedVolume = targetVolume,
                         files = if (keepCurrent) state.files else emptyList(),
+                        dataSource = if (keepCurrent) state.dataSource else null,
                         progressByPath = if (keepCurrent) state.progressByPath else emptyMap(),
                         refreshing = targetVolume != null,
                     )
@@ -199,6 +204,7 @@ internal class ChapterListViewModel(
                     selectedVolume = volume,
                     files = retainedFiles,
                     progressByPath = state.progressByPath.filterKeys { it in retainedPaths },
+                    dataSource = if (retainedFiles.isEmpty()) null else state.dataSource,
                     refreshing = true,
                     notice = null,
                 )
@@ -222,10 +228,11 @@ internal class ChapterListViewModel(
         settings: RepoSettings,
         volume: Int,
     ) {
+        var indexProblem: String? = null
         val indexed = try {
             repository.loadVolumeStatus(volume)
-        } catch (t: Throwable) {
-            if (t is CancellationException) throw t
+        } catch (error: WorkflowIndexUnavailable) {
+            indexProblem = error.message
             null
         }
         currentCoroutineContext().ensureActive()
@@ -234,6 +241,7 @@ internal class ChapterListViewModel(
             _uiState.update { state ->
                 state.copy(
                     files = indexed.files,
+                    dataSource = ChapterDataSource.INDEX,
                     progressByPath = indexed.progressByPath,
                     refreshing = indexed.refreshFiles.isNotEmpty(),
                     approvalRequestedPaths = state.approvalRequestedPaths.filterTo(mutableSetOf()) { path ->
@@ -250,7 +258,11 @@ internal class ChapterListViewModel(
         }
 
         _uiState.update { state ->
-            state.copy(notice = "Workflow index unavailable; using slower compatibility refresh for Volume $volume.")
+            state.copy(notice = if (indexProblem == null) {
+                "Workflow index unavailable; using slower compatibility refresh for Volume $volume."
+            } else {
+                "Workflow index needs attention ($indexProblem); using slower compatibility refresh for Volume $volume."
+            })
         }
 
         val listed = repository.listFiles(volume)
@@ -259,6 +271,7 @@ internal class ChapterListViewModel(
         _uiState.update { state ->
             state.copy(
                 files = listed,
+                dataSource = ChapterDataSource.DIRECT,
                 // Once the remote file list is current, discard cached workflow states for
                 // these chapters. A base editor fetch without its QA record can only tell us
                 // that the chapter is editor-complete; publishing that partial state would

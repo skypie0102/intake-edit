@@ -16,10 +16,11 @@ internal fun buildAttentionState(
     volume: Int,
     chapter: Int,
     editorContentSha256: String,
+    scopeHashes: QaScopeHashes = QaScopeHashes(document),
 ): AttentionState {
     val allQa = qa?.findings.orEmpty()
     val dispositions = allQa.associate { finding ->
-        finding.id to requireNotNull(qa).disposition(finding, document, editorContentSha256)
+        finding.id to requireNotNull(qa).disposition(finding, editorContentSha256, scopeHashes.get(finding.locator))
     }
     val activeQa = allQa.filter { dispositions[it.id] == QaFindingDisposition.ACTIVE }
     val pendingProposals = proposals?.proposals.orEmpty().filter {

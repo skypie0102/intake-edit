@@ -1,0 +1,57 @@
+name: Android emulator checks
+
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-emulator.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-emulator-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instrumented-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          disable-animations: true
+          script: |
+            gradle --no-daemon :app:connectedDebugAndroidTest
+            adb logcat -d -s IntakeQaBenchmark:I IntakePerfAudit:I '*:S'
+            adb install -r "$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+            adb install -r "$(find app/build/outputs/apk/androidTest/debug -name '*.apk' -print -quit)"
+            adb shell pm list instrumentation | grep -F 'instrumentation:cloud.shadowmonarchbooks.intakeedit.rigpreview.test/androidx.test.runner.AndroidJUnitRunner'
+            adb shell am instrument -w -e class cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -e draft_phase write cloud.shadowmonarchbooks.intakeedit.rigpreview.test/androidx.test.runner.AndroidJUnitRunner | tee /tmp/intake-draft-write-result
+            grep -q 'OK (1 test)' /tmp/intake-draft-write-result
+            adb shell am force-stop cloud.shadowmonarchbooks.intakeedit.rigpreview
+            adb shell am instrument -w -e class cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -e draft_phase verify cloud.shadowmonarchbooks.intakeedit.rigpreview.test/androidx.test.runner.AndroidJUnitRunner | tee /tmp/intake-draft-read-result
+            grep -q 'OK (1 test)' /tmp/intake-draft-read-result
+      - name: Upload emulator test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-test-reports
+          path: app/build/outputs/androidTest-results/
+          if-no-files-found: ignore

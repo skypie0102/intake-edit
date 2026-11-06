@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.ContentCopy
@@ -32,9 +33,9 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NavigateNext
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
@@ -69,8 +70,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -89,6 +94,7 @@ internal fun EditorScreen(
     initial: OpenChapter,
     busy: Boolean,
     notice: String?,
+    recoveryDrafts: List<LocalDraft>,
     onBack: () -> Unit,
     onDraft: (OpenChapter) -> Unit,
     onCommit: (OpenChapter, Boolean) -> Unit,
@@ -97,6 +103,7 @@ internal fun EditorScreen(
     onApprove: (OpenChapter) -> Unit,
 ) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val importStore = remember { TranslationImportStore(context) }
@@ -104,10 +111,12 @@ internal fun EditorScreen(
     val project = remember { SettingsStore(context).load() }
     val languages = remember { TranslationLanguages(source = "auto", target = "en") }
     val machineKey = remember(project) { machineCacheKey(project, languages) }
+    val importProjectKey = remember(project) { draftScopeKey(project, "") }
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
     var importedFile by remember(initial.file.path, initial.document.sourceSha256) {
         mutableStateOf<ImportedTranslationOverlay?>(null)
     }
+    var legacyImportedFile by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf<ImportedTranslationOverlay?>(null) }
     var machineTranslation by remember(initial.file.path, initial.document.sourceSha256) {
         mutableStateOf<ImportedTranslationOverlay?>(null)
     }
@@ -116,13 +125,16 @@ internal fun EditorScreen(
     var importBusy by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf(true) }
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
-    var showWholeFile by rememberSaveable { mutableStateOf(false) }
+    var showWholeFile by rememberSaveable(initial.file.path, initial.remote.sha) { mutableStateOf(initial.rawNeedsRepair) }
     var wholeFilePending by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
     var wholeFileValidating by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
-    var wholeFileInvalid by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
+    var wholeFileInvalid by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial.rawNeedsRepair) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
+    var showSavedDrafts by remember { mutableStateOf(false) }
+    var selectedSavedDraft by remember { mutableStateOf<LocalDraft?>(null) }
+    var draftForExport by remember { mutableStateOf<LocalDraft?>(null) }
     var showApprove by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
     var showTranslationChoices by remember { mutableStateOf(false) }
@@ -139,7 +151,7 @@ internal fun EditorScreen(
             val parsed = parseWholeFileDraft(raw)
             if (current.raw == raw) {
                 if (parsed != null) {
-                    current = current.copy(document = parsed)
+                    current = current.copy(document = parsed, rawNeedsRepair = false)
                     onDraft(current)
                 }
                 wholeFileInvalid = parsed == null
@@ -154,10 +166,12 @@ internal fun EditorScreen(
             val machine = importStore.load(initial.file.path, initial.document.sourceSha256, machine = true, machineKey = machineKey)
                 ?: if (project.owner.equals("skypie0102", true) && project.repo.equals("purelove", true) && project.branch == "main")
                     importStore.load(initial.file.path, initial.document.sourceSha256, machine = true) else null
-            importStore.load(initial.file.path, initial.document.sourceSha256) to machine
+            Triple(importStore.load(initial.file.path, initial.document.sourceSha256, projectKey = importProjectKey), machine,
+                importStore.load(initial.file.path, initial.document.sourceSha256))
         }
         importedFile = saved.first
         machineTranslation = saved.second
+        legacyImportedFile = saved.third
         useMachine = machineTranslation != null && onlineSettings.visible(machineKey, initial.file.path, initial.document.sourceSha256)
         importBusy = false
     }
@@ -172,6 +186,26 @@ internal fun EditorScreen(
         }
     }
 
+    val draftExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        val draft = draftForExport
+        draftForExport = null
+        if (uri != null && draft != null) {
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { it.write(draft.raw.toByteArray(Charsets.UTF_8)) }
+                            ?: error("Could not open the selected destination.")
+                    }
+                    editorNotice = "Saved draft exported."
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    editorNotice = "Draft export failed: ${error.message ?: "unknown error"}"
+                }
+            }
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val chapter = current
@@ -179,9 +213,8 @@ internal fun EditorScreen(
                 importBusy = true
                 runCatching {
                     withContext(Dispatchers.IO) {
-                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { readTranslationFile(it) }
                             ?: error("Could not read the selected file.")
-                        require(bytes.size <= 20 * 1024 * 1024) { "Translation file is too large to import safely (20 MB limit)." }
                         val fileName = selectedFileName(context, uri) ?: "Imported XLIFF"
                         val overlay = XliffTranslationImporter.parse(
                             raw = String(bytes, Charsets.UTF_8),
@@ -189,7 +222,7 @@ internal fun EditorScreen(
                             chapterPath = chapter.file.path,
                             document = chapter.document,
                         )
-                        require(importStore.save(overlay)) { "Could not persist the imported translation locally." }
+                        require(importStore.save(overlay, projectKey = importProjectKey)) { "Could not persist the imported translation locally." }
                         overlay
                     }
                 }.onSuccess { overlay ->
@@ -387,6 +420,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val editorContentSha = remember(current.raw) {
         runCatching { QaFindingsParser.editorContentSha256(current.raw) }.getOrDefault("")
     }
+    val qaScopeHashes = remember(current.document) { QaScopeHashes(current.document) }
     val attentionState = remember(current.document, current.qa?.document, current.endnoteProposals?.document, current.file, editorContentSha) { buildAttentionState(
         document = current.document,
         qa = current.qa?.document,
@@ -394,6 +428,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
         volume = current.file.volume,
         chapter = current.file.chapter,
         editorContentSha256 = editorContentSha,
+        scopeHashes = qaScopeHashes,
     ) }
     val allQaByLocator = attentionState.allQaByLocator
     val qaDispositionById = attentionState.qaDispositionById
@@ -402,7 +437,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
     }
     val qaCanResolveById = remember(current.qa?.document, current.document, qaPassReusable) {
         current.qa?.document?.findings.orEmpty().associate { finding ->
-            finding.id to (current.qa?.document?.canResolve(finding, current.document, qaPassReusable) == true)
+            finding.id to (current.qa?.document?.canResolve(finding, qaPassReusable) { qaScopeHashes.get(finding.locator) } == true)
         }
     }
     val unresolvedAttentionCount = attentionState.unresolvedCount
@@ -458,7 +493,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") }
+                    IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                 },
                 actions = {
                     Icon(
@@ -523,6 +558,9 @@ fun stageProposalDecision(proposalId: String, status: String) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            if (recoveryDrafts.isNotEmpty()) {
+                TextButton(onClick = { showSavedDrafts = true }) { Text("Saved drafts (${recoveryDrafts.size})") }
+            }
             editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             if (qaPassStale) {
                 Text(
@@ -570,7 +608,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                             }
                             if (current.raw == raw) {
                                 result.onSuccess { parsed ->
-                                    current = current.copy(document = parsed, approved = false)
+                                    current = current.copy(document = parsed, approved = false, rawNeedsRepair = false)
                                     wholeFilePending = false
                                     wholeFileInvalid = false
                                     onDraft(current)
@@ -642,7 +680,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             }
 
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -653,7 +691,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         onClick = { jumpToFirstMissing() },
                         enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && missingEnglish.isNotEmpty(),
                     ) {
-                        Icon(Icons.Default.NavigateNext, "Go to first unsupplied English")
+                        Icon(Icons.AutoMirrored.Filled.NavigateNext, "Go to first unsupplied English")
                     }
                 }
                 BadgedBox(
@@ -669,13 +707,66 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 IconButton(onClick = { showTranslationChoices = true }, enabled = !busy && !importBusy) {
                     Icon(Icons.Default.Translate, "Translation reference")
                 }
-                Spacer(Modifier.weight(1f))
                 Button(
                     onClick = { if (readyForApproval) showApprove = true else showCommit = true },
                     enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && !current.approved,
                 ) { Text(primaryCommitLabel) }
             }
         }
+    }
+
+    if (showSavedDrafts) {
+        AlertDialog(
+            onDismissRequest = { showSavedDrafts = false },
+            title = { Text("Saved older drafts") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Open a draft to inspect or copy it. Older-format drafts have no recorded project, so check them before restoring.")
+                    recoveryDrafts.forEach { draft ->
+                        val saved = java.text.DateFormat.getDateTimeInstance().format(java.util.Date(draft.savedAtMillis))
+                        TextButton(onClick = { selectedSavedDraft = draft; showSavedDrafts = false }) {
+                            Text("$saved • ${draft.baseSha.take(8)}${if (draft.legacyUnassigned) " • project unknown" else ""}")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSavedDrafts = false }) { Text("Close") } },
+        )
+    }
+    selectedSavedDraft?.let { draft ->
+        AlertDialog(
+            onDismissRequest = { selectedSavedDraft = null },
+            title = { Text("Older draft") },
+            text = { OutlinedTextField(value = draft.raw, onValueChange = {}, label = { Text("Saved draft contents") }, readOnly = true, minLines = 8, maxLines = 16, modifier = Modifier.fillMaxWidth()) },
+            confirmButton = {
+                TextButton(onClick = {
+                    clipboard.setText(AnnotatedString(draft.raw))
+                    selectedSavedDraft = null
+                    editorNotice = "Older draft copied."
+                }) { Text("Copy draft") }
+            },
+            dismissButton = {
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(onClick = {
+                        draftForExport = draft
+                        draftExportLauncher.launch("chapter-${current.file.chapter}-draft.yml")
+                    }) { Text("Export") }
+                    if (draft.baseSha == current.remote.sha && current.raw == current.remote.content && current.endnoteProposals?.changed != true) {
+                        TextButton(onClick = {
+                            current = current.copy(raw = draft.raw, approved = false, rawNeedsRepair = true)
+                            showWholeFile = true
+                            showQa = false
+                            wholeFileInvalid = false
+                            wholeFilePending = true
+                            onDraft(current)
+                            selectedSavedDraft = null
+                            editorNotice = "Draft restored for review. Its original copy remains saved."
+                        }, enabled = !busy) { Text("Restore matching draft") }
+                    }
+                    TextButton(onClick = { selectedSavedDraft = null }) { Text("Close") }
+                }
+            },
+        )
     }
 
     if (showTranslationChoices) {
@@ -700,6 +791,20 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         if (importedFile != null) TextButton(onClick = {
                             showTranslationChoices = false; showRemoveImportConfirm = true
                         }) { Text("Remove") }
+                        if (importedFile == null && legacyImportedFile != null) TextButton(onClick = {
+                            val legacy = legacyImportedFile ?: return@TextButton
+                            scope.launch {
+                                importBusy = true
+                                val saved = withContext(Dispatchers.IO) { importStore.save(legacy, projectKey = importProjectKey) }
+                                if (saved) {
+                                    importedFile = legacy
+                                    useMachine = false
+                                    editorNotice = "Older reference copied to this project. Check its contents before using it."
+                                } else editorNotice = "Could not save the older reference for this project."
+                                importBusy = false
+                            }
+                            showTranslationChoices = false
+                        }) { Text("Use older reference (project unknown)") }
                     }
                     Text("Machine Translation", fontWeight = FontWeight.Bold)
                     Text(if (machineTranslation == null) "Translate online with Google." else "A saved translation is available.", style = MaterialTheme.typography.bodySmall)
@@ -810,7 +915,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         showRemoveImportConfirm = false
                         scope.launch {
                             importBusy = true
-                            val removed = withContext(Dispatchers.IO) { importStore.delete(path) }
+                            val removed = withContext(Dispatchers.IO) { importStore.delete(path, projectKey = importProjectKey) }
                             if (removed) {
                                 importedFile = null
                                 editorNotice = "Imported translation removed."
@@ -1074,7 +1179,7 @@ LaunchedEffect(qaFindings) {
                         },
                     ) {
                         IconButton(onClick = { showAttentionSheet = true }) {
-                            Icon(Icons.Default.PriorityHigh, "Attention")
+                            Icon(Icons.Default.PriorityHigh, "Attention for ${entry.locator}")
                         }
                     }
                 }
@@ -1083,7 +1188,7 @@ LaunchedEffect(qaFindings) {
                     val reference = importedTranslation?.let { "\n\n${if (machineReference) "MACHINE TRANSLATION" else "IMPORTED TRANSLATION"}:\n$it" }.orEmpty()
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text") }
+                }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text for ${entry.locator}") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
             importedTranslation?.let { DisplayBlock(if (machineReference) "Machine Translation · Google Translate" else "Imported", it) }
@@ -1112,10 +1217,11 @@ LaunchedEffect(qaFindings) {
                 },
                 label = { Text("English") },
                 minLines = 3,
-                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+                    .semantics { contentDescription = "English for ${entry.locator}" },
             )
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1126,7 +1232,7 @@ LaunchedEffect(qaFindings) {
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
                     },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(48.dp).semantics { contentDescription = "Bold selection" },
                     enabled = rich.hasSelection(),
                 ) { Text("B", fontWeight = FontWeight.Bold) }
                 IconButton(
@@ -1136,7 +1242,7 @@ LaunchedEffect(qaFindings) {
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
                     },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(48.dp).semantics { contentDescription = "Italicize selection" },
                     enabled = rich.hasSelection(),
                 ) { Text("I", fontStyle = FontStyle.Italic) }
                 IconButton(
@@ -1161,13 +1267,12 @@ LaunchedEffect(qaFindings) {
                             ).show()
                         }
                     },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(48.dp).semantics { contentDescription = "Edit endnote for selection" },
                     enabled = rich.hasSelection() && entry.locator.startsWith("P"),
                 ) { Text("N", textDecoration = TextDecoration.Underline) }
                 IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
-                    Icon(Icons.Default.Undo, "Undo English edit")
+                    Icon(Icons.AutoMirrored.Filled.Undo, "Undo English edit")
                 }
-                Spacer(Modifier.weight(1f))
                 importedTranslation?.let { importedText ->
                     TextButton(onClick = {
                         focusManager.clearFocus(force = true)
@@ -1442,7 +1547,7 @@ private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValida
             invalid -> "This draft could not be parsed. Fix it or validate for details before switching views."
             else -> "Exceptional edits only. Normal editing should change English fields in Cards view."
         }, style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(value = raw, onValueChange = onRawChange, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
+        OutlinedTextField(value = raw, onValueChange = onRawChange, label = { Text("Whole file YAML") }, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
     }
 }
 
