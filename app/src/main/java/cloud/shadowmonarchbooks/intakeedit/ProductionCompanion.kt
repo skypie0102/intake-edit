@@ -33,6 +33,15 @@ internal object CompanionAnimationPack {
             .bufferedReader().use { it.readText() }).also { source = it }
     }
 
+    private var idleSource: Pair<PetMood, List<JSONObject>>? = null
+
+    private fun idleJson(context: Context, mood: PetMood): List<JSONObject> = synchronized(this) {
+        idleSource?.takeIf { it.first == mood }?.second ?: idleNames(mood).map { name ->
+            JSONObject(context.applicationContext.assets.open("companion/idle-actions/${mood.name.lowercase()}-$name.json")
+                .bufferedReader().use { it.readText() })
+        }.also { idleSource = mood to it }
+    }
+
     private fun picture(svg: String): Picture = SVG.getFromString(svg).renderToPicture(320, 320)
 
     /** Small resting poses load independently of the longer action sequences. */
@@ -53,28 +62,46 @@ internal object CompanionAnimationPack {
         val result = MoodAnimation(mood, root.getLong("frame_ms"),
             frames(root.getJSONObject("moods").getJSONArray(key)),
             picture(root.getJSONObject("idle_blinks").getString(key)),
-            listOf("reading", "writing", "page_turn").associateWith { frames(actions.getJSONArray(it)) }
+            listOf("reading", "writing", "page_turn").associateWith { frames(actions.getJSONArray(it)) },
+            idleJson(context, mood).map { IdleAnimation(it.getLong("frame_ms"), frames(it.getJSONArray("frames"))) }
         )
         cached = result
         return result
     }
 
+    fun widgetCount(context: Context, mood: PetMood): Int = widgetSegments(
+        mood, idleJson(context, mood).map { it.getJSONArray("frames").length() to it.getLong("frame_ms") }
+    ).sumOf { it.ticks }
+
     fun widgetFrame(context: Context, mood: PetMood, position: Int): Picture {
-        require(position in 0 until 384)
+        val idle = idleJson(context, mood)
+        val segments = widgetSegments(mood, idle.map { it.getJSONArray("frames").length() to it.getLong("frame_ms") })
+        val (action, index) = widgetSequenceIndex(position, segments)
         val root = json(context)
         val key = mood.name.lowercase()
-        val (action, index) = widgetFrameIndex(position)
-        val frames = if (action == 0) root.getJSONObject("moods").getJSONArray(key) else {
-            val name = listOf("reading", "writing", "page_turn")[action - 1]
-            root.getJSONObject("shared_actions").getJSONObject(key).getJSONArray(name)
+        val frames = when (action) {
+            0 -> root.getJSONObject("moods").getJSONArray(key)
+            in 1..3 -> root.getJSONObject("shared_actions").getJSONObject(key)
+                .getJSONArray(listOf("reading", "writing", "page_turn")[action - 1])
+            else -> idle[action - 4].getJSONArray("frames")
         }
-        val frame = index * frames.length() / 96
-        return picture(frames.getString(frame))
+        val frame = if (action in 1..3) index * frames.length() / 96 else index
+        return picture(frames.getString(frame.coerceIn(0, frames.length() - 1)))
     }
 
 }
 
 internal data class MoodRest(val mood: PetMood, val open: Picture, val blink: Picture)
+
+internal data class IdleAnimation(val frameMs: Long, val frames: List<Picture>)
+
+internal fun idleNames(mood: PetMood): List<String> = when (mood) {
+    PetMood.HAPPY -> listOf("humming", "delighted")
+    PetMood.WAITING -> listOf("find_place", "thinking")
+    PetMood.HUNGRY -> listOf("food", "rumble")
+    PetMood.SAD -> listOf("losing_focus", "book_comfort")
+    PetMood.NEW -> listOf("curious_peek", "absorbed")
+}
 
 internal data class MoodAnimation(
     val mood: PetMood,
@@ -82,6 +109,7 @@ internal data class MoodAnimation(
     val frames: List<Picture>,
     val blink: Picture,
     val actions: Map<String, List<Picture>>,
+    val idleActions: List<IdleAnimation>,
 )
 
 /** Whether a new selection should start with a short blink, without hiding the character. */
@@ -118,20 +146,41 @@ internal fun ProductionBookSpirit(mood: PetMood, description: String, displaySiz
     var frame by remember(mood, current) { mutableIntStateOf(0) }
     var action by remember(mood, current) { mutableStateOf<String?>(null) }
     var blink by remember(mood, current) { mutableStateOf(false) }
+    var idleAction by remember(mood, current) { mutableIntStateOf(-1) }
+    var idleFrame by remember(mood, current) { mutableIntStateOf(0) }
     LaunchedEffect(mood, current) {
         if (current == null) return@LaunchedEffect
         if (transition) delay(150)
         val timeline = RigPreviewTimeline(current.frames.size, startWithAction = mood == PetMood.NEW,
             allowIdleBlink = true, allowSharedActions = true)
+        var previousFrame = 0
+        var nextIdle = 0
         while (true) {
             if (ValueAnimator.areAnimatorsEnabled()) {
-                frame = timeline.advance()
+                val next = timeline.advance()
+                frame = next
                 action = timeline.sharedAction
                 blink = timeline.blinking
+                if (previousFrame == current.frames.lastIndex && next == 0 && current.idleActions.isNotEmpty()) {
+                    val chosen = nextIdle % current.idleActions.size
+                    nextIdle++
+                    val sequence = current.idleActions[chosen]
+                    idleFrame = 0
+                    idleAction = chosen
+                    for (index in sequence.frames.indices) {
+                        if (!ValueAnimator.areAnimatorsEnabled()) break
+                        idleFrame = index
+                        delay(sequence.frameMs)
+                    }
+                    idleAction = -1
+                }
+                previousFrame = next
             } else {
                 frame = 0
                 action = null
                 blink = false
+                idleAction = -1
+                previousFrame = 0
             }
             delay(moodFrameDuration(current.frameMs, mood.name))
         }
@@ -144,6 +193,8 @@ internal fun ProductionBookSpirit(mood: PetMood, description: String, displaySiz
     val picture = when {
         transition -> rest?.blink ?: current?.blink
         current == null -> rest?.open
+        idleAction in current.idleActions.indices -> current.idleActions[idleAction].frames
+            .getOrNull(idleFrame.coerceAtMost(current.idleActions[idleAction].frames.lastIndex))
         blink -> current.blink
         sequence != null -> sequence[(frame * sequence.size / current.frames.size).coerceIn(sequence.indices)]
         else -> current.frames[frame.coerceIn(current.frames.indices)]
@@ -163,6 +214,25 @@ internal fun widgetFrameIndex(position: Int): Pair<Int, Int> {
     return position / 96 to position % 96
 }
 
+internal data class WidgetSegment(val frameCount: Int, val frameMs: Long) {
+    val ticks: Int get() = ((frameCount * frameMs + 69) / 70).toInt()
+}
+
+/** Widget ticks are 70 ms. No authored frame is dropped when frameMs >= 70. */
+internal fun widgetSegments(mood: PetMood, actions: List<Pair<Int, Long>>): List<WidgetSegment> =
+    List(4) { WidgetSegment(96, moodFrameDuration(83, mood.name)) } +
+        actions.map { (count, duration) -> WidgetSegment(count, duration) }
+
+internal fun widgetSequenceIndex(position: Int, segments: List<WidgetSegment>): Pair<Int, Int> {
+    require(position >= 0)
+    var offset = position
+    segments.forEachIndexed { index, segment ->
+        if (offset < segment.ticks) return index to minOf(segment.frameCount - 1, (offset * 70L / segment.frameMs).toInt())
+        offset -= segment.ticks
+    }
+    throw IllegalArgumentException("Widget frame out of bounds: $position")
+}
+
 /** The launcher asks the adapter for individual poses, avoiding a 384-bitmap widget update. */
 class CompanionWidgetFrameService : android.widget.RemoteViewsService() {
     override fun onGetViewFactory(intent: android.content.Intent): RemoteViewsFactory {
@@ -177,7 +247,7 @@ private class CompanionWidgetFrameFactory(private val context: Context, private 
     override fun onCreate() = Unit
     override fun onDataSetChanged() = Unit
     override fun onDestroy() { cache.evictAll() }
-    override fun getCount() = 384
+    override fun getCount() = CompanionAnimationPack.widgetCount(context, mood)
     override fun getViewAt(position: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.companion_widget_frame)
         val bitmap = cache.get(position) ?: runCatching {
@@ -215,7 +285,7 @@ internal object ProductionWidgetFrames {
             views.setViewVisibility(R.id.pet_widget_portrait, View.VISIBLE)
             if (android.os.Build.VERSION.SDK_INT >= 31) {
                 val items = RemoteViews.RemoteCollectionItems.Builder().setHasStableIds(true).setViewTypeCount(1)
-                repeat(384) { index ->
+                repeat(CompanionAnimationPack.widgetCount(context, mood)) { index ->
                     val item = RemoteViews(context.packageName, R.layout.companion_widget_frame)
                     item.setImageViewUri(R.id.companion_widget_image,
                         android.net.Uri.parse("content://${context.packageName}.companionframes/${mood.name}/$index"))

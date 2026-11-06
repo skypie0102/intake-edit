@@ -13,7 +13,7 @@
         android:inAnimation="@animator/companion_frame_no_fade"
         android:outAnimation="@animator/companion_frame_no_fade"
         android:animateFirstView="false"
-        android:flipInterval="83"
+        android:flipInterval="70"
         android:visibility="invisible"
         android:contentDescription="@string/pet_widget_description">
     </AdapterViewFlipper>

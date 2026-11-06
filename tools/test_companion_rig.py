@@ -116,7 +116,7 @@ class RigTest(unittest.TestCase):
         self.assertEqual(animator.get('{'+ANDROID+'}valueFrom'), '1.0')
         self.assertEqual(animator.get('{'+ANDROID+'}valueTo'), '1.0')
         self.assertEqual(animator.get('{'+ANDROID+'}duration'), '0')
-        for mood, interval in [('new', 83), ('happy', 70), ('waiting', 91), ('hungry', 120), ('sad', 128)]:
+        for mood, interval in [('new', 70), ('happy', 70), ('waiting', 70), ('hungry', 70), ('sad', 70)]:
             mood_layout = ET.parse(rig.ROOT / f'app/src/main/res/layout/companion_widget_{mood}.xml').getroot()
             mood_flipper = mood_layout.find('AdapterViewFlipper')
             self.assertEqual(mood_flipper.get('{'+ANDROID+'}flipInterval'), str(interval))
