@@ -47,4 +47,4 @@ Detailed acting, pacing, and sequencing are in the [idle-animation design](docs/
 - [ ] Sad: losing focus; comforting himself with the book. **In progress:** the losing-focus standalone preview is approved and the book-comfort preview is ready for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
 - [ ] New: curious peek; getting absorbed in the book. **In progress:** both standalone previews are approved in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
 
-The remaining actions are planned; the approved standalone previews still need app and widget integration. The separate widget validation work in item 3 remains deferred.
+All ten idle sequences are included in the draft app and widget integration. Android CI and visual verification are pending; the integration is not merged or released. The separate widget validation work in item 3 remains deferred.
