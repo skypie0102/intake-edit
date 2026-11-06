@@ -117,6 +117,9 @@ internal fun EditorScreen(
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
+    var wholeFilePending by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
+    var wholeFileValidating by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
+    var wholeFileInvalid by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
@@ -129,6 +132,21 @@ internal fun EditorScreen(
     var jumpRequestId by remember { mutableStateOf(0) }
     var lastAttentionLocator by remember(initial.file.path, initial.remote.sha) { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+
+    LaunchedEffect(showWholeFile, current.raw, wholeFilePending) {
+        if (showWholeFile && wholeFilePending) {
+            val raw = current.raw
+            val parsed = parseWholeFileDraft(raw)
+            if (current.raw == raw) {
+                if (parsed != null) {
+                    current = current.copy(document = parsed)
+                    onDraft(current)
+                }
+                wholeFileInvalid = parsed == null
+                wholeFilePending = false
+            }
+        }
+    }
 
     LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
         importBusy = true
@@ -363,41 +381,57 @@ fun stageProposalDecision(proposalId: String, status: String) {
         jumpRequestId += 1
     }
 
-    val missingEnglish = current.document.entries.filterNot { it.isSupplied }
-    val editorContentSha = QaFindingsParser.editorContentSha256(current.raw)
-    val attentionState = buildAttentionState(
+    val (suppliedEntries, missingEnglish) = remember(current.document.entries) {
+        current.document.entries.partition { it.isSupplied }
+    }
+    val editorContentSha = remember(current.raw) {
+        runCatching { QaFindingsParser.editorContentSha256(current.raw) }.getOrDefault("")
+    }
+    val attentionState = remember(current.document, current.qa?.document, current.endnoteProposals?.document, current.file, editorContentSha) { buildAttentionState(
         document = current.document,
         qa = current.qa?.document,
         proposals = current.endnoteProposals?.document,
         volume = current.file.volume,
         chapter = current.file.chapter,
         editorContentSha256 = editorContentSha,
-    )
+    ) }
     val allQaByLocator = attentionState.allQaByLocator
     val qaDispositionById = attentionState.qaDispositionById
-    val qaCanResolveById = current.qa?.document?.findings.orEmpty().associate { finding ->
-        finding.id to (current.qa?.document?.canResolve(finding, current.document) == true)
+    val qaPassReusable = remember(current.qa?.document, current.document) {
+        current.qa?.document?.qaPassReusable(current.document) == true
+    }
+    val qaCanResolveById = remember(current.qa?.document, current.document, qaPassReusable) {
+        current.qa?.document?.findings.orEmpty().associate { finding ->
+            finding.id to (current.qa?.document?.canResolve(finding, current.document, qaPassReusable) == true)
+        }
     }
     val unresolvedAttentionCount = attentionState.unresolvedCount
-    val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
+    val suppliedEnglishCount = suppliedEntries.size
     val fillableImportCount = imported?.let { overlay ->
         missingEnglish.count { overlay.translationFor(it.locator) != null }
     } ?: 0
-    val filterCounts = EntryFilter.entries.associateWith { item -> filteredEntries(current.document, item).size }
-    val entries = filteredEntries(current.document, filter)
+    val attentionEntries = if (missingEnglish.isNotEmpty()) missingEnglish
+        else if (!current.document.editorReviewComplete) current.document.entries else emptyList()
+    val filterEntries = mapOf(
+        EntryFilter.ALL to current.document.entries,
+        EntryFilter.NEEDS_ATTENTION to attentionEntries,
+        EntryFilter.SUPPLIED to suppliedEntries,
+        EntryFilter.UNSUPPLIED to missingEnglish,
+    )
+    val filterCounts = filterEntries.mapValues { it.value.size }
+    val entries = filterEntries.getValue(filter)
     val headerExpanded by remember {
         derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 48 }
     }
     val activeFilterCount = (if (showQa) 1 else 0) + (if (!showQa && filter != EntryFilter.ALL) 1 else 0)
     val hasLocalChanges = current.raw != current.remote.content || current.endnoteProposals?.changed == true
-    val qaPassReusable = current.qa?.document?.qaPassReusable(current.document) == true
     val qaPassStale = current.qa?.document?.qaPass != null && !qaPassReusable
     val closedReusableQaPass = qaPassReusable &&
         current.qa?.document?.active(current.document, editorContentSha).orEmpty().isEmpty()
     val readyForApproval = !current.approved &&
         !hasLocalChanges &&
         current.document.editorReviewComplete &&
-        current.document.englishSupplied == current.document.englishTotal &&
+        suppliedEnglishCount == current.document.englishTotal &&
         closedReusableQaPass
     val primaryCommitLabel = when {
         readyForApproval -> "Approve Chapter"
@@ -419,7 +453,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             TopAppBar(
                 title = {
                     Text(
-                        "V${current.file.volume} Ch ${current.file.chapter} • ${current.document.englishSupplied}/${current.document.englishTotal}",
+                        "V${current.file.volume} Ch ${current.file.chapter} • ${suppliedEnglishCount}/${current.document.englishTotal}",
                         maxLines = 1,
                     )
                 },
@@ -459,7 +493,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 showWholeFile = !showWholeFile
                                 showQa = false
                             },
-                            enabled = !busy,
+                            enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid,
                         )
                         imported?.let { overlay ->
                             DropdownMenuItem(
@@ -518,23 +552,39 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 WholeFileEditor(
                     raw = current.raw,
                     onRawChange = { raw ->
-                        val parsed = runCatching { IntakeParser.parse(raw) }.getOrNull()
-                        current = current.copy(raw = raw, document = parsed ?: current.document, approved = false)
+                        current = current.copy(raw = raw, approved = false)
+                        wholeFilePending = true
+                        wholeFileInvalid = false
                         onDraft(current)
                         editorNotice = null
                     },
                     onValidate = {
-                        runCatching {
-                            IntakeParser.validate(current.raw).getOrThrow()
-                            val parsed = IntakeParser.parse(current.raw)
-                            current = current.copy(document = parsed, approved = false)
-                            onDraft(current)
-                        }.onSuccess {
-                            editorNotice = "Whole file is valid and synced."
-                        }.onFailure {
-                            editorNotice = it.message ?: "Whole file is invalid."
+                        val raw = current.raw
+                        wholeFileValidating = true
+                        scope.launch {
+                            val result = withContext(Dispatchers.Default) {
+                                runCatching {
+                                    IntakeParser.validate(raw).getOrThrow()
+                                    IntakeParser.parse(raw)
+                                }
+                            }
+                            if (current.raw == raw) {
+                                result.onSuccess { parsed ->
+                                    current = current.copy(document = parsed, approved = false)
+                                    wholeFilePending = false
+                                    wholeFileInvalid = false
+                                    onDraft(current)
+                                    editorNotice = "Whole file is valid and synced."
+                                }.onFailure {
+                                    editorNotice = it.message ?: "Whole file is invalid."
+                                }
+                            }
+                            wholeFileValidating = false
                         }
                     },
+                    validating = wholeFileValidating,
+                    pending = wholeFilePending,
+                    invalid = wholeFileInvalid,
                     modifier = Modifier.weight(1f),
                 )
             } else {
@@ -542,7 +592,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     QaFindingsView(
                         snapshot = current.qa,
                         editor = current.document,
-                        editorSha = QaFindingsParser.editorContentSha256(current.raw),
+                        editorSha = editorContentSha,
                         busy = busy,
                         onOverride = { id, reason -> onOverride(current, id, reason) },
                         onResolve = { id -> onResolve(current, id) },
@@ -601,7 +651,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) {
                     IconButton(
                         onClick = { jumpToFirstMissing() },
-                        enabled = !busy && missingEnglish.isNotEmpty(),
+                        enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && missingEnglish.isNotEmpty(),
                     ) {
                         Icon(Icons.Default.NavigateNext, "Go to first unsupplied English")
                     }
@@ -611,7 +661,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) {
                     IconButton(
                         onClick = { cycleAttention() },
-                        enabled = !busy && unresolvedAttentionCount > 0,
+                        enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && unresolvedAttentionCount > 0,
                     ) {
                         Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
                     }
@@ -622,7 +672,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 Spacer(Modifier.weight(1f))
                 Button(
                     onClick = { if (readyForApproval) showApprove = true else showCommit = true },
-                    enabled = !busy && !importBusy && !current.approved,
+                    enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && !current.approved,
                 ) { Text(primaryCommitLabel) }
             }
         }
@@ -833,16 +883,6 @@ private fun selectedFileName(context: Context, uri: android.net.Uri): String? = 
         if (index >= 0) cursor.getString(index) else null
     }
 }.getOrNull()
-
-private fun filteredEntries(document: EditorDocument, filter: EntryFilter): List<EditorEntry> = when (filter) {
-    EntryFilter.NEEDS_ATTENTION -> {
-        val missing = document.entries.filterNot { it.isSupplied }
-        if (missing.isNotEmpty()) missing else if (!document.editorReviewComplete) document.entries else emptyList()
-    }
-    EntryFilter.ALL -> document.entries
-    EntryFilter.SUPPLIED -> document.entries.filter { it.isSupplied }
-    EntryFilter.UNSUPPLIED -> document.entries.filterNot { it.isSupplied }
-}
 
 private fun pendingSuggestionLocators(chapter: OpenChapter): List<String> {
     val pending = chapter.endnoteProposals?.document?.proposals.orEmpty()
@@ -1391,13 +1431,17 @@ LaunchedEffect(qaFindings) {
 }
 
 @Composable
-private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, modifier: Modifier = Modifier) {
+private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, validating: Boolean, pending: Boolean, invalid: Boolean, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Direct schema-v6 YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-            IconButton(onClick = onValidate) { Icon(Icons.Default.CheckCircle, "Validate whole file") }
+            IconButton(onClick = onValidate, enabled = !validating) { Icon(Icons.Default.CheckCircle, "Validate whole file") }
         }
-        Text("Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)
+        Text(when {
+            pending -> "Syncing edits…"
+            invalid -> "This draft could not be parsed. Fix it or validate for details before switching views."
+            else -> "Exceptional edits only. Normal editing should change English fields in Cards view."
+        }, style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(value = raw, onValueChange = onRawChange, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
     }
 }

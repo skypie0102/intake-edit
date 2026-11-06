@@ -302,7 +302,7 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
             ?: throw GitHubException("GitHub did not return a commit id for the atomic update.")
     }
 
-    private suspend fun getFileAtRef(path: String, ref: String): FileSnapshot {
+    internal suspend fun getFileAtRef(path: String, ref: String): FileSnapshot {
         val response = request("GET", "$repoBase/contents/${encodePath(path)}?ref=${encode(ref)}")
         val bytes = Base64.decode(response.getString("content").replace("\n", ""), Base64.DEFAULT)
         return FileSnapshot(path, response.getString("sha"), String(bytes, StandardCharsets.UTF_8))

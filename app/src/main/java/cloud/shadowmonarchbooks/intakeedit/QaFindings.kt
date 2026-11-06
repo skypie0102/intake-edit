@@ -80,8 +80,11 @@ data class QaFindingsDocument(
     fun activeBlocking(editor: EditorDocument, editorContentSha256: String) =
         active(editor, editorContentSha256).filter { it.severity == "error" || it.severity == "blocking" }
 
-    fun canResolve(finding: QaFinding, editor: EditorDocument): Boolean {
-        if (!qaPassReusable(editor)) return false
+    fun canResolve(finding: QaFinding, editor: EditorDocument): Boolean =
+        canResolve(finding, editor, qaPassReusable(editor))
+
+    internal fun canResolve(finding: QaFinding, editor: EditorDocument, reusablePass: Boolean): Boolean {
+        if (!reusablePass) return false
         val baseline = finding.baselineContentSha256 ?: return false
         return QaFindingsParser.findingContentSha256(editor, finding.locator) != baseline
     }

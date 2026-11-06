@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -220,7 +222,13 @@ internal class ChapterListViewModel(
         settings: RepoSettings,
         volume: Int,
     ) {
-        val indexed = runCatching { repository.loadVolumeStatus(volume) }.getOrNull()
+        val indexed = try {
+            repository.loadVolumeStatus(volume)
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            null
+        }
+        currentCoroutineContext().ensureActive()
         if (indexed != null) {
             if (_uiState.value.selectedVolume != volume) return
             _uiState.update { state ->
@@ -246,6 +254,7 @@ internal class ChapterListViewModel(
         }
 
         val listed = repository.listFiles(volume)
+        currentCoroutineContext().ensureActive()
         val listedPaths = listed.mapTo(hashSetOf()) { it.path }
         _uiState.update { state ->
             state.copy(
@@ -270,45 +279,49 @@ internal class ChapterListViewModel(
         files: List<ChapterFile>,
     ) {
         coroutineScope {
-            files.forEach { file ->
+            val iterator = files.iterator()
+            repeat(minOf(4, files.size)) {
                 launch {
-                    val loaded = progressConcurrency.withPermit {
-                        try {
-                            repository.loadBaseProgress(file)
-                        } catch (t: Throwable) {
-                            if (t is CancellationException) throw t
-                            _uiState.update { state ->
-                                state.copy(notice = "Could not load Chapter ${file.chapter} status: ${t.message ?: "editor fetch failed"}")
+                    while (iterator.hasNext()) {
+                        val file = iterator.next()
+                        val loaded = progressConcurrency.withPermit {
+                            try {
+                                repository.loadBaseProgress(file)
+                            } catch (t: Throwable) {
+                                if (t is CancellationException) throw t
+                                _uiState.update { state ->
+                                    state.copy(notice = "Could not load Chapter ${file.chapter} status: ${t.message ?: "editor fetch failed"}")
+                                }
+                                null
                             }
-                            null
-                        }
-                    } ?: return@launch
+                        } ?: continue
 
-                    val qaCounts = progressConcurrency.withPermit {
-                        try {
-                            repository.loadQaCounts(file, loaded.document, loaded.editorContentSha256)
-                        } catch (t: Throwable) {
-                            if (t is CancellationException) throw t
-                            _uiState.update { state ->
-                                state.copy(notice = "Could not load Chapter ${file.chapter} QA status: ${t.message ?: "QA fetch failed"}")
+                        val qaCounts = progressConcurrency.withPermit {
+                            try {
+                                repository.loadQaCounts(file, loaded.document, loaded.editorContentSha256)
+                            } catch (t: Throwable) {
+                                if (t is CancellationException) throw t
+                                _uiState.update { state ->
+                                    state.copy(notice = "Could not load Chapter ${file.chapter} QA status: ${t.message ?: "QA fetch failed"}")
+                                }
+                                null
                             }
-                            null
-                        }
-                    } ?: return@launch
+                        } ?: continue
 
-                    if (_uiState.value.selectedVolume != volume) return@launch
-                    _uiState.update { state ->
-                        state.copy(
-                            progressByPath = state.progressByPath + (
-                                file.path to loaded.progress.copy(
-                                    qaActive = qaCounts.active,
-                                    qaTotal = qaCounts.total,
-                                    qaReusable = qaCounts.reusable,
-                                )
-                            ),
-                        )
+                        if (_uiState.value.selectedVolume != volume) return@launch
+                        _uiState.update { state ->
+                            state.copy(
+                                progressByPath = state.progressByPath + (
+                                    file.path to loaded.progress.copy(
+                                        qaActive = qaCounts.active,
+                                        qaTotal = qaCounts.total,
+                                        qaReusable = qaCounts.reusable,
+                                    )
+                                ),
+                            )
+                        }
+                        scheduleCacheSave(settings)
                     }
-                    scheduleCacheSave(settings)
                 }
             }
         }
