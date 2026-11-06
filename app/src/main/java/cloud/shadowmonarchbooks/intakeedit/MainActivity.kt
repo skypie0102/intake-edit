@@ -26,7 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -380,7 +380,7 @@ internal fun ChapterListScreen(
                 title = { Text(selectedVolume?.let { "Chapter Intake • V$it" } ?: "Chapter Intake") },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = openingPath == null && !bulkApproving) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
@@ -567,7 +567,7 @@ private fun SettingsScreen(
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("Repository settings") },
-            navigationIcon = { if (canCancel) IconButton(onClick = onCancel) { Icon(Icons.Default.ArrowBack, "Back") } },
+            navigationIcon = { if (canCancel) IconButton(onClick = onCancel) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
         )
     }) { padding ->
         Column(
