@@ -12,7 +12,7 @@ Not planned for now; retained for future reference, not marked complete.
 
 ## 2. Android performance and interaction polish
 
-Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. The next pass loads a consistent glossary snapshot with bounded concurrent requests, moves its parsing and indexing off the UI thread, and reuses editor derived data across unrelated recompositions. Representative-device profiling remains outstanding.
+Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. The next pass loads a consistent glossary snapshot with bounded concurrent requests, moves its parsing and indexing off the UI thread, reuses editor derived data across unrelated recompositions, and cancels obsolete volume refreshes without starting a stale compatibility fallback. Representative-device profiling remains outstanding.
 
 - [ ] Profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File editing path on representative devices and chapter files.
 - [ ] Address measured input jank, background-work responsiveness, or interaction issues. Revisit spacing, button density, and screen-space use where profiling identifies a need.
