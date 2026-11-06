@@ -127,6 +127,7 @@ class ChapterListViewModelTest {
         var state = viewModel.uiState.value
         assertEquals(listOf(file), state.files)
         assertEquals(cachedProgress, state.progressByPath[file.path])
+        assertEquals(ChapterDataSource.CACHED, state.dataSource)
         assertEquals(1, state.selectedVolume)
         assertTrue(state.refreshing)
 
@@ -135,6 +136,7 @@ class ChapterListViewModelTest {
 
         state = viewModel.uiState.value
         assertFalse(state.refreshing)
+        assertEquals(ChapterDataSource.DIRECT, state.dataSource)
         assertEquals(ChapterProgress(4, 6, false, qaActive = 1, qaTotal = 2), state.progressByPath[file.path])
         assertEquals(state.files, cache.saved?.files)
         assertEquals(state.progressByPath, cache.saved?.progressByPath)
