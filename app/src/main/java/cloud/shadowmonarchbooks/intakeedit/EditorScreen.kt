@@ -24,7 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.ContentCopy
@@ -33,9 +33,9 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NavigateNext
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
@@ -493,7 +493,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.Default.ArrowBack, "Back") }
+                    IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                 },
                 actions = {
                     Icon(
@@ -691,7 +691,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         onClick = { jumpToFirstMissing() },
                         enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && missingEnglish.isNotEmpty(),
                     ) {
-                        Icon(Icons.Default.NavigateNext, "Go to first unsupplied English")
+                        Icon(Icons.AutoMirrored.Filled.NavigateNext, "Go to first unsupplied English")
                     }
                 }
                 BadgedBox(
@@ -1271,7 +1271,7 @@ LaunchedEffect(qaFindings) {
                     enabled = rich.hasSelection() && entry.locator.startsWith("P"),
                 ) { Text("N", textDecoration = TextDecoration.Underline) }
                 IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
-                    Icon(Icons.Default.Undo, "Undo English edit")
+                    Icon(Icons.AutoMirrored.Filled.Undo, "Undo English edit")
                 }
                 importedTranslation?.let { importedText ->
                     TextButton(onClick = {
