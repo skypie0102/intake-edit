@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -220,7 +222,13 @@ internal class ChapterListViewModel(
         settings: RepoSettings,
         volume: Int,
     ) {
-        val indexed = runCatching { repository.loadVolumeStatus(volume) }.getOrNull()
+        val indexed = try {
+            repository.loadVolumeStatus(volume)
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            null
+        }
+        currentCoroutineContext().ensureActive()
         if (indexed != null) {
             if (_uiState.value.selectedVolume != volume) return
             _uiState.update { state ->
@@ -246,6 +254,7 @@ internal class ChapterListViewModel(
         }
 
         val listed = repository.listFiles(volume)
+        currentCoroutineContext().ensureActive()
         val listedPaths = listed.mapTo(hashSetOf()) { it.path }
         _uiState.update { state ->
             state.copy(
