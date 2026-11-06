@@ -12,11 +12,12 @@ Not planned for now; retained for future reference, not marked complete.
 
 ## 2. Android performance and interaction polish
 
-Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. The next pass loads a consistent glossary snapshot with bounded concurrent requests, moves its parsing and indexing off the UI thread, reuses editor derived data across unrelated recompositions, and cancels obsolete volume refreshes without starting a stale compatibility fallback. Physical-device testing and profiling are deferred at the user's request; revisit them if issues are reported.
+Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. The next pass loads a consistent glossary snapshot with bounded concurrent requests, moves its parsing and indexing off the UI thread, reuses editor derived data across unrelated recompositions, and cancels obsolete volume refreshes without starting a stale compatibility fallback. The latest pass bounds fallback refresh workers, reuses QA pass calculations, and parses and validates Whole File edits off the UI thread. Physical-device testing and profiling are deferred at the user's request; revisit them if issues are reported.
 
 - [ ] Deferred: profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and Whole File editing on representative Android devices and chapter files.
 - [ ] Deferred: investigate device performance or interaction issues if reported, including spacing and screen-space use where needed.
-- [x] Run available regression tests and Android CI builds.\n- [ ] Deferred: verify navigation responsiveness on a physical Android device.
+- [x] Run available regression tests and Android CI builds.
+- [ ] Deferred: verify navigation responsiveness on a physical Android device.
 
 Preserve the existing single-entry typing path, debounced off-main draft persistence, off-main XLIFF processing, and editor state across QA override refreshes.
 
