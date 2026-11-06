@@ -12,9 +12,11 @@ Not planned for now; retained for future reference, not marked complete.
 
 ## 2. Android performance and interaction polish
 
-Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. Representative-device profiling remains outstanding.
+Physical-device testing and profiling are deferred at the user's request; revisit them if issues are reported. The current optimization work is in [PR #54](https://github.com/skypie0102/intake-edit/pull/54).
 
-- [ ] Profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File editing path on representative devices and chapter files.
+Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. Physical-device profiling has not been performed.
+
+- [ ] Deferred: profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File editing path on representative devices and chapter files.
 - [ ] Address measured input jank, background-work responsiveness, or interaction issues. Revisit spacing, button density, and screen-space use where profiling identifies a need.
 - [ ] Verify navigation stays responsive and regression tests and CI pass.
 
