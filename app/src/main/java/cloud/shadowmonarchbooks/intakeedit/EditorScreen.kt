@@ -694,11 +694,11 @@ fun stageProposalDecision(proposalId: String, status: String) {
             title = { Text("Saved older drafts") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text("These drafts were based on older chapter revisions. Open one to inspect or copy its text.")
+                    Text("Open a draft to inspect or copy it. Older-format drafts have no recorded project, so check them before restoring.")
                     recoveryDrafts.forEach { draft ->
                         val saved = java.text.DateFormat.getDateTimeInstance().format(java.util.Date(draft.savedAtMillis))
                         TextButton(onClick = { selectedSavedDraft = draft; showSavedDrafts = false }) {
-                            Text("$saved • ${draft.baseSha.take(8)}")
+                            Text("$saved • ${draft.baseSha.take(8)}${if (draft.legacyUnassigned) " • project unknown" else ""}")
                         }
                     }
                 }
@@ -718,7 +718,23 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     editorNotice = "Older draft copied."
                 }) { Text("Copy draft") }
             },
-            dismissButton = { TextButton(onClick = { selectedSavedDraft = null }) { Text("Close") } },
+            dismissButton = {
+                Row {
+                    if (draft.baseSha == current.remote.sha) {
+                        TextButton(onClick = {
+                            current = current.copy(raw = draft.raw, approved = false, rawNeedsRepair = true)
+                            showWholeFile = true
+                            showQa = false
+                            wholeFileInvalid = false
+                            wholeFilePending = true
+                            onDraft(current)
+                            selectedSavedDraft = null
+                            editorNotice = "Draft restored for review. Its original copy remains saved."
+                        }, enabled = !busy) { Text("Restore matching draft") }
+                    }
+                    TextButton(onClick = { selectedSavedDraft = null }) { Text("Close") }
+                }
+            },
         )
     }
 
