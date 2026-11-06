@@ -9,7 +9,7 @@ This is the single current roadmap. Completed plans and superseded roadmaps are 
 - [x] Reopen incomplete Whole File drafts in a repairable raw editor without losing their contents.
 - [x] Preserve drafts whose base revision changed and provide an editor view to inspect and copy them.
 - [ ] Add an export flow for preserved drafts and verify recovery across app restarts.
-- [ ] Isolate drafts by repository, branch, and chapter, with a safe migration for existing drafts.
+- [x] Isolate drafts by repository, branch, and chapter. Keep older unassigned drafts available for explicit inspection and recovery; never guess their project.
 - [ ] Add regression tests for failed writes, interrupted editing, stale drafts, and recovery.
 
 ## 2. Complete chapter lists and reliable QA state
