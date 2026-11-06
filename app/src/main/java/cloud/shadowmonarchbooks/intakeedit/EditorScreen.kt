@@ -74,6 +74,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -734,7 +736,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
         AlertDialog(
             onDismissRequest = { selectedSavedDraft = null },
             title = { Text("Older draft") },
-            text = { OutlinedTextField(value = draft.raw, onValueChange = {}, readOnly = true, minLines = 8, maxLines = 16, modifier = Modifier.fillMaxWidth()) },
+            text = { OutlinedTextField(value = draft.raw, onValueChange = {}, label = { Text("Saved draft contents") }, readOnly = true, minLines = 8, maxLines = 16, modifier = Modifier.fillMaxWidth()) },
             confirmButton = {
                 TextButton(onClick = {
                     clipboard.setText(AnnotatedString(draft.raw))
@@ -1217,7 +1219,7 @@ LaunchedEffect(qaFindings) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             )
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1228,7 +1230,7 @@ LaunchedEffect(qaFindings) {
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
                     },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(48.dp).semantics { contentDescription = "Bold selection" },
                     enabled = rich.hasSelection(),
                 ) { Text("B", fontWeight = FontWeight.Bold) }
                 IconButton(
@@ -1238,7 +1240,7 @@ LaunchedEffect(qaFindings) {
                         onEnglishChange(rich.toMarkup())
                         focusRequester.requestFocus()
                     },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(48.dp).semantics { contentDescription = "Italicize selection" },
                     enabled = rich.hasSelection(),
                 ) { Text("I", fontStyle = FontStyle.Italic) }
                 IconButton(
@@ -1263,13 +1265,12 @@ LaunchedEffect(qaFindings) {
                             ).show()
                         }
                     },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(48.dp).semantics { contentDescription = "Edit endnote for selection" },
                     enabled = rich.hasSelection() && entry.locator.startsWith("P"),
                 ) { Text("N", textDecoration = TextDecoration.Underline) }
                 IconButton(onClick = ::undoEdit, enabled = history.canUndo) {
                     Icon(Icons.Default.Undo, "Undo English edit")
                 }
-                Spacer(Modifier.weight(1f))
                 importedTranslation?.let { importedText ->
                     TextButton(onClick = {
                         focusManager.clearFocus(force = true)
@@ -1544,7 +1545,7 @@ private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValida
             invalid -> "This draft could not be parsed. Fix it or validate for details before switching views."
             else -> "Exceptional edits only. Normal editing should change English fields in Cards view."
         }, style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(value = raw, onValueChange = onRawChange, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
+        OutlinedTextField(value = raw, onValueChange = onRawChange, label = { Text("Whole file YAML") }, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
     }
 }
 
