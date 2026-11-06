@@ -53,11 +53,14 @@ data class GlossaryDocuments(
     val governance: Map<String, GlossaryOverride>,
     val proposals: List<GlossaryProposal>,
 ) {
-    val effectiveEntries: List<GlossaryEntry> get() = GlossaryParser.merge(baseEntries, additions, governance)
-    val pendingProposals: List<GlossaryProposal> get() {
-        val effective = effectiveEntries
-        return proposals.filter { proposal ->
-            proposal.status == "pending" && !(proposal.action == "new_entry" && GlossaryParser.duplicatesApprovedEntry(proposal, effective))
+    // A snapshot is immutable; share the merged index across all UI consumers.
+    val effectiveEntries: List<GlossaryEntry> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        GlossaryParser.merge(baseEntries, additions, governance)
+    }
+    val pendingProposals: List<GlossaryProposal> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        val index = GlossaryParser.approvedIndex(effectiveEntries)
+        proposals.filter { proposal ->
+            proposal.status == "pending" && !index.duplicates(proposal)
         }
     }
 }
@@ -74,14 +77,25 @@ object GlossaryParser {
         .replace(glossaryWhitespaceRegex, " ")
         .lowercase()
 
-    fun duplicatesApprovedEntry(proposal: GlossaryProposal, effectiveEntries: List<GlossaryEntry>): Boolean {
-        if (proposal.action != "new_entry") return false
-        val existingSources = effectiveEntries.flatMap { it.sourceAliases }.map(::normalizeSource).toSet()
-        if (proposal.sourceAliases.any { normalizeSource(it) in existingSources }) return true
-        val translated = proposal.translatedName?.takeIf { it.isNotBlank() } ?: return false
-        val existingEnglish = effectiveEntries.map { normalizeEnglish(it.translatedName) }.toSet()
-        return normalizeEnglish(translated) in existingEnglish
+    internal class ApprovedIndex(
+        private val sources: Set<String>,
+        private val english: Set<String>,
+    ) {
+        fun duplicates(proposal: GlossaryProposal): Boolean {
+            if (proposal.action != "new_entry") return false
+            if (proposal.sourceAliases.any { normalizeSource(it) in sources }) return true
+            val translated = proposal.translatedName?.takeIf { it.isNotBlank() } ?: return false
+            return normalizeEnglish(translated) in english
+        }
     }
+
+    internal fun approvedIndex(entries: List<GlossaryEntry>): ApprovedIndex = ApprovedIndex(
+        sources = entries.asSequence().flatMap { it.sourceAliases.asSequence() }.map(::normalizeSource).toSet(),
+        english = entries.asSequence().map { normalizeEnglish(it.translatedName) }.toSet(),
+    )
+
+    fun duplicatesApprovedEntry(proposal: GlossaryProposal, effectiveEntries: List<GlossaryEntry>): Boolean =
+        proposal.action == "new_entry" && approvedIndex(effectiveEntries).duplicates(proposal)
 
     fun ensureNewEntryAbsent(entry: GlossaryEntry, effectiveEntries: List<GlossaryEntry>) {
         val proposal = GlossaryProposal(
