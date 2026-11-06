@@ -1,6 +1,11 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
@@ -78,6 +83,25 @@ class EditorInteractionAndroidTest {
             }
         }
         compose.onNodeWithText("Open Glossary").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun chapterListOpensTheSelectedChapter() {
+        val file = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        var selected: ChapterFile? = null
+        compose.setContent {
+            var opened by remember { mutableStateOf(false) }
+            MaterialTheme {
+                if (opened) Text("Chapter opened") else ChapterListScreen(
+                    files = listOf(file), progressByPath = emptyMap(), availableVolumes = listOf(1), selectedVolume = 1,
+                    refreshing = false, dataSource = ChapterDataSource.INDEX, bulkApproving = false,
+                    approvalRequestedPaths = emptySet(), openingPath = null, notice = null, onBack = {}, onRefresh = {},
+                    onSettings = {}, onSelectVolume = {}, onOpen = { selected = it; opened = true }, onApproveAll = {},
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Open chapter").performClick()
+        compose.onNodeWithText("Chapter opened").assertIsDisplayed()
+        assertTrue(selected == file)
     }
 
     @Test fun workspaceButtonsNavigateToRequestedSection() {
