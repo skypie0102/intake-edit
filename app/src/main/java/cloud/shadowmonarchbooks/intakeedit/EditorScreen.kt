@@ -747,7 +747,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 }) { Text("Copy draft") }
             },
             dismissButton = {
-                Row {
+                Column(horizontalAlignment = Alignment.End) {
                     TextButton(onClick = {
                         draftForExport = draft
                         draftExportLauncher.launch("chapter-${current.file.chapter}-draft.yml")
