@@ -1,5 +1,14 @@
 package cloud.shadowmonarchbooks.intakeedit
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+
 private val GLOSSARY_BASE_PATHS = listOf(
     "glossary/full/characters.txt",
     "glossary/full/locations.txt",
@@ -45,26 +54,46 @@ internal object DefaultGlossaryRepositoryFactory : GlossaryRepositoryFactory {
         GitHubGlossaryRepository(settings, token)
 }
 
+/** Load one coherent branch snapshot, with bounded independent requests and off-main parsing. */
+internal suspend fun loadGlossarySnapshot(
+    readHead: suspend () -> String,
+    readFile: suspend (String, String) -> FileSnapshot,
+    parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
+): GlossarySnapshot = coroutineScope {
+    val ref = readHead()
+    val paths = GLOSSARY_BASE_PATHS + listOf(
+        GLOSSARY_ADDITIONS_PATH, GLOSSARY_GOVERNANCE_PATH, GLOSSARY_PROPOSALS_PATH,
+    )
+    val permits = Semaphore(4)
+    val files = paths.map { path -> async { permits.withPermit { readFile(path, ref) } } }.awaitAll()
+    withContext(parseDispatcher) {
+        val base = files.take(GLOSSARY_BASE_PATHS.size)
+        val additions = files[GLOSSARY_BASE_PATHS.size]
+        val governance = files[GLOSSARY_BASE_PATHS.size + 1]
+        val proposals = files[GLOSSARY_BASE_PATHS.size + 2]
+        val documents = GlossaryDocuments(
+            baseEntries = base.flatMap { GlossaryParser.parseBaseFile(it.content) },
+            additions = GlossaryParser.parseAdditions(additions.content),
+            governance = GlossaryParser.parseGovernance(governance.content),
+            proposals = GlossaryParser.parseProposals(proposals.content),
+        )
+        // Build expensive derived data here instead of during the first Compose frame.
+        documents.effectiveEntries
+        documents.pendingProposals
+        GlossarySnapshot(base, additions, governance, proposals, documents)
+    }
+}
+
 internal class GitHubGlossaryRepository(
     settings: RepoSettings,
     token: String,
 ) : GlossaryRepository {
     private val client = GitHubApi(settings, token)
 
-    override suspend fun load(): GlossarySnapshot {
-        val base = GLOSSARY_BASE_PATHS.map { client.getFile(it) }
-        val additions = client.getFile(GLOSSARY_ADDITIONS_PATH)
-        val governance = client.getFile(GLOSSARY_GOVERNANCE_PATH)
-        val proposals = client.getFile(GLOSSARY_PROPOSALS_PATH)
-        val baseEntries = base.flatMap { GlossaryParser.parseBaseFile(it.content) }
-        val documents = GlossaryDocuments(
-            baseEntries = baseEntries,
-            additions = GlossaryParser.parseAdditions(additions.content),
-            governance = GlossaryParser.parseGovernance(governance.content),
-            proposals = GlossaryParser.parseProposals(proposals.content),
-        )
-        return GlossarySnapshot(base, additions, governance, proposals, documents)
-    }
+    override suspend fun load(): GlossarySnapshot = loadGlossarySnapshot(
+        readHead = { client.getBranchHead().sha },
+        readFile = { path, ref -> client.getFileAtRef(path, ref) },
+    )
 
     override suspend fun saveApprovedEntry(state: GlossarySnapshot, entry: GlossaryEntry, allowNew: Boolean) {
         val additionIndex = state.documents.additions.indexOfFirst { it.id == entry.id }
