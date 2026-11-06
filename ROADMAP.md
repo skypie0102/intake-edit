@@ -12,8 +12,6 @@ Not planned for now; retained for future reference, not marked complete.
 
 ## 2. Android performance and interaction polish
 
-Physical-device testing and profiling are deferred at the user's request; revisit them if issues are reported. The current optimization work is in [PR #54](https://github.com/skypie0102/intake-edit/pull/54).
-
 Status: the first optimization pass caches chapter and glossary filter results across unrelated recompositions, stops the refresh animation while idle, updates individual English fields without rewriting the chapter, and moves chapter parsing and draft restoration off the UI thread. Representative-device profiling remains outstanding.
 
 - [ ] Profile typing, chapter opening, list refresh, glossary loading, XLIFF import, and the exceptional Whole File editing path on representative devices and chapter files.
@@ -33,3 +31,5 @@ Not planned for now; retained for future reference, not marked complete.
 The user confirmed on November 6, 2026 that the frame-fade flicker stopped. That confirmation does not establish completion of the other checks.
 
 Completed companion transitions and idle animations are documented in the [animation milestone archive](docs/archive/COMPANION_ANIMATION_MILESTONE_2026-11.md). Device and launcher validation remains deferred under item 3.
+
+Physical Android device testing and profiling are deferred at the user's request and may be revisited if issues are reported. The current performance work is in [PR #54](https://github.com/skypie0102/intake-edit/pull/54).
