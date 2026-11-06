@@ -1,6 +1,6 @@
 # Companion idle-animation design
 
-This is a design reference for the additional actions tracked in the [current roadmap](../ROADMAP.md), not a separate task tracker. Existing five-state reactions and shared reading, writing, and page turning remain in place. The user approved the first-pass in-app mood transition and the ten additional idle sequences. This document is a design reference; completed work is recorded in the [animation milestone archive](archive/COMPANION_ANIMATION_MILESTONE_2026-11.md).
+This is a design reference for the completed companion animations and the [current roadmap](../ROADMAP.md), not a separate task tracker. Existing five-state reactions and shared reading, writing, and page turning remain in place. The user approved the first-pass in-app mood transition and the ten additional idle sequences. This document is a design reference; completed work is recorded in the [animation milestone archive](archive/COMPANION_ANIMATION_MILESTONE_2026-11.md).
 
 ## Happy
 
@@ -64,5 +64,5 @@ Move his eyes visibly from left to right and back. Lean a little closer, pause a
 - Vary the intervals of quiet reading and the next action; avoid repeating symbols or humming on a short fixed loop.
 - Keep the eyes, face, monocle, tuft, hands, book, and bookmark connected. Maintain one continuous arm per side and do not add a finger grip. Keep the body extending behind the book.
 - Cancel the outgoing action on a mood change and use the approved transition. Avoid whole-character fades, flashing, abrupt pose jumps, and excessive body sway.
-- Preserve complete animation sequences and ensure gestures remain readable at widget size. Widget validation remains deferred under roadmap item 3; do not claim it is complete.
+- Preserve complete animation sequences and ensure gestures remain readable at widget size. Widget validation remains deferred in the roadmap; do not claim it is complete.
 - The user reviewed the individual previews before integration.
