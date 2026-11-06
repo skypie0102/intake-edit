@@ -76,27 +76,19 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
     suspend fun listIntakeFiles(volume: Int): List<ChapterFile> {
         require(volume >= 0) { "Volume must be non-negative." }
         val root = settings.intakeRoot.trim('/')
-        val volumeDir = "vol-${volume.toString().padStart(2, '0')}"
-        val relative = listOf(root, volumeDir, "chapters").filter { it.isNotBlank() }.joinToString("/")
-        val entries = requestArray(
-            "GET",
-            "$repoBase/contents/${encodePath(relative)}?ref=${encode(settings.branch)}",
-        )
-        val chapterRegex = Regex("""ch_(\d+)\.yml""")
-        return buildList {
-            for (i in 0 until entries.length()) {
-                val item = entries.getJSONObject(i)
-                if (item.optString("type") != "file") continue
-                val match = chapterRegex.matchEntire(item.optString("name")) ?: continue
-                add(
-                    ChapterFile(
-                        path = item.getString("path"),
-                        volume = volume,
-                        chapter = match.groupValues[1].toInt(),
-                    ),
-                )
-            }
-        }.sortedBy { it.chapter }
+        val relative = listOf(root, "vol-${volume.toString().padStart(2, '0')}", "chapters")
+            .filter { it.isNotBlank() }.joinToString("/")
+        val commit = request("GET", "$repoBase/git/commits/${encode(getBranchHead().sha)}")
+        var treeSha = commit.getJSONObject("tree").getString("sha")
+        for (segment in relative.split('/')) {
+            val tree = request("GET", "$repoBase/git/trees/${encode(treeSha)}")
+            val entries = completeTreeEntries(tree)
+            val folder = (0 until entries.length()).asSequence().map { entries.getJSONObject(it) }
+                .firstOrNull { it.optString("path") == segment && it.optString("type") == "tree" }
+                ?: throw GitHubException("Chapter directory not found: $relative")
+            treeSha = folder.getString("sha")
+        }
+        return chapterFilesFromTree(request("GET", "$repoBase/git/trees/${encode(treeSha)}"), relative, volume)
     }
 
     suspend fun getBranchHead(): GitHubBranchHead {
@@ -357,7 +349,9 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                     val apiMessage = json.optString("message")
                     val friendly = when (status) {
                         401 -> "GitHub returned 401 Bad credentials. This token is invalid, expired, or revoked on GitHub; reinstalling Intake Edit does not consume or rotate personal access tokens."
-                        403 -> if (path.contains("/actions/workflows/")) {
+                        403, 429 -> if (status == 429 || connection.getHeaderField("X-RateLimit-Remaining") == "0" || connection.getHeaderField("Retry-After") != null) {
+                            "GitHub is rate-limiting requests. Wait and retry the refresh."
+                        } else if (path.contains("/actions/workflows/")) {
                             "GitHub denied workflow dispatch. Check repository access and grant this token Actions: write permission."
                         } else {
                             "GitHub denied this operation. Check repository access and Contents permissions."
@@ -372,8 +366,31 @@ class GitHubApi(private val settings: RepoSettings, private val token: String) {
                     throw GitHubException(friendly, status)
                 }
                 text
+            } catch (error: java.net.UnknownHostException) {
+                throw GitHubException("Cannot reach GitHub. Check your internet connection and retry.")
+            } catch (error: java.net.SocketTimeoutException) {
+                throw GitHubException("GitHub took too long to respond. Check your connection and retry.")
             } finally {
                 connection.disconnect()
             }
         }
+}
+
+internal fun completeTreeEntries(tree: JSONObject): JSONArray {
+    require(!tree.optBoolean("truncated", false)) { "GitHub returned a truncated directory tree; the chapter list cannot be shown safely." }
+    return tree.getJSONArray("tree")
+}
+
+internal fun chapterFilesFromTree(tree: JSONObject, directory: String, volume: Int): List<ChapterFile> {
+    val entries = completeTreeEntries(tree)
+    val chapterRegex = Regex("""ch_(\d+)\.yml""")
+    return buildList {
+        for (index in 0 until entries.length()) {
+            val item = entries.getJSONObject(index)
+            if (item.optString("type") != "blob") continue
+            val name = item.optString("path")
+            val match = chapterRegex.matchEntire(name) ?: continue
+            add(ChapterFile("$directory/$name", volume, match.groupValues[1].toInt()))
+        }
+    }.sortedBy { it.chapter }
 }
