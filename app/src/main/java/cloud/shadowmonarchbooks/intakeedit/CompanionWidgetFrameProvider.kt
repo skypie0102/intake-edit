@@ -24,8 +24,9 @@ class CompanionWidgetFrameProvider : ContentProvider() {
         val segments = uri.pathSegments
         val mood = PetMood.entries.firstOrNull { segments.size == 2 && it.name == segments[0] }
         val frame = segments.getOrNull(1)?.toIntOrNull()
-        if (mode != "r" || mood == null || frame == null || frame !in 0 until 384) throw FileNotFoundException()
+        if (mode != "r" || mood == null || frame == null) throw FileNotFoundException()
         val context = context ?: throw FileNotFoundException()
+        if (frame !in 0 until CompanionAnimationPack.widgetCount(context, mood)) throw FileNotFoundException()
         val pipes = ParcelFileDescriptor.createPipe()
         workers.execute {
             ParcelFileDescriptor.AutoCloseOutputStream(pipes[1]).use { output ->
