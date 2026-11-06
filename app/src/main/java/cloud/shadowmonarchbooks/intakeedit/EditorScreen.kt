@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -69,8 +70,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -89,6 +92,7 @@ internal fun EditorScreen(
     initial: OpenChapter,
     busy: Boolean,
     notice: String?,
+    recoveryDrafts: List<LocalDraft>,
     onBack: () -> Unit,
     onDraft: (OpenChapter) -> Unit,
     onCommit: (OpenChapter, Boolean) -> Unit,
@@ -97,6 +101,7 @@ internal fun EditorScreen(
     onApprove: (OpenChapter) -> Unit,
 ) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val importStore = remember { TranslationImportStore(context) }
@@ -123,6 +128,8 @@ internal fun EditorScreen(
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
+    var showSavedDrafts by remember { mutableStateOf(false) }
+    var selectedSavedDraft by remember { mutableStateOf<LocalDraft?>(null) }
     var showApprove by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
     var showTranslationChoices by remember { mutableStateOf(false) }
@@ -523,6 +530,9 @@ fun stageProposalDecision(proposalId: String, status: String) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            if (recoveryDrafts.isNotEmpty()) {
+                TextButton(onClick = { showSavedDrafts = true }) { Text("Saved drafts (${recoveryDrafts.size})") }
+            }
             editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             if (qaPassStale) {
                 Text(
@@ -676,6 +686,40 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) { Text(primaryCommitLabel) }
             }
         }
+    }
+
+    if (showSavedDrafts) {
+        AlertDialog(
+            onDismissRequest = { showSavedDrafts = false },
+            title = { Text("Saved older drafts") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text("These drafts were based on older chapter revisions. Open one to inspect or copy its text.")
+                    recoveryDrafts.forEach { draft ->
+                        val saved = java.text.DateFormat.getDateTimeInstance().format(java.util.Date(draft.savedAtMillis))
+                        TextButton(onClick = { selectedSavedDraft = draft; showSavedDrafts = false }) {
+                            Text("$saved • ${draft.baseSha.take(8)}")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSavedDrafts = false }) { Text("Close") } },
+        )
+    }
+    selectedSavedDraft?.let { draft ->
+        AlertDialog(
+            onDismissRequest = { selectedSavedDraft = null },
+            title = { Text("Older draft") },
+            text = { OutlinedTextField(value = draft.raw, onValueChange = {}, readOnly = true, minLines = 8, maxLines = 16, modifier = Modifier.fillMaxWidth()) },
+            confirmButton = {
+                TextButton(onClick = {
+                    clipboard.setText(AnnotatedString(draft.raw))
+                    selectedSavedDraft = null
+                    editorNotice = "Older draft copied."
+                }) { Text("Copy draft") }
+            },
+            dismissButton = { TextButton(onClick = { selectedSavedDraft = null }) { Text("Close") } },
+        )
     }
 
     if (showTranslationChoices) {
