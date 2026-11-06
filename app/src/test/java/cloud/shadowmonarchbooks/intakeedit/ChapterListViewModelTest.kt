@@ -207,6 +207,26 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun fallbackContinuesAfterAChapterFailsWithinWorkerPool() = runTest(dispatcher) {
+        val files = (1..12).map { ChapterFile("editor_input/vol-01/chapters/ch_${it.toString().padStart(4, '0')}.yml", 1, it) }
+        val repository = FakeChapterRepository(
+            files = files,
+            progress = files.associate { it.path to ChapterProgress(1, 2, false) },
+            qaProgress = files.drop(1).associate { it.path to QaProgressCounts(0, 0) },
+        )
+        val viewModel = ChapterListViewModel(
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository }, cacheDispatcher = dispatcher,
+        )
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        assertEquals(12, repository.qaProgressRequests.size)
+        assertEquals(11, viewModel.uiState.value.progressByPath.size)
+        assertNull(viewModel.uiState.value.progressByPath[files.first().path])
+        assertTrue(viewModel.uiState.value.progressByPath.containsKey(files.last().path))
+        assertFalse(viewModel.uiState.value.refreshing)
+    }
+
+    @Test
     fun approveAllReadyDispatchesOneBatchWorkflowForAllReadyChapters() = runTest(dispatcher) {
         val readyOne = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
         val readyTwo = ChapterFile("editor_input/vol-01/chapters/ch_0002.yml", 1, 2)
