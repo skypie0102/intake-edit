@@ -48,6 +48,7 @@ internal class EditorViewModel(
 
     private var latest: OpenChapter? = null
     private var touched = false
+    private var activeDraftSettings: RepoSettings? = null
     private var draftSaveJob: Job? = null
     private var draftFlushJob: Job? = null
 
@@ -61,9 +62,9 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 val repository = repositoryFactory.create(settings, token)
                 val remoteChapter = repository.loadChapter(file)
-                val draft = draftRepository.load(file.path)
-                if (draft != null && draft.baseSha != remoteChapter.remote.sha) draftRepository.archive(draft)
-                val recoveryDrafts = draftRepository.archived(file.path)
+                val draft = draftRepository.load(settings, file.path)
+                if (draft != null && draft.baseSha != remoteChapter.remote.sha) draftRepository.archive(settings, draft)
+                val recoveryDrafts = draftRepository.archived(settings, file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
                     try {
                         withContext(parseDispatcher) { repository.restoreRaw(remoteChapter, draft.raw) }
@@ -76,6 +77,7 @@ internal class EditorViewModel(
                     remoteChapter
                 }
                 latest = opened
+                activeDraftSettings = settings
                 touched = false
                 _uiState.update {
                     it.copy(
@@ -85,6 +87,7 @@ internal class EditorViewModel(
                         notice = when {
                             opened.rawNeedsRepair -> "Your saved draft is incomplete. Repair it in Whole File mode; the saved text has been preserved."
                             draft != null && draft.baseSha != remoteChapter.remote.sha -> "An older local draft was preserved. Open Saved drafts to inspect or copy it."
+                            recoveryDrafts.any { it.legacyUnassigned } -> "A draft from an older app version is available in Saved drafts. Its original project is unknown; inspect it before restoring."
                             else -> null
                         },
                     )
@@ -101,13 +104,14 @@ internal class EditorViewModel(
     }
 
     fun onDraft(next: OpenChapter) {
+        val draftSettings = activeDraftSettings ?: return
         latest = next
         touched = true
         draftSaveJob?.cancel()
         draftSaveJob = viewModelScope.launch {
             delay(EDITOR_DRAFT_SAVE_DEBOUNCE_MS)
             try {
-                draftRepository.persist(next)
+                draftRepository.persist(draftSettings, next)
                 _uiState.update { state ->
                     if (state.notice?.startsWith("Local draft save failed:") == true) state.copy(notice = null) else state
                 }
@@ -123,15 +127,17 @@ internal class EditorViewModel(
         if (_uiState.value.actionInProgress) return
         val current = latest ?: _uiState.value.open
         val shouldPersist = touched
+        val draftSettings = activeDraftSettings
         val pending = draftSaveJob
         draftSaveJob = null
-        if (current != null && shouldPersist) {
+        if (current != null && shouldPersist && draftSettings != null) {
             _uiState.update { it.copy(actionInProgress = true) }
             draftFlushJob = viewModelScope.launch {
                 try {
                     pending?.cancelAndJoin()
-                    draftRepository.persist(current)
+                    draftRepository.persist(draftSettings, current)
                     latest = null
+                    activeDraftSettings = null
                     touched = false
                     _uiState.update { it.copy(open = null, actionInProgress = false, notice = null, recoveryDrafts = emptyList()) }
                 } catch (cancelled: CancellationException) {
@@ -143,6 +149,7 @@ internal class EditorViewModel(
         } else {
             pending?.cancel()
             latest = null
+            activeDraftSettings = null
             touched = false
             _uiState.update { it.copy(open = null, actionInProgress = false, recoveryDrafts = emptyList()) }
         }
@@ -156,11 +163,11 @@ internal class EditorViewModel(
                 draftSaveJob?.cancelAndJoin()
                 draftSaveJob = null
                 draftFlushJob?.join()
-                draftRepository.persist(next)
+                draftRepository.persist(settings, next)
                 val repository = repositoryFactory.create(settings, token)
                 val committedResult = repository.commitChapter(next, tagForQa)
                 if (tagForQa) runCatching { onTaggedForQa(settings, next.file) }
-                draftRepository.delete(next.file.path)
+                draftRepository.delete(settings, next.file.path)
                 touched = false
                 if (tagForQa) {
                     latest = null
@@ -204,7 +211,7 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 val repository = repositoryFactory.create(settings, token)
                 repository.approveChapter(next)
-                draftRepository.delete(next.file.path)
+                draftRepository.delete(settings, next.file.path)
                 latest = null
                 touched = false
                 _uiState.update {
