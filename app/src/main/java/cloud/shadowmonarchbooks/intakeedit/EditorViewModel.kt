@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
@@ -61,7 +62,13 @@ internal class EditorViewModel(
                 val remoteChapter = repository.loadChapter(file)
                 val draft = draftRepository.load(file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
-                    withContext(parseDispatcher) { repository.restoreRaw(remoteChapter, draft.raw) }
+                    try {
+                        withContext(parseDispatcher) { repository.restoreRaw(remoteChapter, draft.raw) }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        remoteChapter.copy(raw = draft.raw, approved = false, rawNeedsRepair = true)
+                    }
                 } else {
                     remoteChapter
                 }
@@ -71,9 +78,11 @@ internal class EditorViewModel(
                     it.copy(
                         open = opened,
                         loadingPath = null,
-                        notice = if (draft != null && draft.baseSha != remoteChapter.remote.sha) {
-                            "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
-                        } else null,
+                        notice = when {
+                            opened.rawNeedsRepair -> "Your saved draft is incomplete. Repair it in Whole File mode; the saved text has been preserved."
+                            draft != null && draft.baseSha != remoteChapter.remote.sha -> "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite."
+                            else -> null
+                        },
                     )
                 }
             } catch (t: Throwable) {
@@ -93,25 +102,45 @@ internal class EditorViewModel(
         draftSaveJob?.cancel()
         draftSaveJob = viewModelScope.launch {
             delay(EDITOR_DRAFT_SAVE_DEBOUNCE_MS)
-            draftRepository.persist(next)
+            try {
+                draftRepository.persist(next)
+                _uiState.update { state ->
+                    if (state.notice?.startsWith("Local draft save failed:") == true) state.copy(notice = null) else state
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _uiState.update { it.copy(notice = "Local draft save failed: ${error.message ?: "unknown error"}. Keep the editor open and retry by editing or closing it.") }
+            }
         }
     }
 
     fun closeEditor() {
+        if (_uiState.value.actionInProgress) return
         val current = latest ?: _uiState.value.open
         val shouldPersist = touched
         val pending = draftSaveJob
         draftSaveJob = null
-        latest = null
-        touched = false
-        _uiState.update { it.copy(open = null, actionInProgress = false) }
         if (current != null && shouldPersist) {
+            _uiState.update { it.copy(actionInProgress = true) }
             draftFlushJob = viewModelScope.launch {
-                pending?.cancelAndJoin()
-                draftRepository.persist(current)
+                try {
+                    pending?.cancelAndJoin()
+                    draftRepository.persist(current)
+                    latest = null
+                    touched = false
+                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    _uiState.update { it.copy(actionInProgress = false, notice = "Local draft save failed: ${error.message ?: "unknown error"}. Your edits remain open; try again.") }
+                }
             }
         } else {
             pending?.cancel()
+            latest = null
+            touched = false
+            _uiState.update { it.copy(open = null, actionInProgress = false) }
         }
     }
 
