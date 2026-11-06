@@ -154,6 +154,8 @@ jobs:
             Version code: ${{ env.APP_VERSION_CODE }}
             Version name: ${{ env.RELEASE_VERSION }}
             Signing mode: ${{ env.SIGNING_MODE }}
+
+            If the signing mode is one-off, this APK cannot update an installation signed with a different key. Preserve local drafts, settings, and companion history before any reinstall.
           files: |
             intake-edit-${{ env.RELEASE_TAG }}.apk
             intake-edit-${{ env.RELEASE_TAG }}.apk.sha256
