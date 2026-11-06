@@ -207,6 +207,37 @@ class ChapterListViewModelTest {
     }
 
     @Test
+    fun connectionFailureDoesNotMasqueradeAsMissingIndex() = runTest(dispatcher) {
+        val file = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val repository = FakeChapterRepository(
+            files = listOf(file), progress = emptyMap(), qaProgress = emptyMap(),
+            beforeIndex = { throw GitHubException("Cannot reach GitHub. Check your internet connection and retry.") },
+        )
+        val viewModel = ChapterListViewModel(repositoryFactory = ChapterRepositoryFactory { _, _ -> repository }, cacheDispatcher = dispatcher)
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("internet connection"))
+        assertTrue(repository.requestedVolumes.isEmpty())
+        assertFalse(viewModel.uiState.value.refreshing)
+    }
+
+    @Test
+    fun invalidIndexExplainsFallbackAndListsChapters() = runTest(dispatcher) {
+        val file = ChapterFile("editor_input/vol-01/chapters/ch_0001.yml", 1, 1)
+        val repository = FakeChapterRepository(
+            files = listOf(file), progress = mapOf(file.path to ChapterProgress(1, 2, false)),
+            qaProgress = mapOf(file.path to QaProgressCounts(0, 0)),
+            beforeIndex = { throw WorkflowIndexUnavailable("unsupported schema") },
+        )
+        val viewModel = ChapterListViewModel(repositoryFactory = ChapterRepositoryFactory { _, _ -> repository }, cacheDispatcher = dispatcher)
+        viewModel.refresh(RepoSettings(), "token")
+        advanceUntilIdle()
+        assertEquals(ChapterDataSource.DIRECT, viewModel.uiState.value.dataSource)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("unsupported schema"))
+        assertEquals(listOf(file), viewModel.uiState.value.files)
+    }
+
+    @Test
     fun fallbackContinuesAfterAChapterFailsWithinWorkerPool() = runTest(dispatcher) {
         val files = (1..12).map { ChapterFile("editor_input/vol-01/chapters/ch_${it.toString().padStart(4, '0')}.yml", 1, it) }
         val repository = FakeChapterRepository(
