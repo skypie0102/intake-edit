@@ -109,10 +109,26 @@ class EditorViewModelTest {
 
         assertEquals("remote raw", viewModel.chapterForDisplay()?.raw)
         assertNull(chapterRepository.restoredRaw)
+        assertEquals(listOf("stale draft"), viewModel.uiState.value.recoveryDrafts.map { it.raw })
         assertEquals(
-            "A local draft exists for an older GitHub revision. The latest remote copy was opened to avoid an unsafe overwrite.",
+            "An older local draft was preserved. Open Saved drafts to inspect or copy it.",
             viewModel.uiState.value.notice,
         )
+    }
+
+    @Test
+    fun staleDraftArchiveFailureStopsOpeningBeforeAnyOverwrite() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "new-sha")
+        val drafts = FakeDraftRepository(
+            loaded = LocalDraft(remote.file.path, "old-sha", "unsaved work", 1L), failArchive = true,
+        )
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> FakeEditorChapterRepository(remote) })
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+        assertNull(viewModel.chapterForDisplay())
+        assertEquals("archive failed", viewModel.uiState.value.notice)
+        assertTrue(drafts.persisted.isEmpty())
     }
 
     @Test
@@ -218,9 +234,18 @@ class EditorViewModelTest {
 private class FakeDraftRepository(
     private val loaded: LocalDraft? = null,
     var failPersist: Boolean = false,
+    var failArchive: Boolean = false,
 ) : DraftRepository {
     val persisted = mutableListOf<OpenChapter>()
     val deleted = mutableListOf<String>()
+    val savedArchives = mutableListOf<LocalDraft>()
+
+    override suspend fun archive(draft: LocalDraft) {
+        if (failArchive) error("archive failed")
+        savedArchives += draft
+    }
+
+    override suspend fun archived(path: String): List<LocalDraft> = savedArchives.filter { it.path == path }
 
     override suspend fun load(path: String): LocalDraft? = loaded
 
