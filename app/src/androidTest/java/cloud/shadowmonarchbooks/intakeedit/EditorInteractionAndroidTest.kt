@@ -1,6 +1,13 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.espresso.Espresso
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -8,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -43,6 +51,9 @@ class EditorInteractionAndroidTest {
                     onResolve = { _, _ -> }, onApprove = {})
             }
         }
+        compose.onNodeWithContentDescription("Bold selection").assertExists()
+        compose.onNodeWithContentDescription("Italicize selection").assertExists()
+        compose.onNodeWithContentDescription("Edit endnote for selection").assertExists()
         compose.onNodeWithText("English").performTextInput("Hello")
         compose.waitForIdle()
         assertTrue(latest.document.entries.single().english.contains("Hello"))
@@ -56,6 +67,17 @@ class EditorInteractionAndroidTest {
         compose.onNodeWithText("QA findings").performClick()
         Espresso.pressBack()
         compose.onNodeWithText("No machine-readable QA findings have been recorded for this chapter yet.").assertIsDisplayed()
+    }
+
+    @Test fun workspaceButtonsRemainReachableAtLargeTextOnNarrowScreen() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 2f)) {
+                MaterialTheme {
+                    Box(Modifier.width(320.dp)) { WorkspaceHomeScreen(onOpenChapters = {}, onOpenGlossary = {}, onOpenHelp = {}) }
+                }
+            }
+        }
+        compose.onNodeWithText("Open Glossary").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun workspaceButtonsNavigateToRequestedSection() {
