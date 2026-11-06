@@ -68,7 +68,7 @@ The first complete translation is saved locally for the project, chapter, and so
 
 ## Chapter draft safety
 
-Chapter edits use atomic local drafts. A draft is restored only when its base GitHub SHA still matches the remote chapter. Incomplete Whole File drafts reopen in raw mode for repair. If saving a draft fails, the editor reports the error and keeps the edits open for retry. Drafts based on older remote revisions are preserved: open **Saved drafts** in the chapter editor to inspect or copy them. Project-specific draft isolation and a full export flow are tracked in the roadmap.
+Chapter edits use atomic local drafts. A draft is restored only when its base GitHub SHA still matches the remote chapter. Incomplete Whole File drafts reopen in raw mode for repair. If saving a draft fails, the editor reports the error and keeps the edits open for retry. Drafts based on older remote revisions are preserved: open **Saved drafts** in the chapter editor to inspect or copy them. New drafts are isolated by repository, branch, and chapter. Older drafts did not record a project; they remain available under Saved drafts as “project unknown” for inspection and explicit recovery when the base revision matches. A full export flow is tracked in the roadmap.
 
 ## CI artifact
 
