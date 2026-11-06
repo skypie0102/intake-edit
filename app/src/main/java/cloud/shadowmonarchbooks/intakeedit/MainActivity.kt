@@ -328,7 +328,7 @@ private fun ChapterRefreshIcon(refreshing: Boolean) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChapterListScreen(
+internal fun ChapterListScreen(
     files: List<ChapterFile>,
     progressByPath: Map<String, ChapterProgress>,
     availableVolumes: List<Int>,
