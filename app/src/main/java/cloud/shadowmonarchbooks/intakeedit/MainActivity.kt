@@ -296,6 +296,7 @@ private fun ChapterIntakeApp(widgetOpenRequest: Int, onWidgetRequestConsumed: ()
             availableVolumes = chapterListState.availableVolumes,
             selectedVolume = chapterListState.selectedVolume,
             refreshing = chapterListState.refreshing,
+            dataSource = chapterListState.dataSource,
             bulkApproving = chapterListState.bulkApproving,
             approvalRequestedPaths = chapterListState.approvalRequestedPaths,
             openingPath = openingPath,
@@ -333,6 +334,7 @@ private fun ChapterListScreen(
     availableVolumes: List<Int>,
     selectedVolume: Int?,
     refreshing: Boolean,
+    dataSource: ChapterDataSource?,
     bulkApproving: Boolean,
     approvalRequestedPaths: Set<String>,
     openingPath: String?,
@@ -414,6 +416,14 @@ private fun ChapterListScreen(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            dataSource?.let { source ->
+                val label = when (source) {
+                    ChapterDataSource.CACHED -> "Saved chapter status"
+                    ChapterDataSource.INDEX -> "Workflow index"
+                    ChapterDataSource.DIRECT -> "Direct chapter refresh"
+                }
+                Text(if (refreshing) "$label • refreshing…" else label, style = MaterialTheme.typography.labelSmall)
+            }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
