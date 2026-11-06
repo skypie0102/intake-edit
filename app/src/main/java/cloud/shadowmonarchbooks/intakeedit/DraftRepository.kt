@@ -7,6 +7,8 @@ import kotlinx.coroutines.withContext
 
 internal interface DraftRepository {
     suspend fun load(path: String): LocalDraft?
+    suspend fun archive(draft: LocalDraft)
+    suspend fun archived(path: String): List<LocalDraft>
     suspend fun persist(chapter: OpenChapter)
     suspend fun delete(path: String)
 }
@@ -19,6 +21,14 @@ internal class LocalDraftRepository(
 
     override suspend fun load(path: String): LocalDraft? = withContext(ioDispatcher) {
         store.load(path)
+    }
+
+    override suspend fun archive(draft: LocalDraft) = withContext(ioDispatcher) {
+        check(store.archive(draft)) { "Could not preserve the older local draft." }
+    }
+
+    override suspend fun archived(path: String): List<LocalDraft> = withContext(ioDispatcher) {
+        store.archived(path)
     }
 
     override suspend fun persist(chapter: OpenChapter) {
