@@ -32,7 +32,7 @@ Lower the book with both hands, pause, and look up to one side with a thoughtful
 
 ### Distracted by the thought of food
 
-Try to read, let the book sink with both hands, and glance toward a daydream of warm bread. Hold, let the bread fade, slump tiredly, and return to the book without smiling. This differs from the established rice-bowl thought bubble. Preview awaiting review.
+Try to read, let the book sink with both hands, and glance toward a daydream of roasted meat on the bone. Hold, let the meat fade, slump tiredly, and return to the book without smiling. This differs from the established rice-bowl thought bubble. Preview awaiting review.
 
 ### Stomach rumble
 
@@ -42,7 +42,7 @@ Pause mid-read, look toward his stomach, and react to a small rumble mark. Rest 
 
 ### Losing focus
 
-Read slowly, let his eyes stop, and hold the pause. Glance up as if waiting for someone, then lower his gaze and retreat a little closer to the book. Let the tuft and bookmark settle afterward. This action does not need a tear.
+Read slowly, let his eyes stop, and hold the pause. Glance up as if waiting for someone, then lower his gaze and retreat a little closer to the book. Let the tuft and bookmark settle afterward. This action does not need a tear. The standalone preview was approved; app and widget integration remains open.
 
 ### Comforting himself with the book
 
