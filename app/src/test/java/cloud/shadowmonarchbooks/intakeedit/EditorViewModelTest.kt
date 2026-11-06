@@ -13,6 +13,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -49,6 +50,45 @@ class EditorViewModelTest {
         assertEquals("draft raw", viewModel.chapterForDisplay()?.raw)
         assertEquals("draft raw", chapterRepository.restoredRaw)
         assertNull(viewModel.uiState.value.notice)
+    }
+
+    @Test
+    fun incompleteSavedDraftOpensForRepairWithoutDiscardingRawText() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
+        val drafts = FakeDraftRepository(loaded = LocalDraft(remote.file.path, "sha-1", "broken draft", 1L))
+        val repository = FakeEditorChapterRepository(remote, restoreFailure = true)
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository })
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+        val opened = requireNotNull(viewModel.chapterForDisplay())
+        assertEquals("broken draft", opened.raw)
+        assertEquals(remote.document, opened.document)
+        assertTrue(opened.rawNeedsRepair)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("incomplete"))
+    }
+
+    @Test
+    fun failedDraftSaveKeepsEditorOpenAndCanBeRetried() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "edited raw", sha = "sha-1")
+        val drafts = FakeDraftRepository(failPersist = true)
+        val repository = FakeEditorChapterRepository(remote)
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository })
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+        viewModel.onDraft(remote.copy(raw = "new text"))
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("save failed"))
+        viewModel.closeEditor()
+        advanceUntilIdle()
+        assertEquals("new text", viewModel.chapterForDisplay()?.raw)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("remain open"))
+        drafts.failPersist = false
+        viewModel.closeEditor()
+        advanceUntilIdle()
+        assertNull(viewModel.chapterForDisplay())
+        assertEquals("new text", drafts.persisted.last().raw)
     }
 
     @Test
@@ -177,6 +217,7 @@ class EditorViewModelTest {
 
 private class FakeDraftRepository(
     private val loaded: LocalDraft? = null,
+    var failPersist: Boolean = false,
 ) : DraftRepository {
     val persisted = mutableListOf<OpenChapter>()
     val deleted = mutableListOf<String>()
@@ -184,6 +225,7 @@ private class FakeDraftRepository(
     override suspend fun load(path: String): LocalDraft? = loaded
 
     override suspend fun persist(chapter: OpenChapter) {
+        if (failPersist) error("disk full")
         persisted += chapter
     }
 
@@ -194,6 +236,7 @@ private class FakeDraftRepository(
 
 private class FakeEditorChapterRepository(
     private val remote: OpenChapter,
+    private val restoreFailure: Boolean = false,
 ) : ChapterRepository {
     var restoredRaw: String? = null
         private set
@@ -213,6 +256,7 @@ private class FakeEditorChapterRepository(
 
     override fun restoreRaw(base: OpenChapter, raw: String): OpenChapter {
         restoredRaw = raw
+        if (restoreFailure) error("malformed draft")
         return base.copy(raw = raw)
     }
 
