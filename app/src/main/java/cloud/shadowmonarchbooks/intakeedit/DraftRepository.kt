@@ -24,9 +24,9 @@ internal class LocalDraftRepository(
     override suspend fun persist(chapter: OpenChapter) {
         withContext(ioDispatcher) {
             if (chapter.raw == chapter.remote.content) {
-                store.delete(chapter.file.path)
+                check(store.delete(chapter.file.path)) { "Could not remove the local draft." }
             } else {
-                store.save(chapter.file.path, chapter.remote.sha, chapter.raw)
+                check(store.save(chapter.file.path, chapter.remote.sha, chapter.raw)) { "Could not save the local draft." }
             }
         }
     }
