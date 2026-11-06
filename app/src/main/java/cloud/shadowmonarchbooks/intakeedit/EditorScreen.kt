@@ -680,7 +680,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             }
 
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -707,7 +707,6 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 IconButton(onClick = { showTranslationChoices = true }, enabled = !busy && !importBusy) {
                     Icon(Icons.Default.Translate, "Translation reference")
                 }
-                Spacer(Modifier.weight(1f))
                 Button(
                     onClick = { if (readyForApproval) showApprove = true else showCommit = true },
                     enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && !current.approved,
