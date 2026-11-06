@@ -236,6 +236,21 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun successfulApprovalReportsCleanupFailureWithoutClaimingDispatchFailed() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
+        val drafts = FakeDraftRepository(failDelete = true)
+        val repository = FakeEditorChapterRepository(remote)
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository })
+        viewModel.approve(remote, RepoSettings(), "token")
+        advanceUntilIdle()
+        assertSame(remote, repository.approvedChapter)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("Approval workflow started"))
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("could not be removed"))
+        assertNull(viewModel.chapterForDisplay())
+    }
+
+    @Test
     fun closeEditorFlushesLatestDraftBeforeDebounceFires() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
         val draftRepository = FakeDraftRepository()
