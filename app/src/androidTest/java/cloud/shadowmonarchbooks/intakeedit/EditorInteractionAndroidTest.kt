@@ -15,11 +15,14 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.espresso.Espresso
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextInputSelection
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.test.performScrollTo
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -62,6 +65,10 @@ class EditorInteractionAndroidTest {
         compose.onNodeWithText("English").performTextInput("Hello")
         compose.waitForIdle()
         assertTrue(latest.document.entries.single().english.contains("Hello"))
+        compose.onNodeWithText("English").performTextInputSelection(TextRange(0, 5))
+        compose.onNodeWithContentDescription("Bold selection").performClick()
+        compose.onNodeWithText("English").assertIsFocused()
+        assertTrue(latest.document.entries.single().english.contains("[b]Hello[/b]"))
         compose.onNodeWithContentDescription("Editor actions").performClick()
         compose.onNodeWithText("Whole file mode").performClick()
         compose.onNodeWithText("Whole file YAML").assertIsDisplayed()
