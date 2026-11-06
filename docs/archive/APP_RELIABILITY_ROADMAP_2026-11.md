@@ -4,7 +4,7 @@ The active items in this roadmap were completed in the app-review milestone. Def
 
 # Intake Edit roadmap
 
-This is the single current roadmap. Completed plans and superseded roadmaps are in [the archive](docs/archive/). Priorities below reflect the app-wide review; device testing and the previously deferred release-signing and widget-validation work remain deferred.
+This was the current roadmap at the time. Completed plans and superseded roadmaps are in [the archive](./). Priorities below reflect the app-wide review; device testing and the previously deferred release-signing and widget-validation work remain deferred.
 
 ## 1. Draft safety and recovery
 
@@ -37,7 +37,7 @@ This is the single current roadmap. Completed plans and superseded roadmaps are 
 
 ## 5. Further performance investigation
 
-- [x] Investigate large-chapter QA calculations, import alignment, cache size, and companion memory use. Record synthetic emulator measurements and their limitations in the [performance review](docs/PERFORMANCE_REVIEW.md).
+- [x] Investigate large-chapter QA calculations, import alignment, cache size, and companion memory use. Record synthetic emulator measurements and their limitations in the [performance review](../PERFORMANCE_REVIEW.md).
 - [x] Preserve the single-entry typing path, background parsing and draft persistence, and full companion animations; cover regressions in CI.
 Physical-device profiling and interaction testing remain deferred at the user's request; revisit if problems are reported.
 
@@ -49,4 +49,4 @@ Not planned for now; not complete. Establish a persistent release key, verify up
 
 Not planned for now; not complete. Validate animation sequences, speed, interactions, mood changes, accessibility, resizing, launchers, memory, battery, reboot, and offline behavior on devices. The user confirmed that the earlier frame-fade flicker stopped.
 
-Completed companion transitions and idle animations are documented in the [animation milestone archive](docs/archive/COMPANION_ANIMATION_MILESTONE_2026-11.md). Additional idle designs remain a [reference](docs/COMPANION_IDLE_ANIMATIONS.md).
+Completed companion transitions and idle animations are documented in the [animation milestone archive](COMPANION_ANIMATION_MILESTONE_2026-11.md). Additional idle designs remain a [reference](../COMPANION_IDLE_ANIMATIONS.md).
