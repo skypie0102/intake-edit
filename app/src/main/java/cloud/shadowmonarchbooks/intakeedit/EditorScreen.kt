@@ -109,10 +109,12 @@ internal fun EditorScreen(
     val project = remember { SettingsStore(context).load() }
     val languages = remember { TranslationLanguages(source = "auto", target = "en") }
     val machineKey = remember(project) { machineCacheKey(project, languages) }
+    val importProjectKey = remember(project) { draftScopeKey(project, "") }
     var current by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial) }
     var importedFile by remember(initial.file.path, initial.document.sourceSha256) {
         mutableStateOf<ImportedTranslationOverlay?>(null)
     }
+    var legacyImportedFile by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf<ImportedTranslationOverlay?>(null) }
     var machineTranslation by remember(initial.file.path, initial.document.sourceSha256) {
         mutableStateOf<ImportedTranslationOverlay?>(null)
     }
@@ -130,6 +132,7 @@ internal fun EditorScreen(
     var showCommit by remember { mutableStateOf(false) }
     var showSavedDrafts by remember { mutableStateOf(false) }
     var selectedSavedDraft by remember { mutableStateOf<LocalDraft?>(null) }
+    var draftForExport by remember { mutableStateOf<LocalDraft?>(null) }
     var showApprove by remember { mutableStateOf(false) }
     var showRemoveImportConfirm by remember { mutableStateOf(false) }
     var showTranslationChoices by remember { mutableStateOf(false) }
@@ -161,10 +164,12 @@ internal fun EditorScreen(
             val machine = importStore.load(initial.file.path, initial.document.sourceSha256, machine = true, machineKey = machineKey)
                 ?: if (project.owner.equals("skypie0102", true) && project.repo.equals("purelove", true) && project.branch == "main")
                     importStore.load(initial.file.path, initial.document.sourceSha256, machine = true) else null
-            importStore.load(initial.file.path, initial.document.sourceSha256) to machine
+            Triple(importStore.load(initial.file.path, initial.document.sourceSha256, projectKey = importProjectKey), machine,
+                importStore.load(initial.file.path, initial.document.sourceSha256))
         }
         importedFile = saved.first
         machineTranslation = saved.second
+        legacyImportedFile = saved.third
         useMachine = machineTranslation != null && onlineSettings.visible(machineKey, initial.file.path, initial.document.sourceSha256)
         importBusy = false
     }
@@ -179,6 +184,26 @@ internal fun EditorScreen(
         }
     }
 
+    val draftExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        val draft = draftForExport
+        draftForExport = null
+        if (uri != null && draft != null) {
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { it.write(draft.raw.toByteArray(Charsets.UTF_8)) }
+                            ?: error("Could not open the selected destination.")
+                    }
+                    editorNotice = "Saved draft exported."
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    editorNotice = "Draft export failed: ${error.message ?: "unknown error"}"
+                }
+            }
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val chapter = current
@@ -186,9 +211,8 @@ internal fun EditorScreen(
                 importBusy = true
                 runCatching {
                     withContext(Dispatchers.IO) {
-                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { readTranslationFile(it) }
                             ?: error("Could not read the selected file.")
-                        require(bytes.size <= 20 * 1024 * 1024) { "Translation file is too large to import safely (20 MB limit)." }
                         val fileName = selectedFileName(context, uri) ?: "Imported XLIFF"
                         val overlay = XliffTranslationImporter.parse(
                             raw = String(bytes, Charsets.UTF_8),
@@ -196,7 +220,7 @@ internal fun EditorScreen(
                             chapterPath = chapter.file.path,
                             document = chapter.document,
                         )
-                        require(importStore.save(overlay)) { "Could not persist the imported translation locally." }
+                        require(importStore.save(overlay, projectKey = importProjectKey)) { "Could not persist the imported translation locally." }
                         overlay
                     }
                 }.onSuccess { overlay ->
@@ -720,6 +744,10 @@ fun stageProposalDecision(proposalId: String, status: String) {
             },
             dismissButton = {
                 Row {
+                    TextButton(onClick = {
+                        draftForExport = draft
+                        draftExportLauncher.launch("chapter-${current.file.chapter}-draft.yml")
+                    }) { Text("Export") }
                     if (draft.baseSha == current.remote.sha && current.raw == current.remote.content && current.endnoteProposals?.changed != true) {
                         TextButton(onClick = {
                             current = current.copy(raw = draft.raw, approved = false, rawNeedsRepair = true)
@@ -760,6 +788,20 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         if (importedFile != null) TextButton(onClick = {
                             showTranslationChoices = false; showRemoveImportConfirm = true
                         }) { Text("Remove") }
+                        if (importedFile == null && legacyImportedFile != null) TextButton(onClick = {
+                            val legacy = legacyImportedFile ?: return@TextButton
+                            scope.launch {
+                                importBusy = true
+                                val saved = withContext(Dispatchers.IO) { importStore.save(legacy, projectKey = importProjectKey) }
+                                if (saved) {
+                                    importedFile = legacy
+                                    useMachine = false
+                                    editorNotice = "Older reference copied to this project. Check its contents before using it."
+                                } else editorNotice = "Could not save the older reference for this project."
+                                importBusy = false
+                            }
+                            showTranslationChoices = false
+                        }) { Text("Use older reference (project unknown)") }
                     }
                     Text("Machine Translation", fontWeight = FontWeight.Bold)
                     Text(if (machineTranslation == null) "Translate online with Google." else "A saved translation is available.", style = MaterialTheme.typography.bodySmall)
@@ -870,7 +912,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                         showRemoveImportConfirm = false
                         scope.launch {
                             importBusy = true
-                            val removed = withContext(Dispatchers.IO) { importStore.delete(path) }
+                            val removed = withContext(Dispatchers.IO) { importStore.delete(path, projectKey = importProjectKey) }
                             if (removed) {
                                 importedFile = null
                                 editorNotice = "Imported translation removed."
