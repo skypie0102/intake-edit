@@ -198,6 +198,20 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun successfulCommitIsNotReportedAsFailedWhenDraftCleanupFails() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "edited raw", sha = "sha-1")
+        val drafts = FakeDraftRepository(failDelete = true)
+        val repository = FakeEditorChapterRepository(remote)
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> repository })
+        viewModel.commit(remote, false, RepoSettings(), "token")
+        advanceUntilIdle()
+        assertEquals("sha-committed", viewModel.chapterForDisplay()?.remote?.sha)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("Committed as Pending Review"))
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("could not be removed"))
+    }
+
+    @Test
     fun approveDispatchReturnsToChapterList() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
         val draftRepository = FakeDraftRepository()
@@ -249,6 +263,7 @@ private class FakeDraftRepository(
     private val loaded: LocalDraft? = null,
     var failPersist: Boolean = false,
     var failArchive: Boolean = false,
+    var failDelete: Boolean = false,
 ) : DraftRepository {
     val persisted = mutableListOf<OpenChapter>()
     val deleted = mutableListOf<String>()
@@ -271,6 +286,7 @@ private class FakeDraftRepository(
     }
 
     override suspend fun delete(settings: RepoSettings, path: String) {
+        if (failDelete) error("delete failed")
         deleted += path
     }
 }
