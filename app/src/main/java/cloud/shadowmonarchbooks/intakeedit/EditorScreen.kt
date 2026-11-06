@@ -420,6 +420,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val editorContentSha = remember(current.raw) {
         runCatching { QaFindingsParser.editorContentSha256(current.raw) }.getOrDefault("")
     }
+    val qaScopeHashes = remember(current.document) { QaScopeHashes(current.document) }
     val attentionState = remember(current.document, current.qa?.document, current.endnoteProposals?.document, current.file, editorContentSha) { buildAttentionState(
         document = current.document,
         qa = current.qa?.document,
@@ -427,6 +428,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
         volume = current.file.volume,
         chapter = current.file.chapter,
         editorContentSha256 = editorContentSha,
+        scopeHashes = qaScopeHashes,
     ) }
     val allQaByLocator = attentionState.allQaByLocator
     val qaDispositionById = attentionState.qaDispositionById
@@ -435,7 +437,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
     }
     val qaCanResolveById = remember(current.qa?.document, current.document, qaPassReusable) {
         current.qa?.document?.findings.orEmpty().associate { finding ->
-            finding.id to (current.qa?.document?.canResolve(finding, current.document, qaPassReusable) == true)
+            finding.id to (current.qa?.document?.canResolve(finding, qaPassReusable) { qaScopeHashes.get(finding.locator) } == true)
         }
     }
     val unresolvedAttentionCount = attentionState.unresolvedCount
