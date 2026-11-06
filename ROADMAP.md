@@ -43,7 +43,7 @@ Detailed acting, pacing, and sequencing are in the [idle-animation design](docs/
 
 - [ ] Happy: humming to himself; delighted by a passage. **In progress:** both standalone previews have been approved; app and widget integration remains open.
 - [ ] Waiting: searching for his place; quietly thinking. **In progress:** standalone previews for both Waiting actions are available in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
-- [ ] Hungry: distracted by food; stomach rumble. **In progress:** the food-thought standalone preview is ready for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
+- [ ] Hungry: distracted by food; stomach rumble. **In progress:** standalone previews for the food thought and stomach rumble are ready for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
 - [ ] Sad: losing focus; comforting himself with the book.
 - [ ] New: curious peek; getting absorbed in the book.
 
