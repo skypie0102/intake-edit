@@ -192,6 +192,7 @@ internal data class OpenChapter(
     val qa: QaFindingsSnapshot?,
     val endnoteProposals: EndnoteProposalSnapshot? = null,
     val approved: Boolean = false,
+    val rawNeedsRepair: Boolean = false,
 )
 
 @Composable
