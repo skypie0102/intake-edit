@@ -1,6 +1,6 @@
 # Companion idle-animation design
 
-This is a design reference for the additional actions tracked in the [current roadmap](../ROADMAP.md), not a separate task tracker. Existing five-state reactions and shared reading, writing, and page turning remain in place. The user approved the first-pass in-app mood transition. These new idle ideas are proposed; implement and review them individually.
+This is a design reference for the additional actions tracked in the [current roadmap](../ROADMAP.md), not a separate task tracker. Existing five-state reactions and shared reading, writing, and page turning remain in place. The user approved the first-pass in-app mood transition and the ten additional idle sequences. This document is a design reference; completed work is recorded in the [animation milestone archive](archive/COMPANION_ANIMATION_MILESTONE_2026-11.md).
 
 ## Happy
 
@@ -26,13 +26,13 @@ Scan across the page, stop, and look back slightly. Tilt his head, follow the li
 
 ### Quietly thinking
 
-Lower the book with both hands, pause, and look up to one side with a thoughtful expression. Turn his head and gaze to the other side, hold, nod, and lift the book to resume reading. This is a distinct performance from the established hand-to-chin thinking action. Preview awaiting review.
+Lower the book with both hands, pause, and look up to one side with a thoughtful expression. Turn his head and gaze to the other side, hold, nod, and lift the book to resume reading. This is a distinct performance from the established hand-to-chin thinking action. The standalone preview was approved.
 
 ## Hungry
 
 ### Distracted by the thought of food
 
-Try to read, let the book sink with both hands, and glance toward a daydream of roasted meat on the bone. Hold, let the meat fade, slump tiredly, and return to the book without smiling. This differs from the established rice-bowl thought bubble. Preview awaiting review.
+Try to read, let the book sink with both hands, and glance toward a daydream of roasted meat on the bone. Hold, let the meat fade, slump tiredly, and return to the book without smiling. This differs from the established rice-bowl thought bubble. The standalone preview was approved.
 
 ### Stomach rumble
 
@@ -65,4 +65,4 @@ Move his eyes visibly from left to right and back. Lean a little closer, pause a
 - Keep the eyes, face, monocle, tuft, hands, book, and bookmark connected. Maintain one continuous arm per side and do not add a finger grip. Keep the body extending behind the book.
 - Cancel the outgoing action on a mood change and use the approved transition. Avoid whole-character fades, flashing, abrupt pose jumps, and excessive body sway.
 - Preserve complete animation sequences and ensure gestures remain readable at widget size. Widget validation remains deferred under roadmap item 3; do not claim it is complete.
-- Start with Happy humming and obtain visual review before proceeding to the next sequence.
+- The user reviewed the individual previews before integration.
