@@ -30,6 +30,6 @@ internal class LocalDraftRepository(context: Context, private val ioDispatcher: 
         }
     }
     override suspend fun delete(settings: RepoSettings, path: String) {
-        withContext(ioDispatcher) { store.delete(settings, path) }
+        withContext(ioDispatcher) { check(store.delete(settings, path)) { "Could not remove the saved local draft." } }
     }
 }
