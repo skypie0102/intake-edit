@@ -40,6 +40,13 @@ jobs:
           script: |
             gradle --no-daemon :app:connectedDebugAndroidTest
             adb logcat -d -s IntakeQaBenchmark:I IntakePerfAudit:I '*:S'
-            gradle --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -Pandroid.testInstrumentationRunnerArguments.draft_phase=write
+            gradle --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -Pandroid.testInstrumentationRunnerArguments.draft_phase=write || { find app/build/outputs/androidTest-results -name "*.xml" -exec cat {} \; ; exit 1; }
             adb shell am force-stop cloud.shadowmonarchbooks.intakeedit.rigpreview
-            gradle --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -Pandroid.testInstrumentationRunnerArguments.draft_phase=verify
+            gradle --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -Pandroid.testInstrumentationRunnerArguments.draft_phase=verify || { find app/build/outputs/androidTest-results -name "*.xml" -exec cat {} \; ; exit 1; }
+      - name: Upload emulator test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-test-reports
+          path: app/build/outputs/androidTest-results/
+          if-no-files-found: ignore
