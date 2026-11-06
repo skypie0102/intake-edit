@@ -117,6 +117,8 @@ internal fun EditorScreen(
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
     var showWholeFile by rememberSaveable { mutableStateOf(false) }
+    var wholeFilePending by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
+    var wholeFileValidating by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
@@ -129,6 +131,20 @@ internal fun EditorScreen(
     var jumpRequestId by remember { mutableStateOf(0) }
     var lastAttentionLocator by remember(initial.file.path, initial.remote.sha) { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+
+    LaunchedEffect(showWholeFile, current.raw, wholeFilePending) {
+        if (showWholeFile && wholeFilePending) {
+            val raw = current.raw
+            val parsed = parseWholeFileDraft(raw)
+            if (current.raw == raw) {
+                if (parsed != null) {
+                    current = current.copy(document = parsed)
+                    onDraft(current)
+                }
+                wholeFilePending = false
+            }
+        }
+    }
 
     LaunchedEffect(initial.file.path, initial.document.sourceSha256) {
         importBusy = true
@@ -377,9 +393,12 @@ fun stageProposalDecision(proposalId: String, status: String) {
     ) }
     val allQaByLocator = attentionState.allQaByLocator
     val qaDispositionById = attentionState.qaDispositionById
-    val qaCanResolveById = remember(current.qa?.document, current.document) {
+    val qaPassReusable = remember(current.qa?.document, current.document) {
+        current.qa?.document?.qaPassReusable(current.document) == true
+    }
+    val qaCanResolveById = remember(current.qa?.document, current.document, qaPassReusable) {
         current.qa?.document?.findings.orEmpty().associate { finding ->
-            finding.id to (current.qa?.document?.canResolve(finding, current.document) == true)
+            finding.id to (current.qa?.document?.canResolve(finding, current.document, qaPassReusable) == true)
         }
     }
     val unresolvedAttentionCount = attentionState.unresolvedCount
@@ -402,7 +421,6 @@ fun stageProposalDecision(proposalId: String, status: String) {
     }
     val activeFilterCount = (if (showQa) 1 else 0) + (if (!showQa && filter != EntryFilter.ALL) 1 else 0)
     val hasLocalChanges = current.raw != current.remote.content || current.endnoteProposals?.changed == true
-    val qaPassReusable = current.qa?.document?.qaPassReusable(current.document) == true
     val qaPassStale = current.qa?.document?.qaPass != null && !qaPassReusable
     val closedReusableQaPass = qaPassReusable &&
         current.qa?.document?.active(current.document, editorContentSha).orEmpty().isEmpty()
@@ -471,7 +489,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 showWholeFile = !showWholeFile
                                 showQa = false
                             },
-                            enabled = !busy,
+                            enabled = !busy && !wholeFilePending && !wholeFileValidating,
                         )
                         imported?.let { overlay ->
                             DropdownMenuItem(
@@ -530,23 +548,36 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 WholeFileEditor(
                     raw = current.raw,
                     onRawChange = { raw ->
-                        val parsed = runCatching { IntakeParser.parse(raw) }.getOrNull()
-                        current = current.copy(raw = raw, document = parsed ?: current.document, approved = false)
+                        current = current.copy(raw = raw, approved = false)
+                        wholeFilePending = true
                         onDraft(current)
                         editorNotice = null
                     },
                     onValidate = {
-                        runCatching {
-                            IntakeParser.validate(current.raw).getOrThrow()
-                            val parsed = IntakeParser.parse(current.raw)
-                            current = current.copy(document = parsed, approved = false)
-                            onDraft(current)
-                        }.onSuccess {
-                            editorNotice = "Whole file is valid and synced."
-                        }.onFailure {
-                            editorNotice = it.message ?: "Whole file is invalid."
+                        val raw = current.raw
+                        wholeFileValidating = true
+                        scope.launch {
+                            val result = withContext(Dispatchers.Default) {
+                                runCatching {
+                                    IntakeParser.validate(raw).getOrThrow()
+                                    IntakeParser.parse(raw)
+                                }
+                            }
+                            if (current.raw == raw) {
+                                result.onSuccess { parsed ->
+                                    current = current.copy(document = parsed, approved = false)
+                                    wholeFilePending = false
+                                    onDraft(current)
+                                    editorNotice = "Whole file is valid and synced."
+                                }.onFailure {
+                                    editorNotice = it.message ?: "Whole file is invalid."
+                                }
+                            }
+                            wholeFileValidating = false
                         }
                     },
+                    validating = wholeFileValidating,
+                    pending = wholeFilePending,
                     modifier = Modifier.weight(1f),
                 )
             } else {
@@ -554,7 +585,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     QaFindingsView(
                         snapshot = current.qa,
                         editor = current.document,
-                        editorSha = QaFindingsParser.editorContentSha256(current.raw),
+                        editorSha = editorContentSha,
                         busy = busy,
                         onOverride = { id, reason -> onOverride(current, id, reason) },
                         onResolve = { id -> onResolve(current, id) },
@@ -613,7 +644,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) {
                     IconButton(
                         onClick = { jumpToFirstMissing() },
-                        enabled = !busy && missingEnglish.isNotEmpty(),
+                        enabled = !busy && !wholeFilePending && !wholeFileValidating && missingEnglish.isNotEmpty(),
                     ) {
                         Icon(Icons.Default.NavigateNext, "Go to first unsupplied English")
                     }
@@ -623,7 +654,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 ) {
                     IconButton(
                         onClick = { cycleAttention() },
-                        enabled = !busy && unresolvedAttentionCount > 0,
+                        enabled = !busy && !wholeFilePending && !wholeFileValidating && unresolvedAttentionCount > 0,
                     ) {
                         Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
                     }
@@ -634,7 +665,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 Spacer(Modifier.weight(1f))
                 Button(
                     onClick = { if (readyForApproval) showApprove = true else showCommit = true },
-                    enabled = !busy && !importBusy && !current.approved,
+                    enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !current.approved,
                 ) { Text(primaryCommitLabel) }
             }
         }
@@ -1393,13 +1424,13 @@ LaunchedEffect(qaFindings) {
 }
 
 @Composable
-private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, modifier: Modifier = Modifier) {
+private fun WholeFileEditor(raw: String, onRawChange: (String) -> Unit, onValidate: () -> Unit, validating: Boolean, pending: Boolean, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Direct schema-v6 YAML editor", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-            IconButton(onClick = onValidate) { Icon(Icons.Default.CheckCircle, "Validate whole file") }
+            IconButton(onClick = onValidate, enabled = !validating) { Icon(Icons.Default.CheckCircle, "Validate whole file") }
         }
-        Text("Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)
+        Text(if (pending) "Syncing edits…" else "Exceptional edits only. Normal editing should change English fields in Cards view.", style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(value = raw, onValueChange = onRawChange, modifier = Modifier.fillMaxWidth().weight(1f), minLines = 12)
     }
 }
