@@ -116,10 +116,10 @@ internal fun EditorScreen(
     var importBusy by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf(true) }
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
     var showQa by rememberSaveable { mutableStateOf(false) }
-    var showWholeFile by rememberSaveable { mutableStateOf(false) }
+    var showWholeFile by rememberSaveable(initial.file.path, initial.remote.sha) { mutableStateOf(initial.rawNeedsRepair) }
     var wholeFilePending by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
     var wholeFileValidating by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
-    var wholeFileInvalid by remember(initial.file.path, initial.remote.sha) { mutableStateOf(false) }
+    var wholeFileInvalid by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial.rawNeedsRepair) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
@@ -139,7 +139,7 @@ internal fun EditorScreen(
             val parsed = parseWholeFileDraft(raw)
             if (current.raw == raw) {
                 if (parsed != null) {
-                    current = current.copy(document = parsed)
+                    current = current.copy(document = parsed, rawNeedsRepair = false)
                     onDraft(current)
                 }
                 wholeFileInvalid = parsed == null
@@ -570,7 +570,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                             }
                             if (current.raw == raw) {
                                 result.onSuccess { parsed ->
-                                    current = current.copy(document = parsed, approved = false)
+                                    current = current.copy(document = parsed, approved = false, rawNeedsRepair = false)
                                     wholeFilePending = false
                                     wholeFileInvalid = false
                                     onDraft(current)
