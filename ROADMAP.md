@@ -30,21 +30,4 @@ Not planned for now; retained for future reference, not marked complete.
 
 The user confirmed on November 6, 2026 that the frame-fade flicker stopped. That confirmation does not establish completion of the other checks.
 
-## 4. Companion mood transitions
-
-- [x] Review the first-pass in-app transition. The user approved the brief blink transition on November 6, 2026.
-- [x] Integrate the approved implementation from [PR #52](https://github.com/skypie0102/intake-edit/pull/52).
-
-The approved transition switches immediately to the selected mood with a brief blink and keeps the character opaque; it does not geometrically morph between poses.
-
-## 5. Additional companion idle animations — next animation priority
-
-Detailed acting, pacing, and sequencing are in the [idle-animation design](docs/COMPANION_IDLE_ANIMATIONS.md). Implement and visually review one sequence at a time, beginning with Happy humming; retain the shared reading, writing, and page-turning actions.
-
-- [ ] Happy: humming to himself; delighted by a passage. **In progress:** both standalone previews have been approved; app and widget integration remains open.
-- [ ] Waiting: searching for his place; quietly thinking. **In progress:** standalone previews for both Waiting actions are available in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
-- [ ] Hungry: distracted by food; stomach rumble. **In progress:** the food-thought preview is approved; the refined stomach-rumble preview is approved in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
-- [ ] Sad: losing focus; comforting himself with the book. **In progress:** the losing-focus standalone preview is approved and the book-comfort preview is ready for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
-- [ ] New: curious peek; getting absorbed in the book. **In progress:** both standalone previews are approved in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
-
-All ten idle sequences are included in the draft app and widget integration. Android CI passed; device and launcher visual verification remains pending. The integration is not merged or released. The separate widget validation work in item 3 remains deferred.
+Completed companion transitions and idle animations are documented in the [animation milestone archive](docs/archive/COMPANION_ANIMATION_MILESTONE_2026-11.md). Device and launcher validation remains deferred under item 3.
