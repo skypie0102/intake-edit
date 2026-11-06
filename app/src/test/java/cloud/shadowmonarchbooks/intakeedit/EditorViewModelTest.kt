@@ -117,6 +117,20 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun draftWritesUseTheProjectSelectedWhenTheChapterOpened() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
+        val settings = RepoSettings(owner = "owner", repo = "project", branch = "feature")
+        val drafts = FakeDraftRepository()
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> FakeEditorChapterRepository(remote) })
+        viewModel.open(remote.file, settings, "token")
+        advanceUntilIdle()
+        viewModel.onDraft(remote.copy(raw = "new text"))
+        advanceUntilIdle()
+        assertEquals(listOf(settings), drafts.usedSettings)
+    }
+
+    @Test
     fun staleDraftArchiveFailureStopsOpeningBeforeAnyOverwrite() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "remote raw", sha = "new-sha")
         val drafts = FakeDraftRepository(
@@ -239,22 +253,24 @@ private class FakeDraftRepository(
     val persisted = mutableListOf<OpenChapter>()
     val deleted = mutableListOf<String>()
     val savedArchives = mutableListOf<LocalDraft>()
+    val usedSettings = mutableListOf<RepoSettings>()
 
-    override suspend fun archive(draft: LocalDraft) {
+    override suspend fun archive(settings: RepoSettings, draft: LocalDraft) {
         if (failArchive) error("archive failed")
         savedArchives += draft
     }
 
-    override suspend fun archived(path: String): List<LocalDraft> = savedArchives.filter { it.path == path }
+    override suspend fun archived(settings: RepoSettings, path: String): List<LocalDraft> = savedArchives.filter { it.path == path }
 
-    override suspend fun load(path: String): LocalDraft? = loaded
+    override suspend fun load(settings: RepoSettings, path: String): LocalDraft? = loaded
 
-    override suspend fun persist(chapter: OpenChapter) {
+    override suspend fun persist(settings: RepoSettings, chapter: OpenChapter) {
+        usedSettings += settings
         if (failPersist) error("disk full")
         persisted += chapter
     }
 
-    override suspend fun delete(path: String) {
+    override suspend fun delete(settings: RepoSettings, path: String) {
         deleted += path
     }
 }
