@@ -43,8 +43,8 @@ Detailed acting, pacing, and sequencing are in the [idle-animation design](docs/
 
 - [ ] Happy: humming to himself; delighted by a passage. **In progress:** both standalone previews have been approved; app and widget integration remains open.
 - [ ] Waiting: searching for his place; quietly thinking. **In progress:** standalone previews for both Waiting actions are available in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
-- [ ] Hungry: distracted by food; stomach rumble. **In progress:** the food-thought preview is approved; the stomach-rumble preview is available for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
+- [ ] Hungry: distracted by food; stomach rumble. **In progress:** the food-thought preview is approved; the revised stomach-rumble preview is available for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
 - [ ] Sad: losing focus; comforting himself with the book. **In progress:** the losing-focus standalone preview is approved and the book-comfort preview is ready for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
-- [ ] New: curious peek; getting absorbed in the book. **In progress:** the curious-peek preview is approved and the absorbed-reading preview is ready for review in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
+- [ ] New: curious peek; getting absorbed in the book. **In progress:** both standalone previews are approved in [draft PR #53](https://github.com/skypie0102/intake-edit/pull/53); app and widget integration remains open.
 
 The remaining actions are planned; the approved standalone previews still need app and widget integration. The separate widget validation work in item 3 remains deferred.
