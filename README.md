@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Current application version: **0.15.30**.
+Current application version: **0.15.31**. The latest merged changes may not yet be included in a published release.
 
 All current development work is tracked in the [roadmap](ROADMAP.md). Earlier plans and trackers are preserved in the [archive](docs/archive/).
 
@@ -68,7 +68,7 @@ The first complete translation is saved locally for the project, chapter, and so
 
 ## Chapter draft safety
 
-Chapter edits retain the existing atomic local-draft system. Drafts are restored only when their base GitHub SHA still matches the remote chapter, preventing a stale local draft from silently overwriting a newer remote revision.
+Chapter edits use atomic local drafts. A draft is restored only when its base GitHub SHA still matches the remote chapter. Incomplete Whole File drafts reopen in raw mode for repair. If saving a draft fails, the editor reports the error and keeps the edits open for retry. Stale-draft recovery and project-specific draft isolation are tracked in the roadmap.
 
 ## CI artifact
 
