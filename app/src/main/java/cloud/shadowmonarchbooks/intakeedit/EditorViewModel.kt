@@ -167,11 +167,18 @@ internal class EditorViewModel(
                 val repository = repositoryFactory.create(settings, token)
                 val committedResult = repository.commitChapter(next, tagForQa)
                 if (tagForQa) runCatching { onTaggedForQa(settings, next.file) }
-                draftRepository.delete(settings, next.file.path)
+                val cleanupWarning = try {
+                    draftRepository.delete(settings, next.file.path)
+                    null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    "The local draft could not be removed; it remains on this device."
+                }
                 touched = false
                 if (tagForQa) {
                     latest = null
-                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = null) }
+                    _uiState.update { it.copy(open = null, actionInProgress = false, notice = cleanupWarning?.let { message -> "Chapter committed. $message" }) }
                     eventChannel.send(EditorEvent.ReturnChapterList)
                 } else {
                     val restored = withContext(parseDispatcher) { repository.restoreRaw(next, committedResult.remote.content) }
@@ -185,7 +192,7 @@ internal class EditorViewModel(
                         it.copy(
                             open = committed,
                             actionInProgress = false,
-                            notice = "Committed as Pending Review.",
+                            notice = listOfNotNull("Committed as Pending Review.", cleanupWarning).joinToString(" "),
                         )
                     }
                     eventChannel.send(EditorEvent.RefreshChapterList)
@@ -211,14 +218,21 @@ internal class EditorViewModel(
                 draftFlushJob?.join()
                 val repository = repositoryFactory.create(settings, token)
                 repository.approveChapter(next)
-                draftRepository.delete(settings, next.file.path)
+                val cleanupWarning = try {
+                    draftRepository.delete(settings, next.file.path)
+                    null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    "The local draft could not be removed; it remains on this device."
+                }
                 latest = null
                 touched = false
                 _uiState.update {
                     it.copy(
                         open = null,
                         actionInProgress = false,
-                        notice = "Approval workflow started. Refresh to check when the chapter becomes Approved.",
+                        notice = listOfNotNull("Approval workflow started. Refresh to check when the chapter becomes Approved.", cleanupWarning).joinToString(" "),
                     )
                 }
                 eventChannel.send(EditorEvent.ReturnChapterList)
