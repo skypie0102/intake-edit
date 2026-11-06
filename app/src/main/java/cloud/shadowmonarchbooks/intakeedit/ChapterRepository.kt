@@ -144,40 +144,42 @@ internal class GitHubChapterRepository(
         val path = "workflow_status/vol-${volume.toString().padStart(2, '0')}.json"
         val remote = client.getFileOrNull(path) ?: return null
         return try {
-            val root = JSONObject(remote.content)
-            require(root.getInt("schema_version") == 1) { "Unsupported workflow status index schema." }
-            require(root.getInt("volume") == volume) { "Workflow status index volume mismatch." }
-            val sourceCommitSha = root.getString("source_commit_sha")
-            require(Regex("[0-9a-f]{40}").matches(sourceCommitSha)) { "Invalid workflow status source commit." }
-            val rows = root.getJSONArray("chapters")
-            val files = mutableListOf<ChapterFile>()
-            val progress = mutableMapOf<String, ChapterProgress>()
-            for (i in 0 until rows.length()) {
-                val row = rows.getJSONObject(i)
-                val chapter = row.getInt("chapter")
-                val chapterPath = row.getString("path")
-                val file = ChapterFile(chapterPath, volume, chapter)
-                val item = ChapterProgress(
-                    englishSupplied = row.getInt("english_supplied"),
-                    englishTotal = row.getInt("english_total"),
-                    editorReviewComplete = row.getBoolean("editor_review_complete"),
-                    qaActive = row.getInt("qa_active"),
-                    qaTotal = row.getInt("qa_total"),
-                    approved = row.getBoolean("approved"),
-                    qaReusable = row.getBoolean("qa_reusable"),
-                )
-                val expected = when (row.getString("workflow_state")) {
-                    "pending_review" -> ChapterWorkflowState.PENDING_REVIEW
-                    "pending_qa" -> ChapterWorkflowState.PENDING_QA
-                    "ready_for_approval" -> ChapterWorkflowState.READY_FOR_APPROVAL
-                    "approved" -> ChapterWorkflowState.APPROVED
-                    else -> error("Unknown workflow status in index.")
+            val (sourceCommitSha, sortedFiles, progress) = withContext(Dispatchers.Default) {
+                val root = JSONObject(remote.content)
+                require(root.getInt("schema_version") == 1) { "Unsupported workflow status index schema." }
+                require(root.getInt("volume") == volume) { "Workflow status index volume mismatch." }
+                val sourceCommitSha = root.getString("source_commit_sha")
+                require(Regex("[0-9a-f]{40}").matches(sourceCommitSha)) { "Invalid workflow status source commit." }
+                val rows = root.getJSONArray("chapters")
+                val files = mutableListOf<ChapterFile>()
+                val progress = mutableMapOf<String, ChapterProgress>()
+                for (i in 0 until rows.length()) {
+                    val row = rows.getJSONObject(i)
+                    val chapter = row.getInt("chapter")
+                    val chapterPath = row.getString("path")
+                    val file = ChapterFile(chapterPath, volume, chapter)
+                    val item = ChapterProgress(
+                        englishSupplied = row.getInt("english_supplied"),
+                        englishTotal = row.getInt("english_total"),
+                        editorReviewComplete = row.getBoolean("editor_review_complete"),
+                        qaActive = row.getInt("qa_active"),
+                        qaTotal = row.getInt("qa_total"),
+                        approved = row.getBoolean("approved"),
+                        qaReusable = row.getBoolean("qa_reusable"),
+                    )
+                    val expected = when (row.getString("workflow_state")) {
+                        "pending_review" -> ChapterWorkflowState.PENDING_REVIEW
+                        "pending_qa" -> ChapterWorkflowState.PENDING_QA
+                        "ready_for_approval" -> ChapterWorkflowState.READY_FOR_APPROVAL
+                        "approved" -> ChapterWorkflowState.APPROVED
+                        else -> error("Unknown workflow status in index.")
+                    }
+                    require(item.workflowState == expected) { "Workflow status index state mismatch for Chapter $chapter." }
+                    files += file
+                    progress[chapterPath] = item
                 }
-                require(item.workflowState == expected) { "Workflow status index state mismatch for Chapter $chapter." }
-                files += file
-                progress[chapterPath] = item
+                Triple(sourceCommitSha, files.sortedBy { it.chapter }, progress.toMap())
             }
-            val sortedFiles = files.sortedBy { it.chapter }
             val head = client.getBranchHead()
             val refreshFiles = if (workflowStatusCoversHead(sourceCommitSha, head)) {
                 emptyList()
