@@ -33,8 +33,8 @@ This is the single current roadmap. Completed plans and superseded roadmaps are 
 
 ## 5. Further performance investigation
 
-- [ ] Investigate large-chapter QA calculations, import alignment, cache size, and companion memory use; measure before claiming improvements.
-- [ ] Preserve the current single-entry typing path, background parsing and draft persistence, and full companion animations.
+- [x] Investigate large-chapter QA calculations, import alignment, cache size, and companion memory use. Record synthetic emulator measurements and their limitations in the [performance review](docs/PERFORMANCE_REVIEW.md).
+- [x] Preserve the single-entry typing path, background parsing and draft persistence, and full companion animations; cover regressions in CI.
 - [ ] Deferred at the user's request: physical-device profiling and interaction testing; revisit if problems are reported.
 
 ## Deferred: release signing and data safety
