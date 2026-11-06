@@ -279,45 +279,49 @@ internal class ChapterListViewModel(
         files: List<ChapterFile>,
     ) {
         coroutineScope {
-            files.forEach { file ->
+            val iterator = files.iterator()
+            repeat(minOf(4, files.size)) {
                 launch {
-                    val loaded = progressConcurrency.withPermit {
-                        try {
-                            repository.loadBaseProgress(file)
-                        } catch (t: Throwable) {
-                            if (t is CancellationException) throw t
-                            _uiState.update { state ->
-                                state.copy(notice = "Could not load Chapter ${file.chapter} status: ${t.message ?: "editor fetch failed"}")
+                    while (iterator.hasNext()) {
+                        val file = iterator.next()
+                        val loaded = progressConcurrency.withPermit {
+                            try {
+                                repository.loadBaseProgress(file)
+                            } catch (t: Throwable) {
+                                if (t is CancellationException) throw t
+                                _uiState.update { state ->
+                                    state.copy(notice = "Could not load Chapter ${file.chapter} status: ${t.message ?: "editor fetch failed"}")
+                                }
+                                null
                             }
-                            null
-                        }
-                    } ?: return@launch
+                        } ?: continue
 
-                    val qaCounts = progressConcurrency.withPermit {
-                        try {
-                            repository.loadQaCounts(file, loaded.document, loaded.editorContentSha256)
-                        } catch (t: Throwable) {
-                            if (t is CancellationException) throw t
-                            _uiState.update { state ->
-                                state.copy(notice = "Could not load Chapter ${file.chapter} QA status: ${t.message ?: "QA fetch failed"}")
+                        val qaCounts = progressConcurrency.withPermit {
+                            try {
+                                repository.loadQaCounts(file, loaded.document, loaded.editorContentSha256)
+                            } catch (t: Throwable) {
+                                if (t is CancellationException) throw t
+                                _uiState.update { state ->
+                                    state.copy(notice = "Could not load Chapter ${file.chapter} QA status: ${t.message ?: "QA fetch failed"}")
+                                }
+                                null
                             }
-                            null
-                        }
-                    } ?: return@launch
+                        } ?: continue
 
-                    if (_uiState.value.selectedVolume != volume) return@launch
-                    _uiState.update { state ->
-                        state.copy(
-                            progressByPath = state.progressByPath + (
-                                file.path to loaded.progress.copy(
-                                    qaActive = qaCounts.active,
-                                    qaTotal = qaCounts.total,
-                                    qaReusable = qaCounts.reusable,
-                                )
-                            ),
-                        )
+                        if (_uiState.value.selectedVolume != volume) return@launch
+                        _uiState.update { state ->
+                            state.copy(
+                                progressByPath = state.progressByPath + (
+                                    file.path to loaded.progress.copy(
+                                        qaActive = qaCounts.active,
+                                        qaTotal = qaCounts.total,
+                                        qaReusable = qaCounts.reusable,
+                                    )
+                                ),
+                            )
+                        }
+                        scheduleCacheSave(settings)
                     }
-                    scheduleCacheSave(settings)
                 }
             }
         }
