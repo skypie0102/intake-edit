@@ -4,7 +4,7 @@ Superseded by the [current roadmap](../../ROADMAP.md) after the app-wide review.
 
 # Intake Edit roadmap
 
-This is the single current roadmap for unfinished work. Historical plans and trackers are preserved in [the archive](docs/archive/).
+This is the single current roadmap for unfinished work. Historical plans and trackers are preserved in [the archive](./).
 
 ## ~~1. Release signing and data safety~~ — deferred
 
@@ -35,7 +35,7 @@ Not planned for now; retained for future reference, not marked complete.
 
 The user confirmed on November 6, 2026 that the frame-fade flicker stopped. That confirmation does not establish completion of the other checks.
 
-Completed companion transitions and idle animations are documented in the [animation milestone archive](docs/archive/COMPANION_ANIMATION_MILESTONE_2026-11.md). Device and launcher validation remains deferred under item 3.
+Completed companion transitions and idle animations are documented in the [animation milestone archive](COMPANION_ANIMATION_MILESTONE_2026-11.md). Device and launcher validation remains deferred under item 3.
 
 Physical Android device testing and profiling are deferred at the user's request and may be revisited if issues are reported. The current performance work is in [PR #54](https://github.com/skypie0102/intake-edit/pull/54).
 
