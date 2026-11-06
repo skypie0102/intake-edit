@@ -5,6 +5,21 @@ import org.junit.Test
 import kotlin.random.Random
 
 class RigPreviewTimelineTest {
+    @Test fun widgetPreservesEveryIdleFrameAtAuthoredTempo() {
+        for (mood in PetMood.entries) {
+            val segments = widgetSegments(mood, listOf(176 to 80L, 200 to 80L))
+            assertEquals(6, segments.size)
+            var start = 0
+            segments.forEachIndexed { index, segment ->
+                val frames = (start until start + segment.ticks).map { widgetSequenceIndex(it, segments) }
+                assertTrue(frames.all { it.first == index })
+                assertEquals((0 until segment.frameCount).toList(), frames.map { it.second }.distinct())
+                assertTrue(segment.ticks * 70L - segment.frameCount * segment.frameMs in 0L..69L)
+                start += segment.ticks
+            }
+        }
+    }
+
     @Test fun productionWidgetCoversEveryPoseInEachAction() {
         val frames = (0 until 384).map(::widgetFrameIndex)
         for (action in 0..3) {
