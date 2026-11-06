@@ -1179,7 +1179,7 @@ LaunchedEffect(qaFindings) {
                         },
                     ) {
                         IconButton(onClick = { showAttentionSheet = true }) {
-                            Icon(Icons.Default.PriorityHigh, "Attention")
+                            Icon(Icons.Default.PriorityHigh, "Attention for ${entry.locator}")
                         }
                     }
                 }
@@ -1188,7 +1188,7 @@ LaunchedEffect(qaFindings) {
                     val reference = importedTranslation?.let { "\n\n${if (machineReference) "MACHINE TRANSLATION" else "IMPORTED TRANSLATION"}:\n$it" }.orEmpty()
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text") }
+                }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text for ${entry.locator}") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
             importedTranslation?.let { DisplayBlock(if (machineReference) "Machine Translation · Google Translate" else "Imported", it) }
@@ -1217,7 +1217,8 @@ LaunchedEffect(qaFindings) {
                 },
                 label = { Text("English") },
                 minLines = 3,
-                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+                    .semantics { contentDescription = "English for ${entry.locator}" },
             )
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
