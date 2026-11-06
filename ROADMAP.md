@@ -9,9 +9,9 @@ This is the single current roadmap. Completed plans and superseded roadmaps are 
 - [x] Reopen incomplete Whole File drafts in a repairable raw editor without losing their contents.
 - [x] Preserve drafts whose base revision changed and provide an editor view to inspect and copy them.
 - [x] Add an export flow for preserved drafts.
-- [ ] Verify draft recovery across app restarts in automated Android tests.
+- [x] Verify draft recovery across app process restarts in automated Android tests.
 - [x] Isolate drafts by repository, branch, and chapter. Keep older unassigned drafts available for explicit inspection and recovery; never guess their project.
-- [ ] Add regression tests for failed writes, interrupted editing, stale drafts, and recovery.
+- [x] Add regression tests for failed writes, interrupted editing, stale drafts, and recovery.
 
 ## 2. Complete chapter lists and reliable QA state
 
@@ -21,21 +21,21 @@ This is the single current roadmap. Completed plans and superseded roadmaps are 
 
 ## 3. Network resilience and interaction clarity
 
-- [x] Distinguish offline, timeout, rate-limit, permissions, and stale-index failures and explain how to retry.
+- [x] Distinguish common network, timeout, rate-limit, permissions, and stale-index failures and explain how to retry.
 - [x] Show whether chapter status comes from cache, the workflow index, or direct refresh, and explain index fallback.
-- [ ] Review editing, navigation, and approval interactions for clear feedback and recovery.
+- [x] Review editing, navigation, and approval interactions for clear feedback and recovery.
 
 ## 4. Accessibility and automated Android interaction tests
 
-- [ ] Add emulator-based tests for chapter opening, editing, view switching, QA, and navigation where feasible.
-- [ ] Review screen-reader labels, keyboard focus, large text, and compact screens; address issues found.
-- [ ] Keep the automated unit, animation, and Android build checks passing.
+- [x] Add emulator-based tests for chapter opening, editing, view switching, QA, and navigation.
+- [x] Review screen-reader labels, keyboard focus, large text, and compact screens; address issues found. Physical TalkBack and device checks remain deferred.
+- [x] Run automated unit, animation, emulator, and Android build checks.
 
 ## 5. Further performance investigation
 
 - [x] Investigate large-chapter QA calculations, import alignment, cache size, and companion memory use. Record synthetic emulator measurements and their limitations in the [performance review](docs/PERFORMANCE_REVIEW.md).
 - [x] Preserve the single-entry typing path, background parsing and draft persistence, and full companion animations; cover regressions in CI.
-- [ ] Deferred at the user's request: physical-device profiling and interaction testing; revisit if problems are reported.
+Physical-device profiling and interaction testing remain deferred at the user's request; revisit if problems are reported.
 
 ## Deferred: release signing and data safety
 
