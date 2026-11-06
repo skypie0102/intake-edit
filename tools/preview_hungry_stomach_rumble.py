@@ -15,7 +15,7 @@ def window(t, start, rise, end, fall):
 def hand_path(amount):
     # One continuous arm, smoothly bent inward toward the tummy.
     rest = (303,269, 303,255,310,245,322,247, 334,249,338,259,330,272)
-    touch = (303,269, 300,246,286,231,275,231, 264,230,259,240,265,249)
+    touch = (303,269, 300,262,288,249,278,249, 267,249,262,258,269,267)
     v = [a+(b-a)*amount for a,b in zip(rest,touch)]
     return ('M%.2f %.2f C%.2f %.2f %.2f %.2f %.2f %.2f '
             'C%.2f %.2f %.2f %.2f %.2f %.2f Z') % tuple(v)
@@ -31,6 +31,8 @@ def make_frame(t):
     root = ET.fromstring(rig.svg_for('hungry', ['head_group','left_arm','right_arm','book'],
         phase=0,idle_phase=0,view_box='92 87 320 320',blinking=blink))
     head = root[1]
+    # His body remains continuous behind the lowered book.
+    head[0].attrib.pop('clip-path', None)
     head.set('transform',f'translate(0 {-4*reaction+5*discomfort+2*slump:.3f}) rotate({-3*reaction+4*discomfort:.3f} 252 270)')
     eyes = head[1][0]
     scan = (rig.smooth((t-.03)/.12)*5-2.5)*read
@@ -39,12 +41,15 @@ def make_frame(t):
     mouth.set('d',f'M242 250 Q252 {240-2*discomfort:.3f} 262 250')
     right = root[3][0][0]
     right.set('d',hand_path(hand))
-    # Lower the book and the attached arms together; the hand curls inward.
+    # The left hand supports the book while the right rests against his body.
     lowered = window(t,.28,.13,.88,.17)
-    book = ET.Element(N+'g',{'transform':f'translate(0 {12*lowered:.3f})'})
+    left = root[2]; right_arm = root[3]
+    root.remove(left); root.remove(right_arm)
+    book = ET.Element(N+'g',{'transform':f'translate(0 {31*lowered:.3f})'})
+    book.append(left)
     for n in list(root)[2:]:
         root.remove(n); book.append(n)
-    root.append(book)
+    root.append(right_arm); root.append(book)
     # Two small staggered vibration marks pulse and fade; no screen or body fade.
     pulse = window(t,.27,.035,.43,.10)
     if pulse > .001:
