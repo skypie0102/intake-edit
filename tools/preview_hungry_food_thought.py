@@ -1,4 +1,4 @@
-"""Hungry idle: a daydream of warm bread interrupts his reading."""
+"""Hungry idle: a daydream of roasted meat interrupts his reading."""
 import math
 import sys
 import xml.etree.ElementTree as ET
@@ -29,13 +29,16 @@ def make_frame(t):
     for node in list(root)[2:]:
         root.remove(node); book.append(node)
     root.append(book)
-    # A separate visual daydream: warm bread rather than the existing rice-bowl bubble.
+    # A separate visual daydream: a roasted drumstick with an unmistakable bone.
     opacity=window(t,.27,.08,.69,.10)
     if opacity > .001:
         float_y=2*math.sin((t-.27)*math.pi*4)
         g=ET.SubElement(root,N+'g',{'opacity':f'{opacity:.3f}','transform':f'translate(0 {float_y:.2f})'})
-        ET.SubElement(g,N+'path',{'d':'M114 192 C111 181 117 171 131 169 C140 161 151 165 155 171 C168 171 173 182 170 192 Q168 199 159 200 L125 200 Q116 199 114 192 Z','fill':'#dca36b','stroke':'#926779','stroke-width':'3','stroke-linejoin':'round'})
-        ET.SubElement(g,N+'path',{'d':'M125 181 Q132 176 136 176 M141 178 Q148 173 152 175 M154 182 Q160 179 163 180','fill':'none','stroke':'#f8dcb2','stroke-width':'3','stroke-linecap':'round'})
+        # Ivory bone with two round tips, placed behind the roasted meat.
+        ET.SubElement(g,N+'path',{'d':'M151 177 L165 167 C164 163 166 160 170 161 C173 156 179 159 178 163 C182 164 182 170 177 171 C176 175 172 176 169 173 L158 184 Z','fill':'#fff5dc','stroke':'#926779','stroke-width':'2.6','stroke-linejoin':'round'})
+        # Broad reddish roast with a rounded end and a tapered bone attachment.
+        ET.SubElement(g,N+'path',{'d':'M119 185 C116 175 123 168 134 168 C143 168 148 173 153 177 L160 183 L154 190 C150 195 145 200 135 201 C126 201 119 195 119 185 Z','fill':'#b95d47','stroke':'#754752','stroke-width':'3','stroke-linejoin':'round'})
+        ET.SubElement(g,N+'path',{'d':'M126 177 Q130 173 136 174 M125 184 Q124 189 128 193','fill':'none','stroke':'#f5b78b','stroke-width':'3','stroke-linecap':'round'})
         steam=ET.SubElement(g,N+'g',{'transform':f'translate(0 {-3*rig.smooth((t-.30)/.30):.2f})'})
         ET.SubElement(steam,N+'path',{'d':'M129 163 Q124 158 129 152 M142 159 Q137 153 142 147 M155 163 Q150 158 155 152','fill':'none','stroke':'#e7c5d5','stroke-width':'2.5','stroke-linecap':'round'})
     return ET.tostring(root,encoding='unicode')
