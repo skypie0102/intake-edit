@@ -130,6 +130,8 @@ internal object DefaultChapterRepositoryFactory : ChapterRepositoryFactory {
         GitHubChapterRepository(settings, token)
 }
 
+internal class WorkflowIndexUnavailable(message: String) : Exception(message)
+
 internal class GitHubChapterRepository(
     private val settings: RepoSettings,
     token: String,
@@ -141,7 +143,7 @@ internal class GitHubChapterRepository(
     override suspend fun loadVolumeStatus(volume: Int): IndexedVolumeStatus? {
         val path = "workflow_status/vol-${volume.toString().padStart(2, '0')}.json"
         val remote = client.getFileOrNull(path) ?: return null
-        return runCatching {
+        return try {
             val root = JSONObject(remote.content)
             require(root.getInt("schema_version") == 1) { "Unsupported workflow status index schema." }
             require(root.getInt("volume") == volume) { "Workflow status index volume mismatch." }
@@ -196,7 +198,13 @@ internal class GitHubChapterRepository(
                 progressByPath = progress,
                 refreshFiles = refreshFiles,
             )
-        }.getOrNull()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (network: GitHubException) {
+            throw network
+        } catch (error: Exception) {
+            throw WorkflowIndexUnavailable(error.message ?: "Invalid workflow index")
+        }
     }
 
     override suspend fun listFiles(volume: Int): List<ChapterFile> = client.listIntakeFiles(volume)
@@ -238,7 +246,7 @@ internal class GitHubChapterRepository(
         val (document, editorContentSha256) = withContext(Dispatchers.Default) {
             IntakeParser.parse(remote.content) to QaFindingsParser.editorContentSha256(remote.content)
         }
-        val qa = runCatching { loadQa(file) }.getOrNull()
+        val qa = loadChapterQaSafely { loadQa(file) }
         val endnoteProposals = loadEndnoteProposals()
         return OpenChapter(
             file = file,
@@ -535,4 +543,13 @@ internal class GitHubChapterRepository(
         val reader = client.getFileOrNull(readerFile) ?: return false
         return approval.readerContentSha256 == QaFindingsParser.sha256(reader.content)
     }
+}
+
+/** Missing QA is a valid result; network and malformed-data failures must remain visible. */
+internal suspend fun loadChapterQaSafely(load: suspend () -> QaFindingsSnapshot?): QaFindingsSnapshot? = try {
+    load()
+} catch (cancelled: kotlinx.coroutines.CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    throw GitHubException("Could not load QA findings: ${error.message ?: "unknown error"}. Retry opening the chapter.")
 }
