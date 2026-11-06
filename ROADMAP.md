@@ -7,7 +7,8 @@ This is the single current roadmap. Completed plans and superseded roadmaps are 
 - [x] Report draft-save failures, retain unsaved edits, and allow retry before closing.
 - [ ] Report draft deletion failures without misreporting successful remote commits.
 - [x] Reopen incomplete Whole File drafts in a repairable raw editor without losing their contents.
-- [ ] Preserve and provide a way to recover or export drafts whose base revision changed.
+- [x] Preserve drafts whose base revision changed and provide an editor view to inspect and copy them.
+- [ ] Add an export flow for preserved drafts and verify recovery across app restarts.
 - [ ] Isolate drafts by repository, branch, and chapter, with a safe migration for existing drafts.
 - [ ] Add regression tests for failed writes, interrupted editing, stale drafts, and recovery.
 
