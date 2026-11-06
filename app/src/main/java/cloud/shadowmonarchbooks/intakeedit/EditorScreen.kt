@@ -363,28 +363,40 @@ fun stageProposalDecision(proposalId: String, status: String) {
         jumpRequestId += 1
     }
 
-    val missingEnglish = current.document.entries.filterNot { it.isSupplied }
-    val editorContentSha = QaFindingsParser.editorContentSha256(current.raw)
-    val attentionState = buildAttentionState(
+    val (suppliedEntries, missingEnglish) = remember(current.document.entries) {
+        current.document.entries.partition { it.isSupplied }
+    }
+    val editorContentSha = remember(current.raw) { QaFindingsParser.editorContentSha256(current.raw) }
+    val attentionState = remember(current.document, current.qa?.document, current.endnoteProposals?.document, current.file, editorContentSha) { buildAttentionState(
         document = current.document,
         qa = current.qa?.document,
         proposals = current.endnoteProposals?.document,
         volume = current.file.volume,
         chapter = current.file.chapter,
         editorContentSha256 = editorContentSha,
-    )
+    ) }
     val allQaByLocator = attentionState.allQaByLocator
     val qaDispositionById = attentionState.qaDispositionById
-    val qaCanResolveById = current.qa?.document?.findings.orEmpty().associate { finding ->
-        finding.id to (current.qa?.document?.canResolve(finding, current.document) == true)
+    val qaCanResolveById = remember(current.qa?.document, current.document) {
+        current.qa?.document?.findings.orEmpty().associate { finding ->
+            finding.id to (current.qa?.document?.canResolve(finding, current.document) == true)
+        }
     }
     val unresolvedAttentionCount = attentionState.unresolvedCount
-    val suppliedEnglishCount = current.document.entries.count { it.isSupplied }
+    val suppliedEnglishCount = suppliedEntries.size
     val fillableImportCount = imported?.let { overlay ->
         missingEnglish.count { overlay.translationFor(it.locator) != null }
     } ?: 0
-    val filterCounts = EntryFilter.entries.associateWith { item -> filteredEntries(current.document, item).size }
-    val entries = filteredEntries(current.document, filter)
+    val attentionEntries = if (missingEnglish.isNotEmpty()) missingEnglish
+        else if (!current.document.editorReviewComplete) current.document.entries else emptyList()
+    val filterEntries = mapOf(
+        EntryFilter.ALL to current.document.entries,
+        EntryFilter.NEEDS_ATTENTION to attentionEntries,
+        EntryFilter.SUPPLIED to suppliedEntries,
+        EntryFilter.UNSUPPLIED to missingEnglish,
+    )
+    val filterCounts = filterEntries.mapValues { it.value.size }
+    val entries = filterEntries.getValue(filter)
     val headerExpanded by remember {
         derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 48 }
     }
@@ -397,7 +409,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val readyForApproval = !current.approved &&
         !hasLocalChanges &&
         current.document.editorReviewComplete &&
-        current.document.englishSupplied == current.document.englishTotal &&
+        suppliedEnglishCount == current.document.englishTotal &&
         closedReusableQaPass
     val primaryCommitLabel = when {
         readyForApproval -> "Approve Chapter"
@@ -419,7 +431,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             TopAppBar(
                 title = {
                     Text(
-                        "V${current.file.volume} Ch ${current.file.chapter} • ${current.document.englishSupplied}/${current.document.englishTotal}",
+                        "V${current.file.volume} Ch ${current.file.chapter} • ${suppliedEnglishCount}/${current.document.englishTotal}",
                         maxLines = 1,
                     )
                 },
@@ -833,16 +845,6 @@ private fun selectedFileName(context: Context, uri: android.net.Uri): String? = 
         if (index >= 0) cursor.getString(index) else null
     }
 }.getOrNull()
-
-private fun filteredEntries(document: EditorDocument, filter: EntryFilter): List<EditorEntry> = when (filter) {
-    EntryFilter.NEEDS_ATTENTION -> {
-        val missing = document.entries.filterNot { it.isSupplied }
-        if (missing.isNotEmpty()) missing else if (!document.editorReviewComplete) document.entries else emptyList()
-    }
-    EntryFilter.ALL -> document.entries
-    EntryFilter.SUPPLIED -> document.entries.filter { it.isSupplied }
-    EntryFilter.UNSUPPLIED -> document.entries.filterNot { it.isSupplied }
-}
 
 private fun pendingSuggestionLocators(chapter: OpenChapter): List<String> {
     val pending = chapter.endnoteProposals?.document?.proposals.orEmpty()
