@@ -115,6 +115,8 @@ class QaOnePassWorkflowTest {
 
         assertFalse(qa.canResolve(qa.findings.first(), base))
         assertTrue(qa.canResolve(qa.findings.first(), fixed))
+        assertEquals(qa.canResolve(qa.findings.first(), fixed), qa.canResolve(qa.findings.first(), fixed, qa.qaPassReusable(fixed)))
+        assertFalse(qa.canResolve(qa.findings.first(), fixed, false))
 
         val resolved = qa.withResolution(
             "f1",
