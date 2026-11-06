@@ -271,6 +271,7 @@ private fun ChapterIntakeApp(widgetOpenRequest: Int, onWidgetRequestConsumed: ()
             initial = chapter,
             busy = editorBusy,
             notice = editorState.notice,
+            recoveryDrafts = editorState.recoveryDrafts,
             onBack = editorViewModel::closeEditor,
             onDraft = editorViewModel::onDraft,
             onCommit = { next, markReviewed ->
