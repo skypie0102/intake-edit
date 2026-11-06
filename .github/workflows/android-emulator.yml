@@ -37,4 +37,9 @@ jobs:
           api-level: 35
           arch: x86_64
           disable-animations: true
-          script: gradle --no-daemon :app:connectedDebugAndroidTest
+          script: |
+            gradle --no-daemon :app:connectedDebugAndroidTest
+            adb logcat -d -s IntakeQaBenchmark:I '*:S'
+            gradle --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -Pandroid.testInstrumentationRunnerArguments.draft_phase=write
+            adb shell am force-stop cloud.shadowmonarchbooks.intakeedit.rigpreview
+            gradle --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cloud.shadowmonarchbooks.intakeedit.DraftProcessRestartAndroidTest -Pandroid.testInstrumentationRunnerArguments.draft_phase=verify
