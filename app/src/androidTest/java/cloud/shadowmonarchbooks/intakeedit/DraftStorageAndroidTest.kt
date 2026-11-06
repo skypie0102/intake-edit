@@ -32,6 +32,18 @@ class DraftStorageAndroidTest {
         assertTrue(reopened.delete(second, path))
     }
 
+    @Test fun archivedDraftSurvivesStoreRecreationAndRemainsProjectScoped() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val path = "test-${UUID.randomUUID()}/chapter.yml"
+        val first = RepoSettings(owner = "author", repo = "one", branch = "main")
+        val second = first.copy(branch = "other")
+        val draft = LocalDraft(path, "old", "preserved content", 1L)
+        assertTrue(DraftStore(context).archive(first, draft))
+        val reopened = DraftStore(context)
+        assertEquals("preserved content", reopened.archived(first, path).single().raw)
+        assertTrue(reopened.archived(second, path).isEmpty())
+    }
+
     @Test fun legacyDraftIsVisibleButNeverClaimedOrDeletedAutomatically() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val path = "test-${UUID.randomUUID()}/chapter.yml"
