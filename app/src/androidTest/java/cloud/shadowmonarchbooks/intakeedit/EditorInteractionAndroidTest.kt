@@ -1,6 +1,7 @@
 package cloud.shadowmonarchbooks.intakeedit
 
 import androidx.compose.material3.MaterialTheme
+import androidx.test.espresso.Espresso
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -51,6 +52,10 @@ class EditorInteractionAndroidTest {
         compose.onNodeWithContentDescription("Editor actions").performClick()
         compose.onNodeWithText("Cards mode").performClick()
         compose.onNodeWithText("English").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Editor filters").performClick()
+        compose.onNodeWithText("QA findings").performClick()
+        Espresso.pressBack()
+        compose.onNodeWithText("No machine-readable QA findings have been recorded for this chapter yet.").assertIsDisplayed()
     }
 
     @Test fun workspaceButtonsNavigateToRequestedSection() {
