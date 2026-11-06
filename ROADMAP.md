@@ -5,23 +5,24 @@ This is the single current roadmap. Completed plans and superseded roadmaps are 
 ## 1. Draft safety and recovery
 
 - [x] Report draft-save failures, retain unsaved edits, and allow retry before closing.
-- [ ] Report draft deletion failures without misreporting successful remote commits.
+- [x] Report draft deletion failures without misreporting successful remote commits.
 - [x] Reopen incomplete Whole File drafts in a repairable raw editor without losing their contents.
 - [x] Preserve drafts whose base revision changed and provide an editor view to inspect and copy them.
-- [ ] Add an export flow for preserved drafts and verify recovery across app restarts.
+- [x] Add an export flow for preserved drafts.
+- [ ] Verify draft recovery across app restarts in automated Android tests.
 - [x] Isolate drafts by repository, branch, and chapter. Keep older unassigned drafts available for explicit inspection and recovery; never guess their project.
 - [ ] Add regression tests for failed writes, interrupted editing, stale drafts, and recovery.
 
 ## 2. Complete chapter lists and reliable QA state
 
-- [ ] Replace the 1,000-entry-limited GitHub Contents fallback with a complete listing strategy; detect truncation and test large volumes.
-- [ ] Distinguish missing QA data from network, permission, and parse errors; offer retry and keep findings from disappearing silently.
-- [ ] Isolate imported translation references by project and branch, with safe migration.
+- [x] Replace the 1,000-entry-limited GitHub Contents fallback with a tree-based listing; reject truncated trees and test large volumes.
+- [x] Distinguish missing QA data from network, permission, and parse errors; report failures and let the user retry opening the chapter.
+- [x] Isolate imported translation references by project and branch; keep older unassigned references available for explicit recovery.
 
 ## 3. Network resilience and interaction clarity
 
-- [ ] Distinguish offline, rate-limit, permissions, stale-index, and other failures; offer useful retry actions.
-- [ ] Show whether chapter status comes from cache or a fresh index and explain incomplete refreshes.
+- [x] Distinguish offline, timeout, rate-limit, permissions, and stale-index failures and explain how to retry.
+- [x] Show whether chapter status comes from cache, the workflow index, or direct refresh, and explain index fallback.
 - [ ] Review editing, navigation, and approval interactions for clear feedback and recovery.
 
 ## 4. Accessibility and automated Android interaction tests
