@@ -1185,10 +1185,10 @@ LaunchedEffect(qaFindings) {
                 }
                 IconButton(onClick = {
                     focusManager.clearFocus(force = true)
-                    val reference = importedTranslation?.let { "\n\n${if (machineReference) "MACHINE TRANSLATION" else "IMPORTED TRANSLATION"}:\n$it" }.orEmpty()
-                    clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", "RAW:\n${entry.sourceJapanese}$reference"))
+                    val copiedText = rawCopyText(entry.sourceJapanese, importedTranslation, machineReference)
+                    clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", copiedText))
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                }) { Icon(Icons.Default.ContentCopy, "Copy raw and imported text for ${entry.locator}") }
+                }) { Icon(Icons.Default.ContentCopy, if (!machineReference && importedTranslation != null) "Copy raw and imported text for ${entry.locator}" else "Copy raw text for ${entry.locator}") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
             importedTranslation?.let { DisplayBlock(if (machineReference) "Machine Translation · Google Translate" else "Imported", it) }
