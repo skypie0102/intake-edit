@@ -136,6 +136,13 @@ internal fun EditorScreen(
     var showCommit by remember { mutableStateOf(false) }
     var showSavedDrafts by remember { mutableStateOf(false) }
     var pendingSavedDraftDismissal by remember { mutableStateOf<LocalDraft?>(null) }
+
+    LaunchedEffect(recoveryDrafts.isEmpty()) {
+        if (recoveryDrafts.isEmpty()) {
+            showSavedDrafts = false
+            pendingSavedDraftDismissal = null
+        }
+    }
     var selectedSavedDraft by remember { mutableStateOf<LocalDraft?>(null) }
     var draftForExport by remember { mutableStateOf<LocalDraft?>(null) }
     var showApprove by remember { mutableStateOf(false) }
