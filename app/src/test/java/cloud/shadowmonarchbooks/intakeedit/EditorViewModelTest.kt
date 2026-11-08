@@ -139,6 +139,31 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun dismissedStaleRecoveryDoesNotReappearAfterReopeningChapter() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-new")
+        val older = LocalDraft(remote.file.path, "sha-old", "obsolete local edit", 1L)
+        val drafts = FakeDraftRepository(loaded = older)
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> FakeEditorChapterRepository(remote) })
+
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+        assertEquals(listOf(older), viewModel.uiState.value.recoveryDrafts)
+        assertEquals(listOf(remote.file.path), drafts.deleted)
+
+        viewModel.dismissSavedDraft(older)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.recoveryDrafts.isEmpty())
+
+        viewModel.closeEditor()
+        advanceUntilIdle()
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.recoveryDrafts.isEmpty())
+        assertEquals("remote raw", viewModel.chapterForDisplay()?.raw)
+    }
+
+    @Test
     fun failedArchivedDraftDismissalKeepsDraftInList() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "remote raw", sha = "sha-new")
         val old = LocalDraft(remote.file.path, "sha-old", "recoverable", 1L)
@@ -314,7 +339,7 @@ class EditorViewModelTest {
 }
 
 private class FakeDraftRepository(
-    private val loaded: LocalDraft? = null,
+    private var loaded: LocalDraft? = null,
     var failPersist: Boolean = false,
     var failArchive: Boolean = false,
     var failDelete: Boolean = false,
@@ -350,6 +375,7 @@ private class FakeDraftRepository(
     override suspend fun delete(settings: RepoSettings, path: String) {
         if (failDelete) error("delete failed")
         deleted += path
+        if (loaded?.path == path) loaded = null
     }
 }
 
