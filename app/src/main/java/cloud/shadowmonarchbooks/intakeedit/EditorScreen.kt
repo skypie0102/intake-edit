@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -95,6 +96,7 @@ internal fun EditorScreen(
     busy: Boolean,
     notice: String?,
     recoveryDrafts: List<LocalDraft>,
+    onDismissSavedDraft: (LocalDraft) -> Unit,
     onBack: () -> Unit,
     onDraft: (OpenChapter) -> Unit,
     onCommit: (OpenChapter, Boolean) -> Unit,
@@ -133,6 +135,14 @@ internal fun EditorScreen(
     var showOverflow by remember { mutableStateOf(false) }
     var showCommit by remember { mutableStateOf(false) }
     var showSavedDrafts by remember { mutableStateOf(false) }
+    var pendingSavedDraftDismissal by remember { mutableStateOf<LocalDraft?>(null) }
+
+    LaunchedEffect(recoveryDrafts.isEmpty()) {
+        if (recoveryDrafts.isEmpty()) {
+            showSavedDrafts = false
+            pendingSavedDraftDismissal = null
+        }
+    }
     var selectedSavedDraft by remember { mutableStateOf<LocalDraft?>(null) }
     var draftForExport by remember { mutableStateOf<LocalDraft?>(null) }
     var showApprove by remember { mutableStateOf(false) }
@@ -680,42 +690,49 @@ fun stageProposalDecision(proposalId: String, status: String) {
             }
 
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BadgedBox(
-                    badge = { if (missingEnglish.isNotEmpty()) Badge { Text(missingEnglish.size.toString()) } },
+                // Allow the secondary actions to scroll without moving the primary action.
+                Row(
+                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(
-                        onClick = { jumpToFirstMissing() },
-                        enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && missingEnglish.isNotEmpty(),
+                    BadgedBox(
+                        badge = { if (missingEnglish.isNotEmpty()) Badge { Text(missingEnglish.size.toString()) } },
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.NavigateNext, "Go to first unsupplied English")
+                        IconButton(
+                            onClick = { jumpToFirstMissing() },
+                            enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && missingEnglish.isNotEmpty(),
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.NavigateNext, "Go to first unsupplied English")
+                        }
                     }
-                }
-                BadgedBox(
-                    badge = { if (unresolvedAttentionCount > 0) Badge { Text(unresolvedAttentionCount.toString()) } },
-                ) {
-                    IconButton(
-                        onClick = { cycleAttention() },
-                        enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && unresolvedAttentionCount > 0,
+                    BadgedBox(
+                        badge = { if (unresolvedAttentionCount > 0) Badge { Text(unresolvedAttentionCount.toString()) } },
                     ) {
-                        Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
+                        IconButton(
+                            onClick = { cycleAttention() },
+                            enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && unresolvedAttentionCount > 0,
+                        ) {
+                            Icon(Icons.Default.PriorityHigh, "Cycle cards needing attention")
+                        }
                     }
-                }
-                IconButton(onClick = { showTranslationChoices = true }, enabled = !busy && !importBusy) {
-                    Icon(Icons.Default.Translate, "Translation reference")
+                    IconButton(onClick = { showTranslationChoices = true }, enabled = !busy && !importBusy) {
+                        Icon(Icons.Default.Translate, "Translation reference")
+                    }
                 }
                 Button(
                     onClick = { if (readyForApproval) showApprove = true else showCommit = true },
                     enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && !current.approved,
-                ) { Text(primaryCommitLabel) }
+                ) { Text(primaryCommitLabel, maxLines = 1) }
             }
         }
     }
 
-    if (showSavedDrafts) {
+    if (showSavedDrafts && pendingSavedDraftDismissal == null) {
         AlertDialog(
             onDismissRequest = { showSavedDrafts = false },
             title = { Text("Saved older drafts") },
@@ -724,13 +741,45 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     Text("Open a draft to inspect or copy it. Older-format drafts have no recorded project, so check them before restoring.")
                     recoveryDrafts.forEach { draft ->
                         val saved = java.text.DateFormat.getDateTimeInstance().format(java.util.Date(draft.savedAtMillis))
-                        TextButton(onClick = { selectedSavedDraft = draft; showSavedDrafts = false }) {
-                            Text("$saved • ${draft.baseSha.take(8)}${if (draft.legacyUnassigned) " • project unknown" else ""}")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            TextButton(
+                                onClick = { selectedSavedDraft = draft; showSavedDrafts = false },
+                                enabled = !busy,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("$saved • ${draft.baseSha.take(8)}${if (draft.legacyUnassigned) " • project unknown" else ""}")
+                            }
+                            IconButton(
+                                onClick = { pendingSavedDraftDismissal = draft },
+                                enabled = !busy,
+                            ) {
+                                Icon(Icons.Default.Close, "Dismiss saved draft from $saved")
+                            }
                         }
                     }
                 }
             },
             confirmButton = { TextButton(onClick = { showSavedDrafts = false }) { Text("Close") } },
+        )
+    }
+    pendingSavedDraftDismissal?.let { draft ->
+        AlertDialog(
+            onDismissRequest = { pendingSavedDraftDismissal = null },
+            title = { Text("Dismiss saved draft?") },
+            text = { Text("This permanently removes the selected older draft from local recovery. The current chapter, other saved drafts, and GitHub files will not be changed.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingSavedDraftDismissal = null
+                    onDismissSavedDraft(draft)
+                }, enabled = !busy) { Text("Dismiss draft") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSavedDraftDismissal = null }) { Text("Cancel") }
+            },
         )
     }
     selectedSavedDraft?.let { draft ->

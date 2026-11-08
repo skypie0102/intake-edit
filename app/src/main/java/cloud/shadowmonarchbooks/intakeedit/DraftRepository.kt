@@ -9,6 +9,7 @@ internal interface DraftRepository {
     suspend fun load(settings: RepoSettings, path: String): LocalDraft?
     suspend fun archive(settings: RepoSettings, draft: LocalDraft)
     suspend fun archived(settings: RepoSettings, path: String): List<LocalDraft>
+    suspend fun dismissArchived(settings: RepoSettings, draft: LocalDraft)
     suspend fun persist(settings: RepoSettings, chapter: OpenChapter)
     suspend fun delete(settings: RepoSettings, path: String)
 }
@@ -20,6 +21,12 @@ internal class LocalDraftRepository(context: Context, private val ioDispatcher: 
         check(store.archive(settings, draft)) { "Could not preserve the older local draft." }
     }
     override suspend fun archived(settings: RepoSettings, path: String): List<LocalDraft> = withContext(ioDispatcher) { store.archived(settings, path) }
+    override suspend fun dismissArchived(settings: RepoSettings, draft: LocalDraft) {
+        withContext(ioDispatcher) {
+            check(store.dismissArchived(settings, draft)) { "Could not dismiss the saved older draft." }
+        }
+    }
+
     override suspend fun persist(settings: RepoSettings, chapter: OpenChapter) {
         withContext(ioDispatcher) {
             if (chapter.raw == chapter.remote.content) {

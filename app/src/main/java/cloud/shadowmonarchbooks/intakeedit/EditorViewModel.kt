@@ -63,7 +63,12 @@ internal class EditorViewModel(
                 val repository = repositoryFactory.create(settings, token)
                 val remoteChapter = repository.loadChapter(file)
                 val draft = draftRepository.load(settings, file.path)
-                if (draft != null && draft.baseSha != remoteChapter.remote.sha) draftRepository.archive(settings, draft)
+                if (draft != null && draft.baseSha != remoteChapter.remote.sha) {
+                    // Archive first, then clear the obsolete working copy; otherwise reopening
+                    // would recreate a dismissed recovery entry from that stale copy.
+                    draftRepository.archive(settings, draft)
+                    draftRepository.delete(settings, file.path)
+                }
                 val recoveryDrafts = draftRepository.archived(settings, file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
                     try {
@@ -119,6 +124,39 @@ internal class EditorViewModel(
                 throw cancelled
             } catch (error: Exception) {
                 _uiState.update { it.copy(notice = "Local draft save failed: ${error.message ?: "unknown error"}. Keep the editor open and retry by editing or closing it.") }
+            }
+        }
+    }
+
+    fun dismissSavedDraft(draft: LocalDraft) {
+        val chapter = latest ?: _uiState.value.open ?: return
+        val settings = activeDraftSettings ?: return
+        if (_uiState.value.actionInProgress ||
+            draft.path != chapter.file.path ||
+            draft !in _uiState.value.recoveryDrafts
+        ) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(actionInProgress = true) }
+            try {
+                draftRepository.dismissArchived(settings, draft)
+                val remaining = draftRepository.archived(settings, chapter.file.path)
+                _uiState.update {
+                    it.copy(
+                        recoveryDrafts = remaining,
+                        actionInProgress = false,
+                        notice = "Saved older draft dismissed from this device.",
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        actionInProgress = false,
+                        notice = "Could not dismiss saved draft: ${error.message ?: "unknown error"}",
+                    )
+                }
             }
         }
     }

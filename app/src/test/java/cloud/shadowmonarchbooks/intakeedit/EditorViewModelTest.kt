@@ -117,6 +117,70 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun dismissSavedDraftRemovesOnlyTheSelectedRecoveryAndKeepsCurrentChapter() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-new")
+        val settings = RepoSettings(owner = "author", repo = "project", branch = "main")
+        val first = LocalDraft(remote.file.path, "sha-old-1", "old draft one", 1L)
+        val second = LocalDraft(remote.file.path, "sha-old-2", "old draft two", 2L)
+        val drafts = FakeDraftRepository().apply { savedArchives.addAll(listOf(first, second)) }
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> FakeEditorChapterRepository(remote) })
+
+        viewModel.open(remote.file, settings, "token")
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.recoveryDrafts.size)
+
+        viewModel.dismissSavedDraft(first)
+        advanceUntilIdle()
+        assertEquals(listOf(second), viewModel.uiState.value.recoveryDrafts)
+        assertEquals(listOf(settings), drafts.dismissSettings)
+        assertEquals("remote raw", viewModel.chapterForDisplay()?.raw)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("dismissed"))
+    }
+
+    @Test
+    fun dismissedStaleRecoveryDoesNotReappearAfterReopeningChapter() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-new")
+        val older = LocalDraft(remote.file.path, "sha-old", "obsolete local edit", 1L)
+        val drafts = FakeDraftRepository(loaded = older)
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> FakeEditorChapterRepository(remote) })
+
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+        assertEquals(listOf(older), viewModel.uiState.value.recoveryDrafts)
+        assertEquals(listOf(remote.file.path), drafts.deleted)
+
+        viewModel.dismissSavedDraft(older)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.recoveryDrafts.isEmpty())
+
+        viewModel.closeEditor()
+        advanceUntilIdle()
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.recoveryDrafts.isEmpty())
+        assertEquals("remote raw", viewModel.chapterForDisplay()?.raw)
+    }
+
+    @Test
+    fun failedArchivedDraftDismissalKeepsDraftInList() = runTest(dispatcher) {
+        val remote = sampleChapter(raw = "remote raw", sha = "sha-new")
+        val old = LocalDraft(remote.file.path, "sha-old", "recoverable", 1L)
+        val drafts = FakeDraftRepository(failDismiss = true).apply { savedArchives += old }
+        val viewModel = EditorViewModel(draftRepository = drafts, parseDispatcher = dispatcher,
+            repositoryFactory = ChapterRepositoryFactory { _, _ -> FakeEditorChapterRepository(remote) })
+        viewModel.open(remote.file, RepoSettings(), "token")
+        advanceUntilIdle()
+
+        viewModel.dismissSavedDraft(old)
+        advanceUntilIdle()
+        assertEquals(listOf(old), viewModel.uiState.value.recoveryDrafts)
+        assertTrue(viewModel.uiState.value.notice.orEmpty().contains("dismiss failed"))
+        assertEquals("remote raw", viewModel.chapterForDisplay()?.raw)
+    }
+
+    @Test
     fun draftWritesUseTheProjectSelectedWhenTheChapterOpened() = runTest(dispatcher) {
         val remote = sampleChapter(raw = "remote raw", sha = "sha-1")
         val settings = RepoSettings(owner = "owner", repo = "project", branch = "feature")
@@ -275,15 +339,17 @@ class EditorViewModelTest {
 }
 
 private class FakeDraftRepository(
-    private val loaded: LocalDraft? = null,
+    private var loaded: LocalDraft? = null,
     var failPersist: Boolean = false,
     var failArchive: Boolean = false,
     var failDelete: Boolean = false,
+    var failDismiss: Boolean = false,
 ) : DraftRepository {
     val persisted = mutableListOf<OpenChapter>()
     val deleted = mutableListOf<String>()
     val savedArchives = mutableListOf<LocalDraft>()
     val usedSettings = mutableListOf<RepoSettings>()
+    val dismissSettings = mutableListOf<RepoSettings>()
 
     override suspend fun archive(settings: RepoSettings, draft: LocalDraft) {
         if (failArchive) error("archive failed")
@@ -291,6 +357,12 @@ private class FakeDraftRepository(
     }
 
     override suspend fun archived(settings: RepoSettings, path: String): List<LocalDraft> = savedArchives.filter { it.path == path }
+
+    override suspend fun dismissArchived(settings: RepoSettings, draft: LocalDraft) {
+        if (failDismiss) error("dismiss failed")
+        dismissSettings += settings
+        savedArchives.removeAll { it == draft }
+    }
 
     override suspend fun load(settings: RepoSettings, path: String): LocalDraft? = loaded
 
@@ -303,6 +375,7 @@ private class FakeDraftRepository(
     override suspend fun delete(settings: RepoSettings, path: String) {
         if (failDelete) error("delete failed")
         deleted += path
+        if (loaded?.path == path) loaded = null
     }
 }
 

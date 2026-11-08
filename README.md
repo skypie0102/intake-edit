@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Application version: **0.15.34**.
+Application version: **0.15.35**.
 
 All current development work is tracked in the [roadmap](ROADMAP.md). Earlier plans and trackers are preserved in the [archive](docs/archive/).
 
@@ -72,6 +72,8 @@ In a chapter, tap the **Translation reference** button on the bottom bar, then c
 The first complete translation is saved locally for the project, chapter, and source revision. Open the translation reference dialog and choose Hide; choose Show saved translation to restore it without sending a new request. An imported XHTML or XLIFF reference remains separate and can be selected in the same dialog. Machine translations are references and do not change the English fields until explicitly applied. Imported references are stored per project and branch; an older reference without project information can be explicitly copied to the current project after review.
 
 ## Chapter draft safety
+
+In **Saved drafts**, each archived draft has an individual **Dismiss (×)** control. Confirming dismissal removes only that older local recovery copy; the current working draft, other saved drafts, and GitHub content are left untouched. Stale working drafts are archived safely and then cleared so a dismissed recovery copy does not reappear upon reopening. The chapter editor's **Tag for QA & Commit** action stays anchored to the right of the bottom bar, while the secondary tool icons can scroll independently on narrow screens.
 
 Chapter edits use atomic local drafts. A draft is restored only when its base GitHub SHA still matches the remote chapter. Incomplete Whole File drafts reopen in raw mode for repair. If saving a draft fails, the editor reports the error and keeps the edits open for retry. Drafts based on older remote revisions are preserved: open **Saved drafts** in the chapter editor to inspect, copy, or export them. New drafts are isolated by repository, branch, and chapter. Older drafts did not record a project; they remain available under Saved drafts as “project unknown” for inspection and explicit recovery when the base revision matches.
 
