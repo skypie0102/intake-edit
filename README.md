@@ -10,7 +10,7 @@ All current development work is tracked in the [roadmap](ROADMAP.md). Earlier pl
 
 The launcher opens a small workspace home with two sections:
 
-- **Chapter Intake** — the authoritative chapter editor, including stable `H1`/`H2`/paragraph cards, local drafts, SDLXLIFF import, controlled inline markup/endnotes, full-file mode, QA findings/Resolve/Override, and GitHub commit/approval flow.
+- **Chapter Intake** — the authoritative chapter editor, including stable `H1`/`H2`/paragraph cards, local drafts, SDLXLIFF/XHTML translation import, controlled inline markup/endnotes, full-file mode, QA findings/Resolve/Override, and GitHub commit/approval flow.
 - **Glossary** — human governance for translation terminology.
 
 ## Translation companion
@@ -56,15 +56,20 @@ The finalizer performs deterministic XHTML/endnote materialization and repositor
 
 The configured GitHub token therefore needs **Contents: write** for chapter/glossary commits and **Actions: write** to dispatch chapter approval.
 
-## SDLXLIFF chapter import
+## Chapter translation reference import
 
-SDLXLIFF whole-XHTML imports preserve translatable block order across `h1`, `h2`, and `p` elements. Numbered chapter-title links are excluded from the translatable H1 text so imported headings align with PureLove's `H1-N` locators.
+From **Translation reference → Import Translation → Choose file**, select a translated `.xhtml` or an SDLXLIFF/XLIFF file. The importer saves the result locally for the current project, branch, chapter and Japanese source revision, without modifying the chapter's authoritative English fields. To switch imported files, choose **Replace file**. The imported reference can be used per entry or to fill blank English fields after review.
+
+- **SDLXLIFF/XLIFF:** source/target segments are aligned by normalized Japanese source text as before. Whole-XHTML XLIFF units preserve translatable block order across `h1`, `h2`, and `p` elements; numbered chapter links are excluded from title text.
+- **Translated XHTML:** reads nonempty `h1`, `h2`, and `p` blocks inside the XHTML `body`, including chapter titles, and maps them to the chapter's matching locator order. Empty layout paragraphs are skipped. There is no Japanese source column to verify, so the importer requires the **same block count and element order** as the chapter, checks recognizable chapter numbers in filenames, and refuses mismatches rather than shifting translations into the wrong entries. Exact unchanged Japanese blocks are not imported as English. XHTML files must be well-formed XML; inline formatting is flattened to reference text.
+
+If an XHTML import reports a structural mismatch, keep the title and paragraph layout consistent with the original chapter and retry. SDLXLIFF remains the safer choice when block structure may have changed.
 
 ## Machine translation reference
 
 In a chapter, tap the **Translation reference** button on the bottom bar, then choose **Import Translation** or **Machine Translation**. Machine Translation detects the source language automatically and translates it into English using the Google Translate web service. This is an unofficial integration and does not require an API key. It sends chapter text to Google and needs a network connection. The app packs multiple entries into each request, validates the returned line markers, honors retry guidance, and saves completed entries if a rate limit or connection error interrupts translation; retrying resumes the chapter. Chapters that fit within the request size limit use one request. Google may still rate-limit or change the service.
 
-The first complete translation is saved locally for the project, chapter, and source revision. Open the translation reference dialog and choose Hide; choose Show saved translation to restore it without sending a new request. An imported XLIFF reference remains separate and can be selected in the same dialog. Machine translations are references and do not change the English fields until explicitly applied. Imported references are stored per project and branch; an older reference without project information can be explicitly copied to the current project after review.
+The first complete translation is saved locally for the project, chapter, and source revision. Open the translation reference dialog and choose Hide; choose Show saved translation to restore it without sending a new request. An imported XHTML or XLIFF reference remains separate and can be selected in the same dialog. Machine translations are references and do not change the English fields until explicitly applied. Imported references are stored per project and branch; an older reference without project information can be explicitly copied to the current project after review.
 
 ## Chapter draft safety
 

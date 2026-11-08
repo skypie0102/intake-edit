@@ -109,6 +109,28 @@ class TranslationImportStore(context: Context) {
     }
 }
 
+/**
+ * Import translated XHTML as a positional chapter reference, or fall back to XLIFF's
+ * source-verified alignment. XHTML does not carry a separate Japanese source column.
+ */
+object TranslationReferenceImporter {
+    private val xhtmlRoot = Regex(
+        """(?is)^\s*(?:\uFEFF)?(?:<\?xml[^>]*\?>\s*)?(?:<!DOCTYPE[^>]*>\s*)?<(?:[\w.-]+:)?html(?:\s|>)""",
+    )
+
+    fun parse(
+        raw: String,
+        fileName: String,
+        chapterPath: String,
+        document: EditorDocument,
+    ): ImportedTranslationOverlay =
+        if (fileName.endsWith(".xhtml", ignoreCase = true) || xhtmlRoot.containsMatchIn(raw)) {
+            XliffTranslationImporter.parseXhtml(raw, fileName, chapterPath, document)
+        } else {
+            XliffTranslationImporter.parse(raw, fileName, chapterPath, document)
+        }
+}
+
 object XliffTranslationImporter {
     private data class PairText(val source: String, val target: String)
 
@@ -197,6 +219,81 @@ object XliffTranslationImporter {
         )
     }
 
+    /**
+     * Whole translated XHTML is aligned only when its nonempty h1/h2/p structure
+     * exactly matches the chapter entry structure. Unlike XLIFF, a translated XHTML
+     * file cannot be source-verified by matching Japanese strings.
+     */
+    fun parseXhtml(
+        raw: String,
+        fileName: String,
+        chapterPath: String,
+        document: EditorDocument,
+    ): ImportedTranslationOverlay {
+        val root = parseXml(sanitizeEmbeddedXml(raw.trim().removePrefix("\uFEFF")))
+            .documentElement
+        require(localName(root) == "html") { "The selected file is not an XHTML document." }
+        val body = elementsByLocalName(root, "body").firstOrNull()
+            ?: throw IllegalArgumentException("The XHTML document has no body.")
+        val blocks = translatableBlockElements(body)
+            .map { element -> localName(element) to blockText(element) }
+            .filter { (_, text) -> text.isNotBlank() }
+
+        require(blocks.isNotEmpty()) { "The XHTML document has no non-empty h1, h2, or p blocks." }
+
+        // When the exported filename contains a recognizable chapter number, guard
+        // against importing another chapter with an otherwise identical structure.
+        val chapterInFile = Regex(
+            """(?i)(?:^|[_. -])ch(?:apter)?[_. -]*0*(\d+)(?=[_. -]|$)""",
+        ).find(fileName)?.groupValues?.get(1)?.toIntOrNull()
+        require(chapterInFile == null || chapterInFile == document.chapter) {
+            "This XHTML belongs to chapter $chapterInFile, but the open chapter is ${document.chapter}."
+        }
+
+        val entries = document.entries
+        require(blocks.size == entries.size) {
+            "XHTML has ${blocks.size} non-empty h1/h2/p blocks, but this chapter has ${entries.size} entries. " +
+                "The structure must match before importing; nothing was changed."
+        }
+        entries.forEachIndexed { index, entry ->
+            val expectedTag = when {
+                entry.locator.startsWith("H1-", ignoreCase = true) -> "h1"
+                entry.locator.startsWith("H2-", ignoreCase = true) -> "h2"
+                entry.locator.startsWith("P", ignoreCase = true) -> "p"
+                else -> throw IllegalArgumentException(
+                    "Unsupported chapter locator ${entry.locator}; cannot align this XHTML safely.",
+                )
+            }
+            require(blocks[index].first == expectedTag) {
+                "XHTML block ${index + 1} is <${blocks[index].first}>, but ${entry.locator} " +
+                    "requires <$expectedTag>. Nothing was imported."
+            }
+        }
+
+        val translations = linkedMapOf<String, String>()
+        entries.forEachIndexed { index, entry ->
+            val text = blocks[index].second.trim()
+            // The original, untranslated Japanese is not a useful English reference.
+            if (normalizeForMatch(text) != normalizeForMatch(entry.sourceJapanese)) {
+                translations[entry.locator] = text
+            }
+        }
+        require(translations.isNotEmpty()) {
+            "The XHTML contains no translated blocks; it appears to contain only the Japanese source."
+        }
+        return ImportedTranslationOverlay(
+            chapterPath = chapterPath,
+            sourceSha256 = document.sourceSha256,
+            fileName = fileName,
+            translations = translations,
+            matchedCount = translations.size,
+            totalEntries = entries.size,
+            sourceParagraphs = 0,
+            targetParagraphs = blocks.size,
+            alignment = if (translations.size == entries.size) "XHTML structure verified" else "XHTML verified partial",
+        )
+    }
+
     private fun parsePairs(raw: String): List<PairText> {
         val document = parseXml(raw)
         val pairs = mutableListOf<PairText>()
@@ -275,7 +372,24 @@ object XliffTranslationImporter {
     }
 
     private fun blockText(element: Element): String {
-        if (localName(element) != "h1") return cleanSegmentText(element.textContent.orEmpty())
+        if (localName(element) != "h1") {
+            // DOM textContent drops <br/> boundaries; keep them as spaces in imported reference text.
+            val out = StringBuilder()
+            fun collect(node: Node) {
+                if (node is Element && localName(node) == "br") {
+                    out.append(' ')
+                    return
+                }
+                if (node.nodeType == Node.TEXT_NODE) out.append(node.nodeValue.orEmpty())
+                var child = node.firstChild
+                while (child != null) {
+                    collect(child)
+                    child = child.nextSibling
+                }
+            }
+            collect(element)
+            return cleanSegmentText(out.toString())
+        }
 
         val badges = descendantsWithClass(element, "chapter-kind-badge")
         val titles = descendantsWithClass(element, "chapter-title-text")
