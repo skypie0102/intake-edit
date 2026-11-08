@@ -81,6 +81,45 @@ class DraftStore(context: Context) {
         return LocalDraft(obj.optString("path", fallbackPath), obj.optString("base_sha"), obj.optString("raw"), obj.optLong("saved_at_ms"))
     }
 
+    /**
+     * Dismiss only the selected archived draft, never the active scoped draft.
+     * Legacy drafts can be backed by files or SharedPreferences; remove matching
+     * copies so the dismissed entry does not reappear on the next reload.
+     */
+    fun dismissArchived(settings: RepoSettings, draft: LocalDraft): Boolean {
+        fun matches(candidate: LocalDraft?): Boolean = candidate != null &&
+            candidate.path == draft.path &&
+            candidate.baseSha == draft.baseSha &&
+            candidate.raw == draft.raw
+
+        val prefix = if (draft.legacyUnassigned) {
+            legacyRecoveryPrefix(draft.path)
+        } else {
+            scopedRecoveryPrefix(settings, draft.path)
+        }
+        val files = draftDir.listFiles().orEmpty()
+            .filter { it.name.startsWith(prefix) && it.name.endsWith(".json") && matches(read(it, draft.path)) }
+            .toMutableList()
+
+        if (draft.legacyUnassigned) {
+            val old = File(draftDir, oldKey(draft.path) + ".json")
+            if (matches(read(old, draft.path))) files += old
+        }
+        files.forEach { target ->
+            AtomicFile(target).delete()
+            if (target.exists()) return false
+        }
+
+        if (draft.legacyUnassigned) {
+            val key = oldKey(draft.path)
+            val preferenceDraft = prefs.getString(key, null)?.let { serialized ->
+                runCatching { parseDraft(serialized, draft.path) }.getOrNull()
+            }
+            if (matches(preferenceDraft) && !prefs.edit().remove(key).commit()) return false
+        }
+        return true
+    }
+
     fun delete(settings: RepoSettings, path: String): Boolean {
         val target = scopedFile(settings, path)
         AtomicFile(target).delete()
