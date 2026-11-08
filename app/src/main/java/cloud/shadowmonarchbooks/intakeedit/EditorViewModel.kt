@@ -123,6 +123,39 @@ internal class EditorViewModel(
         }
     }
 
+    fun dismissSavedDraft(draft: LocalDraft) {
+        val chapter = latest ?: _uiState.value.open ?: return
+        val settings = activeDraftSettings ?: return
+        if (_uiState.value.actionInProgress ||
+            draft.path != chapter.file.path ||
+            draft !in _uiState.value.recoveryDrafts
+        ) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(actionInProgress = true) }
+            try {
+                draftRepository.dismissArchived(settings, draft)
+                val remaining = draftRepository.archived(settings, chapter.file.path)
+                _uiState.update {
+                    it.copy(
+                        recoveryDrafts = remaining,
+                        actionInProgress = false,
+                        notice = "Saved older draft dismissed from this device.",
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        actionInProgress = false,
+                        notice = "Could not dismiss saved draft: ${error.message ?: "unknown error"}",
+                    )
+                }
+            }
+        }
+    }
+
     fun closeEditor() {
         if (_uiState.value.actionInProgress) return
         val current = latest ?: _uiState.value.open
