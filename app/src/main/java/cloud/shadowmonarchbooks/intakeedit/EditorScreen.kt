@@ -215,8 +215,8 @@ internal fun EditorScreen(
                     withContext(Dispatchers.IO) {
                         val bytes = context.contentResolver.openInputStream(uri)?.use { readTranslationFile(it) }
                             ?: error("Could not read the selected file.")
-                        val fileName = selectedFileName(context, uri) ?: "Imported XLIFF"
-                        val overlay = XliffTranslationImporter.parse(
+                        val fileName = selectedFileName(context, uri) ?: "Imported translation"
+                        val overlay = TranslationReferenceImporter.parse(
                             raw = String(bytes, Charsets.UTF_8),
                             fileName = fileName,
                             chapterPath = chapter.file.path,
@@ -776,7 +776,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Import Translation", fontWeight = FontWeight.Bold)
-                    Text(if (importedFile == null) "Select an XLIFF file." else importedFile!!.fileName, style = MaterialTheme.typography.bodySmall)
+                    Text(if (importedFile == null) "Select a translated XHTML or SDLXLIFF/XLIFF file." else importedFile!!.fileName, style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(onClick = {
                             showTranslationChoices = false
@@ -785,9 +785,14 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 onlineSettings.setVisible(machineKey, current.file.path, current.document.sourceSha256, false)
                             } else {
                                 focusManager.clearFocus(force = true)
-                                importLauncher.launch(arrayOf("application/xml", "text/xml", "application/octet-stream", "*/*"))
+                                importLauncher.launch(arrayOf("application/xhtml+xml", "application/xml", "text/xml", "application/octet-stream", "*/*"))
                             }
                         }) { Text(if (importedFile == null) "Choose file" else if (!useMachine) "Showing" else "Show import") }
+                        if (importedFile != null) TextButton(onClick = {
+                            showTranslationChoices = false
+                            focusManager.clearFocus(force = true)
+                            importLauncher.launch(arrayOf("application/xhtml+xml", "application/xml", "text/xml", "application/octet-stream", "*/*"))
+                        }) { Text("Replace file") }
                         if (importedFile != null) TextButton(onClick = {
                             showTranslationChoices = false; showRemoveImportConfirm = true
                         }) { Text("Remove") }
