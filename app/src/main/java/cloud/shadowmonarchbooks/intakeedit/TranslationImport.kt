@@ -372,7 +372,24 @@ object XliffTranslationImporter {
     }
 
     private fun blockText(element: Element): String {
-        if (localName(element) != "h1") return cleanSegmentText(element.textContent.orEmpty())
+        if (localName(element) != "h1") {
+            // DOM textContent drops <br/> boundaries; keep them as spaces in imported reference text.
+            val out = StringBuilder()
+            fun collect(node: Node) {
+                if (node is Element && localName(node) == "br") {
+                    out.append(' ')
+                    return
+                }
+                if (node.nodeType == Node.TEXT_NODE) out.append(node.nodeValue.orEmpty())
+                var child = node.firstChild
+                while (child != null) {
+                    collect(child)
+                    child = child.nextSibling
+                }
+            }
+            collect(element)
+            return cleanSegmentText(out.toString())
+        }
 
         val badges = descendantsWithClass(element, "chapter-kind-badge")
         val titles = descendantsWithClass(element, "chapter-title-text")
