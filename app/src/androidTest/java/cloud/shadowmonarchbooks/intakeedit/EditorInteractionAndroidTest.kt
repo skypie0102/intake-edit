@@ -54,7 +54,8 @@ class EditorInteractionAndroidTest {
         var latest = initial
         compose.setContent {
             MaterialTheme {
-                EditorScreen(initial, busy = false, notice = null, recoveryDrafts = emptyList(), onBack = {},
+                EditorScreen(initial, busy = false, notice = null, recoveryDrafts = emptyList(),
+                    onDismissSavedDraft = {}, onBack = {},
                     onDraft = { latest = it }, onCommit = { _, _ -> }, onOverride = { _, _, _ -> },
                     onResolve = { _, _ -> }, onApprove = {})
             }
