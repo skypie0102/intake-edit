@@ -63,7 +63,12 @@ internal class EditorViewModel(
                 val repository = repositoryFactory.create(settings, token)
                 val remoteChapter = repository.loadChapter(file)
                 val draft = draftRepository.load(settings, file.path)
-                if (draft != null && draft.baseSha != remoteChapter.remote.sha) draftRepository.archive(settings, draft)
+                if (draft != null && draft.baseSha != remoteChapter.remote.sha) {
+                    // Archive first, then clear the obsolete working copy; otherwise reopening
+                    // would recreate a dismissed recovery entry from that stale copy.
+                    draftRepository.archive(settings, draft)
+                    draftRepository.delete(settings, file.path)
+                }
                 val recoveryDrafts = draftRepository.archived(settings, file.path)
                 val opened = if (draft?.baseSha == remoteChapter.remote.sha) {
                     try {
