@@ -130,6 +130,13 @@ class TranslationImportTest {
     }
 
     @Test
+    fun xhtmlImportPreservesBrSpacing() {
+        val xhtml = """<html xmlns="http://www.w3.org/1999/xhtml"><body><p>First<br/>second.</p></body></html>"""
+        val result = TranslationReferenceImporter.parse(xhtml, "chapter.xhtml", "path/ch.yml", document("原文"))
+        assertEquals("First second.", result.translationFor("P1"))
+    }
+
+    @Test
     fun xhtmlImportRejectsWrongChapterNumberEvenWithIdenticalStructure() {
         val xhtml = """<html xmlns="http://www.w3.org/1999/xhtml"><body><p>English</p></body></html>"""
         val failure = runCatching {
