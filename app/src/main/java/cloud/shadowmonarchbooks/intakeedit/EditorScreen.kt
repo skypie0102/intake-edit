@@ -133,7 +133,8 @@ internal fun EditorScreen(
     var wholeFileInvalid by remember(initial.file.path, initial.remote.sha) { mutableStateOf(initial.rawNeedsRepair) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
-    var showCommit by remember { mutableStateOf(false) }
+    var showPrimaryConfirmation by remember { mutableStateOf(false) }
+    var showPendingReviewConfirmation by remember { mutableStateOf(false) }
     var showSavedDrafts by remember { mutableStateOf(false) }
     var pendingSavedDraftDismissal by remember { mutableStateOf<LocalDraft?>(null) }
 
@@ -471,19 +472,19 @@ fun stageProposalDecision(proposalId: String, status: String) {
     val activeFilterCount = (if (showQa) 1 else 0) + (if (!showQa && filter != EntryFilter.ALL) 1 else 0)
     val hasLocalChanges = current.raw != current.remote.content || current.endnoteProposals?.changed == true
     val qaPassStale = current.qa?.document?.qaPass != null && !qaPassReusable
-    val closedReusableQaPass = qaPassReusable &&
-        current.qa?.document?.active(current.document, editorContentSha).orEmpty().isEmpty()
-    val readyForApproval = !current.approved &&
-        !hasLocalChanges &&
-        current.document.editorReviewComplete &&
-        suppliedEnglishCount == current.document.englishTotal &&
-        closedReusableQaPass
-    val primaryCommitLabel = when {
-        readyForApproval -> "Approve Chapter"
-        closedReusableQaPass -> "Commit for Approval"
-        qaPassStale -> "Commit for Fresh QA"
-        else -> "Tag for QA & Commit"
-    }
+    val activeQaFindings = if (qaPassReusable) {
+        current.qa?.document?.active(current.document, editorContentSha).orEmpty()
+    } else emptyList()
+    val primaryAction = resolveChapterPrimaryAction(
+        document = current.document,
+        approved = current.approved,
+        hasLocalChanges = hasLocalChanges,
+        qaPassReusable = qaPassReusable,
+        activeQaFindings = activeQaFindings.size,
+        hasRecordedQaPass = current.qa?.document?.qaPass != null,
+        hasStagedEndnoteDecisions = current.endnoteProposals?.changed == true,
+    )
+    val readyForApproval = primaryAction.action == ChapterPrimaryAction.APPROVE_CHAPTER
 
     LaunchedEffect(jumpRequestId, filter, showQa, showWholeFile) {
         val locator = jumpLocator
@@ -540,6 +541,18 @@ fun stageProposalDecision(proposalId: String, status: String) {
                             },
                             enabled = !busy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid,
                         )
+                        if (primaryAction.canCommitAsPendingReview(hasLocalChanges)) {
+                            DropdownMenuItem(
+                                text = { Text("Commit as Pending Review") },
+                                onClick = {
+                                    showOverflow = false
+                                    focusManager.clearFocus(force = true)
+                                    showPendingReviewConfirmation = true
+                                },
+                                enabled = !busy && !importBusy && !wholeFilePending &&
+                                    !wholeFileValidating && !wholeFileInvalid,
+                            )
+                        }
                         imported?.let { overlay ->
                             DropdownMenuItem(
                                 text = {
@@ -725,9 +738,19 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     }
                 }
                 Button(
-                    onClick = { if (readyForApproval) showApprove = true else showCommit = true },
-                    enabled = !busy && !importBusy && !wholeFilePending && !wholeFileValidating && !wholeFileInvalid && !current.approved,
-                ) { Text(primaryCommitLabel, maxLines = 1) }
+                    onClick = {
+                        when (primaryAction.action) {
+                            ChapterPrimaryAction.APPROVE_CHAPTER -> showApprove = true
+                            ChapterPrimaryAction.REVIEW_QA_FINDINGS -> {
+                                showWholeFile = false
+                                showQa = true
+                            }
+                            else -> if (primaryAction.action.tagForQa != null) showPrimaryConfirmation = true
+                        }
+                    },
+                    enabled = primaryAction.enabled && !busy && !importBusy &&
+                        !wholeFilePending && !wholeFileValidating && !wholeFileInvalid,
+                ) { Text(primaryAction.label, maxLines = 1) }
             }
         }
     }
@@ -988,28 +1011,55 @@ fun stageProposalDecision(proposalId: String, status: String) {
         )
     }
 
-    if (showCommit) {
+    if (showPrimaryConfirmation && primaryAction.action.tagForQa != null) {
         AlertDialog(
-            onDismissRequest = { showCommit = false },
-            title = { Text("Commit chapter changes?") },
+            onDismissRequest = { showPrimaryConfirmation = false },
+            title = { Text(primaryAction.confirmationTitle ?: primaryAction.label) },
+            text = { Text(primaryAction.confirmationMessage.orEmpty()) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val tagForQa = primaryAction.action.tagForQa ?: return@Button
+                        showPrimaryConfirmation = false
+                        onCommit(current, tagForQa)
+                    },
+                    enabled = primaryAction.enabled && !busy && !importBusy &&
+                        !wholeFilePending && !wholeFileValidating && !wholeFileInvalid,
+                ) { Text(primaryAction.label) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPrimaryConfirmation = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showPendingReviewConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showPendingReviewConfirmation = false },
+            title = { Text("Commit as Pending Review?") },
             text = {
                 Text(
-                    buildString {
-                        if (closedReusableQaPass) {
-                            append("All findings from the recorded semantic QA pass are closed. Commit the corrected/accepted chapter as Ready for Approval without running semantic QA again. Reader XHTML is not created until you explicitly approve the committed chapter.")
-                        } else if (qaPassStale) {
-                            append("This is not an approval commit. Protected or unflagged chapter content changed after the recorded semantic QA pass, so that pass is stale. Committing now will move the chapter to Pending QA for a fresh full-chapter semantic QA pass.")
-                        } else {
-                            append("Tag for QA only after checking the full chapter. Tagging moves the chapter to Pending QA for one full semantic QA pass. Every English field must be supplied first. Any QA finding returns it to Pending Review for Resolve or Override.")
-                        }
+                    "All English entries are supplied, but this commits only your current progress. " +
+                        "The chapter will remain in Pending Review rather than proceeding to QA. " +
+                        "A previous QA-ready status may be reset; you can tag the chapter for QA later." +
                         if (current.endnoteProposals?.changed == true) {
-                            append(" Staged endnote suggestion decisions will be committed atomically with this chapter.")
-                        }
-                    },
+                            " Staged endnote suggestion decisions will be committed with the chapter."
+                        } else "",
                 )
             },
-            confirmButton = { Button(onClick = { showCommit = false; onCommit(current, true) }, enabled = !busy && !importBusy && missingEnglish.isEmpty()) { Text(primaryCommitLabel) } },
-            dismissButton = { TextButton(onClick = { showCommit = false; onCommit(current, false) }, enabled = !busy && !importBusy) { Text("Commit as Pending Review") } },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPendingReviewConfirmation = false
+                        onCommit(current, false)
+                    },
+                    enabled = primaryAction.canCommitAsPendingReview(hasLocalChanges) && !busy && !importBusy &&
+                        !wholeFilePending && !wholeFileValidating && !wholeFileInvalid,
+                ) { Text("Commit as Pending Review") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPendingReviewConfirmation = false }) { Text("Cancel") }
+            },
         )
     }
 

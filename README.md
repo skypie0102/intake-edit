@@ -2,7 +2,7 @@
 
 Android editor for the Pure Love x Violation translation workflow.
 
-Application version: **0.15.35**.
+Application version: **0.15.36**.
 
 All current development work is tracked in the [roadmap](ROADMAP.md). Earlier plans and trackers are preserved in the [archive](docs/archive/).
 
@@ -56,6 +56,20 @@ The finalizer performs deterministic XHTML/endnote materialization and repositor
 
 The configured GitHub token therefore needs **Contents: write** for chapter/glossary commits and **Actions: write** to dispatch chapter approval.
 
+## Smart chapter action
+
+The primary bottom-bar button follows the editor's current workflow state, rather than requiring a choice between committing progress and tagging for QA:
+
+- **Commit** while any English entries remain unsupplied. It saves changes as Pending Review and keeps the editor open; without changes it is disabled.
+- **Tag for QA** when every English entry is supplied, even if the chapter was already committed as Pending Review. Tagging still requires explicit confirmation and the existing schema/endnote validation.
+- **Tag for Fresh QA** if the previous QA pass is stale and the chapter is complete.
+- **Review QA Findings** when the current QA pass is reusable but has active findings. The action opens the QA findings panel instead of bypassing resolution/override.
+- **Commit for Approval** after a reusable QA pass has no active findings but the chapter still needs an approval-ready commit.
+- **Approve Chapter** once the complete chapter has a reusable, closed QA pass and no uncommitted changes.
+- **Awaiting QA** or **Approved** (disabled) when there is no new action to perform.
+
+For complete chapters with uncommitted changes, the editor's three-dot overflow menu includes **Commit as Pending Review**. It is a separate, confirmed escape hatch for saving progress without tagging or advancing QA, and can reset the previous QA-ready status. Imported and machine-translated references do not count toward completion until their English is actually applied in the editor.
+
 ## Chapter translation reference import
 
 From **Translation reference → Import Translation → Choose file**, select a translated `.xhtml` or an SDLXLIFF/XLIFF file. The importer saves the result locally for the current project, branch, chapter and Japanese source revision, without modifying the chapter's authoritative English fields. To switch imported files, choose **Replace file**. The imported reference can be used per entry or to fill blank English fields after review.
@@ -73,7 +87,7 @@ The first complete translation is saved locally for the project, chapter, and so
 
 ## Chapter draft safety
 
-In **Saved drafts**, each archived draft has an individual **Dismiss (×)** control. Confirming dismissal removes only that older local recovery copy; the current working draft, other saved drafts, and GitHub content are left untouched. Stale working drafts are archived safely and then cleared so a dismissed recovery copy does not reappear upon reopening. The chapter editor's **Tag for QA & Commit** action stays anchored to the right of the bottom bar, while the secondary tool icons can scroll independently on narrow screens.
+In **Saved drafts**, each archived draft has an individual **Dismiss (×)** control. Confirming dismissal removes only that older local recovery copy; the current working draft, other saved drafts, and GitHub content are left untouched. Stale working drafts are archived safely and then cleared so a dismissed recovery copy does not reappear upon reopening. The chapter editor's context-aware primary action stays anchored to the right of the bottom bar, while the secondary tool icons can scroll independently on narrow screens.
 
 Chapter edits use atomic local drafts. A draft is restored only when its base GitHub SHA still matches the remote chapter. Incomplete Whole File drafts reopen in raw mode for repair. If saving a draft fails, the editor reports the error and keeps the edits open for retry. Drafts based on older remote revisions are preserved: open **Saved drafts** in the chapter editor to inspect, copy, or export them. New drafts are isolated by repository, branch, and chapter. Older drafts did not record a project; they remain available under Saved drafts as “project unknown” for inspection and explicit recovery when the base revision matches.
 
