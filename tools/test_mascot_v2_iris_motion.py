@@ -40,14 +40,15 @@ class IrisPilotTest(unittest.TestCase):
             self.assertEqual(result["layers"],["iris_left","iris_right"])
             neutral=Image.open(out/"neutral-reference.png").convert("RGBA")
             combined=Image.open(out/"neutral-reconstructed.png").convert("RGBA")
-            self.assertIsNone(ImageChops.difference(neutral,combined).getbbox())
+            self.assertEqual(neutral.tobytes(),combined.tobytes())
             self.assertEqual(neutral.getpixel((15,310))[3],0) # detached bubble removed
-            self.assertEqual(Image.open(out/"widget-160-contact.png").size,(800,160))
+            with Image.open(out/"widget-160-contact.png") as preview:
+                self.assertEqual(preview.size,(800,160))
             for i in range(5):
                 self.assertTrue((out/f"pose-{i}.png").is_file())
             left=Image.open(out/"pose-0.png").convert("RGBA")
             right=Image.open(out/"pose-4.png").convert("RGBA")
-            bounds=ImageChops.difference(left,right).getbbox()
+            bounds=ImageChops.difference(left.convert("RGB"),right.convert("RGB")).getbbox()
             self.assertIsNotNone(bounds)
             self.assertGreater(bounds[0],200)  # only iris interiors affected
             self.assertLess(bounds[2],350)
