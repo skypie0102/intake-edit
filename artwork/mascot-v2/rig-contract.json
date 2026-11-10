@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "mascot_id": "mascot-v2",
-  "stage": "specification",
+  "stage": "artwork_ready",
   "source_date": "2026-11-10",
   "reference_files": [
     {
@@ -133,22 +133,13 @@
       "z": 10
     },
     {
-      "id": "crest",
-      "parent": "torso",
-      "pivot": [
-        186,
-        191
-      ],
-      "z": 11
-    },
-    {
       "id": "neck",
       "parent": "torso",
       "pivot": [
         162,
         148
       ],
-      "z": 12
+      "z": 11
     },
     {
       "id": "face_base",
@@ -157,7 +148,7 @@
         163,
         112
       ],
-      "z": 13
+      "z": 12
     },
     {
       "id": "ear_left",
@@ -166,7 +157,7 @@
         109,
         134
       ],
-      "z": 14
+      "z": 13
     },
     {
       "id": "ear_right",
@@ -175,7 +166,7 @@
         220,
         135
       ],
-      "z": 15
+      "z": 14
     },
     {
       "id": "eye_left",
@@ -184,7 +175,7 @@
         138,
         130
       ],
-      "z": 16
+      "z": 15
     },
     {
       "id": "eye_right",
@@ -193,7 +184,7 @@
         190,
         130
       ],
-      "z": 17
+      "z": 16
     },
     {
       "id": "eyebrow_left",
@@ -202,7 +193,7 @@
         136,
         115
       ],
-      "z": 18
+      "z": 17
     },
     {
       "id": "eyebrow_right",
@@ -211,7 +202,7 @@
         187,
         114
       ],
-      "z": 19
+      "z": 18
     },
     {
       "id": "mouth",
@@ -220,7 +211,7 @@
         166,
         162
       ],
-      "z": 20
+      "z": 19
     },
     {
       "id": "hair_side_left",
@@ -229,7 +220,7 @@
         111,
         100
       ],
-      "z": 21
+      "z": 20
     },
     {
       "id": "hair_side_right",
@@ -238,7 +229,7 @@
         214,
         103
       ],
-      "z": 22
+      "z": 21
     },
     {
       "id": "bangs",
@@ -247,7 +238,7 @@
         161,
         78
       ],
-      "z": 23
+      "z": 22
     },
     {
       "id": "upper_arm_left",
@@ -256,7 +247,7 @@
         130,
         180
       ],
-      "z": 24
+      "z": 23
     },
     {
       "id": "forearm_left",
@@ -265,7 +256,7 @@
         138,
         207
       ],
-      "z": 25
+      "z": 24
     },
     {
       "id": "hand_left",
@@ -274,7 +265,7 @@
         166,
         212
       ],
-      "z": 26
+      "z": 25
     },
     {
       "id": "upper_arm_right",
@@ -283,7 +274,7 @@
         209,
         180
       ],
-      "z": 27
+      "z": 26
     },
     {
       "id": "forearm_right",
@@ -292,7 +283,7 @@
         198,
         209
       ],
-      "z": 28
+      "z": 27
     },
     {
       "id": "hand_right",
@@ -301,7 +292,7 @@
         173,
         212
       ],
-      "z": 29
+      "z": 28
     },
     {
       "id": "robe_front",
@@ -309,6 +300,15 @@
       "pivot": [
         164,
         192
+      ],
+      "z": 29
+    },
+    {
+      "id": "crest",
+      "parent": "torso",
+      "pivot": [
+        220,
+        175
       ],
       "z": 30
     }
@@ -391,5 +391,11 @@
     "no_whole_character_fades": true,
     "keep_chapter_deeplink": true,
     "keep_feeding_and_levels": true
-  }
+  },
+  "expression_source": "artwork/mascot-v2/expressions.json",
+  "turnaround_views": [
+    "artwork/mascot-v2/turn-side.svg",
+    "artwork/mascot-v2/turn-back.svg"
+  ],
+  "stage_note": "Layered first-pass vector puppet and expression generator authored. Full-resolution source references are still not checked into GitHub; 160px visual approval and manual rig stress QA remain mandatory before animation cutover."
 }
