@@ -19,6 +19,10 @@ The workspace includes a companion that is fed when a chapter is successfully ta
 
 To add the companion to your Android home screen, touch and hold an empty area, choose **Widgets**, then find **Translation companion** under Intake Edit. It is designed for a 2×2 space and can be resized where supported. Tap it to open the earliest Pending Review chapter with missing English; if none are missing English, it opens the earliest Pending Review chapter. When the project is not connected, it opens the connection screen. The widget refreshes after successful feedings and around the next local day; it periodically syncs project progress in the background. Android may delay background work when the device is idle. The current companion uses mood-specific animation frames in the app and widget, with mood conveyed visually on a transparent widget. Widget size, placement, and animation behavior depend on the launcher. The app includes mood-specific reactions and shared reading, writing, and page-turning actions. The widget requests the full sequence from a launcher-hosted adapter; timing and behavior depend on the launcher. Android’s reduced-motion setting displays a still pose.
 
+## Mascot v2 replacement (work in progress)
+
+The next companion is the user's blonde witch chibi character, based on the supplied character sheet. We are building an independent layered rig and full five-state animation pack while retaining the current Book Spirit in production until the replacement passes visual, Android and widget checks. The existing feed/level/project and tap-to-chapter behavior must stay unchanged. See the [active roadmap](ROADMAP.md), [character/rig design bible](docs/MASCOT_V2_DESIGN.md) and [art contract](artwork/mascot-v2/rig-contract.json). **No mascot artwork has been switched in the released app yet.**
+
 ## Glossary governance
 
 The Glossary section reads the master glossary state from the configured translation repository.
