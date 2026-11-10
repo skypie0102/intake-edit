@@ -36,3 +36,18 @@ Do not replace `app/src/main/assets/companion/animation-pack.json` or the widget
 Run `python tools/prepare_mascot_raster.py --portrait /path/to/Chibi_Malfoid_1000.png --output ./raster-preview/` to isolate the exact original character pixels (the speech bubble is a separate alpha component) and export static 160/320px WebP full-body and bust crops. The original artwork files are **not checked into the repository** yet. The preview does not constitute an animated rig.
 
 When a proper layered master is illustrated and approved, use `python tools/pack_mascot_raster_layers.py --layers /path/to/layers.json --output ./raster-atlas/`. The provisional 31-part specification is not an instruction to chop the current flattened PNG into fake limbs. See the separate Phase 1A/1B gates in the roadmap.
+
+## Phase 1B experimental eye-layer pilot (NOT approved)
+
+The next work item is deliberately limited to the eyes. With an exact original portrait input, run:
+
+```sh
+python -m pip install Pillow numpy opencv-python-headless
+python tools/prototype_mascot_v2_eye_layers.py \
+  --portrait /path/to/Chibi_Malfoid_1000.png \
+  --output /tmp/mascot-v2-eyes
+```
+
+This produces an editable 640×640 OpenRaster file containing two independently isolated original-pixel eye illustrations, an approximate underpainted base and a hidden intact reference. Technical checks guarantee exact neutral recomposition **only**; they do not certify the underlying skin for blinking, the eyelid edge geometry, or the complete rig. In early motion stress frames a narrow seam becomes visible. The [eye pilot report](../../docs/MASCOT_V2_PHASE1B_EYE_PILOT.md) and [expanded Phase 1B checklist](../../ROADMAP.md) track the necessary artist repaint. The Slytherin sheet remains authoritative for the crest.
+
+This experiment is isolated from the app's production resources. The current Book Spirit remains unchanged.
