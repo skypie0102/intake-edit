@@ -20,6 +20,9 @@ def pack(manifest_path: Path, output: Path, width: int = 1024,
     source = json.loads(manifest_path.read_text("utf-8"))
     if source.get("format") != 2 or source.get("canvas") != [320, 320]:
         raise ValueError("Input must be raster rig manifest v2 on 320x320")
+    scale = source.get("pixels_per_unit", 1)
+    if not isinstance(scale, (int, float)) or not (1 <= scale <= 4):
+        raise ValueError("pixels_per_unit must be within [1, 4]")
     entries = source.get("layers", [])
     if len(entries) < 2:
         raise ValueError("Rig pack requires at least two painted layers; one flat image is reference only")
@@ -49,7 +52,7 @@ def pack(manifest_path: Path, output: Path, width: int = 1024,
             raise ValueError("Invalid position/pivot")
         layers.append({
             "id": part_id, "image": image.crop(bounding),
-            "offset": [float(position[0] + bounding[0]), float(position[1] + bounding[1])],
+            "offset": [float(position[0] + bounding[0] / scale), float(position[1] + bounding[1] / scale)],
             "pivot": [float(pivot[0]), float(pivot[1])],
             "z": int(entry["z"]), "parent": entry.get("parent")
         })
@@ -89,7 +92,8 @@ def pack(manifest_path: Path, output: Path, width: int = 1024,
         exports.append({
             "id": layer["id"], "atlas": 0,
             "src": [px, py, image.width, image.height],
-            "position": layer["offset"], "pivot": layer["pivot"],
+            "position": layer["offset"], "size": [image.width / scale, image.height / scale],
+            "pivot": layer["pivot"],
             "parent": layer["parent"], "z": layer["z"]
         })
     output.mkdir(parents=True, exist_ok=True)
@@ -100,6 +104,7 @@ def pack(manifest_path: Path, output: Path, width: int = 1024,
         raise ValueError(f"Atlas exceeds {max_bytes} byte budget")
     result = {
         "format": 2, "kind": "raster-rig", "canvas": [320, 320],
+        "pixels_per_unit": scale,
         "atlases": [{"file": texture.name, "width": width, "height": height,
                      "bytes": texture.stat().st_size}],
         "sprites": exports, "animated": False,
