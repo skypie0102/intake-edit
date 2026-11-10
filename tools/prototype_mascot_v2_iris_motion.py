@@ -86,7 +86,7 @@ def build(portrait,output):
         ImageDraw.Draw(background).polygon(polygon,fill=sample)
     neutral=background.copy()
     for part in parts.values(): neutral.alpha_composite(part)
-    if ImageChops.difference(neutral,reference).getbbox() is not None:
+    if neutral.tobytes() != reference.tobytes():
         raise AssertionError("Neutral reassembly must be exactly RGBA identical")
     reference.save(output/"neutral-reference.png",optimize=True)
     background.save(output/"temporary-sclera.png",optimize=True)
