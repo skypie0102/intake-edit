@@ -1,6 +1,6 @@
 # Mascot v2 — character bible, rig and motion contract
 
-**Status:** specification / art preproduction, visual reset on 2026-11-10. The previous vector prototype in PR #62 was rejected for failing character resemblance and is not an accepted art asset. No mascot replacement has shipped.
+**Status:** raster-art preproduction, visual reset and hybrid-pipeline decision on 2026-11-10. See [raster pipeline](MASCOT_V2_RASTER_PIPELINE.md). The previous vector prototype in PR #62 was rejected for failing character resemblance and is not an accepted art asset. No mascot replacement has shipped.
 
 **Visual-first gate:** The exact approved character is the source of truth. Recreating her with simplistic hand-coded paths is not acceptable. Produce a faithful isolated art master retaining her original anime line quality, facial proportions, layered blonde hair, folded-arm pose, carefully shaded robe and chibi Slytherin crest. Compare the actual artwork at full size and 160×160 before any claim of accepted likeness; only then draw hidden geometry and separate the rigging layers. Passing part-count tests, XML parsing, CI or device builds does not prove visual quality.
 
@@ -23,11 +23,11 @@ There is no user-confirmed character name; internal ID is **mascot-v2**, not a p
 
 Suggested palette (visual starting point from the reference, **not** pixel-calibrated): hair #FBF1D9; eyes #929190; skin #F8E1CF; cheeks #E9A992; outline #1C1B1D; robe #171819; lining #174B32; knit #2B5539; shirt #DADCDD; skirt shadow #24342C; gold crest #C8A465. Check colors against the original image before locking the master.
 
-## Artwork pipeline: independent layers, not chopped screenshots
+## Artwork pipeline: illustrated raster parts, not simplified SVG drawings
 
-Author a clean editable **master vector rig** at a normalized 320×320 viewport. Keep a higher-resolution working master where helpful. Every moving component needs a visible part and painted-overlap beneath any hinge to prevent holes during movement. No automatic cutout alone can meet this quality bar.
+Author a high-resolution **layered raster master** (.kra/PSD or equivalent) at the approved character's original detail level, using a 320×320 logical rig canvas for runtime coordinates. Keep the actual painted pixels in independent transparent layers. Every moving component needs a visible part and painted-overlap beneath any hinge to prevent holes during movement. No automatic cutout alone can meet this quality bar.
 
-The versioned [rig contract](../artwork/mascot-v2/rig-contract.json) names the mandatory draw groups, parent attachments and normalized pivots. Actual paths and masks still need to be authored. Important depth rules:
+The versioned [rig contract](../artwork/mascot-v2/rig-contract.json) contains a **provisional** part list and anchors; none are accepted artwork yet. Actual painted layers, underdrawing and occlusion masks must still be authored. Important depth rules:
 
 1. Hair behind face and body, with separately animated side locks/bangs placed in front.
 2. Feet/legs behind skirt and robe, robe back behind torso, torso behind face/head.
@@ -40,14 +40,14 @@ The versioned [rig contract](../artwork/mascot-v2/rig-contract.json) names the m
 - No duplicated/floating hands, missing arm segments, distorted fingers, gapping neck, detached hair, or robe intersections.
 - All 12 expressions identifiable without symbols, and eyelids, eyes, brows, and mouths are true independent assets.
 - Hair and robe parts behave as connected physical forms with soft secondary motion. The character stays centered and legible within a transparent 2×2 widget.
-- Prefer authoring vector paths over shipping hundreds of raster cutouts; verify AndroidSVG support for chosen features. If gradients or masks fail on device, preprocess them for the pack rather than silently dropping details.
+- Preserve painted linework and shading in transparent WebP texture atlases; do not replace fine anime details with handcrafted vector curves. Validate halos, mipmap/filtering and decoder support on Android. Prefer one compact texture pack plus keyframes instead of hundreds of full-size raster frames in the app.
 - Produce a full-size turntable + expression contact sheet and a 160×160 check sheet before animating.
 
 ## Stable compatibility with production
 
 Keep the existing logic and **five enum moods exactly**: NEW, WAITING, HAPPY, HUNGRY, SAD. Do not touch GitHub authentication, pet level, project/branch scoping, feed/Tag-for-QA, stored mood, offline behavior, or chapter deep-linking to perform this visual replacement.
 
-The production renderer already consumes **SVG frames inside a JSON pack**, with 96 reaction frames per mood, 48 poses per shared action (reading, writing and page_turn), two extended idle scenes per mood, a blink pose, and frame duration metadata. Keep this contract as the initial integration target. Avoid replacing it with an unsupported Android live-SVG-layer widget scheme. We may add internal authoring metadata, but export must remain compatible with the rendering pipeline.
+The **existing Book Spirit** renderer uses SVG frames in JSON and must remain functional until cutover. The new mascot uses a **separate raster atlas + keyframe metadata (format 2)** in the app. At final integration, its same approved motions will be sampled to small transparent bitmap frames for the existing Android RemoteViews widget adapter. Do not claim a raster atlas can be loaded by the legacy SVG parser; the renderers are distinct.
 
 Build new source/animation outputs under a separate mascot-v2 directory. Existing Book Spirit files remain the production default until release cutover. Never overwrite `companion/animation-pack.json` during authoring or initial preview work.
 
@@ -85,7 +85,7 @@ For authored actions use **anticipation → motion → readable hold → recover
 1. **Character match:** independent full-size and 160 px visual comparisons; every face expression and outfit detail recognizable. No screenshots used as rigid puppets.
 2. **Rig:** pivot/mask/part audit; long hair, robe, arms, hands, and props remain attached through full test range.
 3. **Animation:** complete five-state reactions, 3 shared actions × 5 moods, 2 idles × 5 moods; no wrong-state flash on switching.
-4. **Preview:** inspect looping and interrupt transitions, rest-pose continuity, gesture readability and timing. Regenerate a distinct v2 pack and verify the bundled output byte-for-byte.
+4. **Preview:** inspect looping and interrupt transitions, rest-pose continuity, gesture readability and timing. Export a distinct raster v2 atlas/pose pack and inspect its full-size and widget-size raster renderings.
 5. **Production cutover:** app, home-screen widget, widget picker preview, and app icon updated together; chapter and feeding/level behaviors unchanged.
 6. **Validation:** automated contract tests, generator tests, Android build, preview walk-through, launcher checks; update docs and release only after all applicable gates pass.
 
