@@ -22,6 +22,29 @@ class RasterCompanionAtlasTest {
         assertEquals(30f, spec.sprites[0].pivotX)
     }
 
+    @Test fun supportsHighResolutionTexturesWithLogicalSize() {
+        val doc = rigDoc().replace("\"pivot\":[30,50]", "\"pivot\":[30,50],\"size\":[16,24]")
+        val sprite = RasterAtlasSpecification.parse(doc).sprites.single()
+        assertEquals(32, sprite.width)
+        assertEquals(16f, sprite.logicalWidth)
+        assertEquals(24f, sprite.logicalHeight)
+    }
+
+    @Test fun parentTransformChainIncludesAncestorsInOrder() {
+        val sprites = """[
+            {"id":"hair_back","atlas":0,"src":[0,0,8,8],"position":[0,0],"pivot":[4,4],"z":0,"parent":null},
+            {"id":"face","atlas":0,"src":[20,0,8,8],"position":[10,0],"pivot":[14,4],"z":1,"parent":"hair_back"},
+            {"id":"eye","atlas":0,"src":[40,0,8,8],"position":[20,0],"pivot":[22,4],"z":2,"parent":"face"}
+        ]"""
+        val rig = RasterAtlasSpecification.parse(rigDoc(sprites = sprites))
+        assertEquals(listOf("hair_back", "face", "eye"),
+            rig.poseChain(rig.sprites.last()).map { it.id })
+        val circular = sprites.replace("\"z\":0,\"parent\":null", "\"z\":0,\"parent\":\"eye\"")
+        assertThrows(IllegalArgumentException::class.java) {
+            RasterAtlasSpecification.parse(rigDoc(sprites = circular))
+        }
+    }
+
     @Test fun rejectsOutOfBoundsTextureRect() {
         assertThrows(IllegalArgumentException::class.java) {
             RasterAtlasSpecification.parse(rigDoc(src = "[120,120,32,48]"))
