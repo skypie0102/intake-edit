@@ -1,12 +1,12 @@
 # Mascot v2 — character bible, rig and motion contract
 
-**Status:** specification / art preproduction (2026-11-10). This document does not claim the new character is already drawn or live in the app.
+**Status:** first-pass vector artwork and expression assets authored (2026-11-10); full rig/art acceptance and all animations remain outstanding. The character is **not live in the app or widget**.
 
 ## Source of truth
 
 - **Primary design reference:** the user's 2026-11-10 character sheet (chibi blonde witch in green/black school uniform, turnaround, 12 expressions, detail studies, color palette, and actions).
 - **Secondary, higher-resolution pose reference:** the user's original single-character illustration from the same conversation, with arms crossed and a "Hmph!" bubble.
-- These images were provided in the conversation; **the actual reference image files have not yet been imported into this repository**. The corresponding original filenames and SHA-256 digests are tracked in [rig-contract.json](../artwork/mascot-v2/rig-contract.json). Copy the originals without resizing or lossy conversion before attempting a production rig. The speech bubble and illustration page decorations are **not** part of the mascot.
+- These images were provided in the conversation; **the exact reference image files have not yet been imported into this repository**. The corresponding original filenames and SHA-256 digests are tracked in [rig-contract.json](../artwork/mascot-v2/rig-contract.json). Copy the originals without resizing or lossy conversion before attempting a production rig. The speech bubble and illustration page decorations are **not** part of the mascot.
 - Maintain one canonical design; do not stitch unrelated drawings into the rig. The sheet's turnaround is for silhouette guidance; the larger image supplies the authoritative likeness.
 
 ## Character identity and design locks
@@ -32,6 +32,8 @@ The versioned [rig contract](../artwork/mascot-v2/rig-contract.json) names the m
 3. Both arms and wrists attach to the same shoulder chain; sleeves conceal wrist joins, hands connect naturally.
 4. Face features move with the head; eye highlights track the pupils; hair follows turns with small delay.
 5. Layers for reading, writing, page turning and wand poses may include optional book, pen and wand props, but these props are not required in the neutral crossed-arms pose.
+
+**First-pass source paths:** [master-rig.svg](../artwork/mascot-v2/master-rig.svg), [12 expression presets](../artwork/mascot-v2/expressions.json), [side study](../artwork/mascot-v2/turn-side.svg), [back study](../artwork/mascot-v2/turn-back.svg), and [expression generator](../tools/generate_mascot_v2_phase1.py). These are editable vector assets; the source images are not used as cutout sprites. There are still differences from the approved high-detail illustration; treat the current rig as an art prototype, not a finished puppet.
 
 **Master rig acceptance:**
 - Clean neutral/rest pose and accurate front and three-quarter silhouettes compared against the reference; back/side views preserved for design QA.
