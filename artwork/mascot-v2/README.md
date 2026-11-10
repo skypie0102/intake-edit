@@ -61,3 +61,9 @@ python tools/prototype_mascot_v2_iris_motion.py --portrait /path/to/Chibi_Malfoi
 ```
 
 These layers are not painted sclera or finished blinking assets. Read [the iris study](../../docs/MASCOT_V2_PHASE1B_IRIS_STUDY.md) before reusing the output. Production still uses the Book Spirit.
+
+## Approved-expression reference extraction and neutral image QA
+
+Extract the twelve existing approved Slytherin expression illustrations with `python tools/extract_mascot_v2_expressions.py --sheet /path/to/slytherin_chibi_character_master_sheet.png --output /tmp/face-ref`. Each unscaled crop is kept losslessly as WebP; the reference atlas is scaled only for browsing. **These are not transparent rig layers.**
+
+When a genuine independently layered atlas exists, run `python tools/qa_mascot_raster_atlas.py --manifest /path/to/atlas-manifest.json --reference /path/to/neutral-reference.png --output /tmp/qa --strict`. It must preserve alpha and visible RGB against light and dark backgrounds, even before moving any joints. A perfectly matching resting frame is necessary but not sufficient for rig approval. See [the Phase 1B report](../../docs/MASCOT_V2_PHASE1B_QA_REFERENCES.md). Automated closed-eye artwork trials did not pass visual inspection and have not been accepted.
