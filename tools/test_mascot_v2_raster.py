@@ -48,7 +48,7 @@ class RasterAssetTest(unittest.TestCase):
             root = Path(tmp)
             path = root / "source.json"
             path.write_text(json.dumps({"format": 2, "canvas": [320, 320], "layers": []}))
-            with self.assertRaisesRegex(ValueError, "real illustrated layers"):
+            with self.assertRaisesRegex(ValueError, "at least two painted layers"):
                 atlas_packer.pack(path, root / "out")
 
     def test_single_flattened_image_is_not_an_articulated_rig(self):
