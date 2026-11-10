@@ -48,6 +48,8 @@ jobs:
           gradle-version: '9.6.0'
       - name: Verify companion vector frames
         run: python3 -m unittest discover -s tools -p 'test_companion*.py'
+      - name: Install raster art tooling
+        run: python3 -m pip install --user Pillow==11.3.0
       - name: Verify mascot v2 contract
         run: python3 -m unittest discover -s tools -p 'test_mascot_v2_*.py'
       - name: Run unit tests and build debug APK
