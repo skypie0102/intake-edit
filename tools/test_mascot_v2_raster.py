@@ -1,6 +1,8 @@
 """Pillow tests for transparent-reference extraction and real layered atlas packing."""
 import hashlib
 import json
+from io import BytesIO
+from zipfile import ZipFile
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,6 +39,12 @@ class RasterAssetTest(unittest.TestCase):
             self.assertFalse(result["animation_ready"])
             self.assertEqual(result["layers"], [])
             self.assertEqual(len(result["frames"]), 4)
+            with ZipFile(root / "out" / "neutral-master.ora") as layered:
+                self.assertEqual(layered.read("mimetype"), b"image/openraster")
+                self.assertIn(b"not rigged", layered.read("stack.xml"))
+                stored = Image.open(BytesIO(layered.read("data/neutral.png"))).convert("RGBA")
+                exported = Image.open(root / "out" / "neutral-isolated-lossless.png").convert("RGBA")
+                self.assertIsNone(ImageChops.difference(stored, exported).getbbox())
             for frame in result["frames"]:
                 self.assertTrue(frame["alpha_exact"])
                 self.assertGreater(frame["visible_rgb_psnr_db"], 37)
