@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" aria-label="Mascot v2 side silhouette reference"><defs>
+<linearGradient id="hair" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#fffdf0"/><stop offset=".43" stop-color="#fbf1dc"/><stop offset=".75" stop-color="#f7e8ca"/><stop offset="1" stop-color="#e9c9a2"/></linearGradient>
+<linearGradient id="hairUnder" x1="0" y1="0" x2="1" y2=".2"><stop stop-color="#e8c29a"/><stop offset=".45" stop-color="#fff7e6"/><stop offset="1" stop-color="#f3dcbb"/></linearGradient>
+<linearGradient id="skin" x1=".15" y1=".1" x2=".8" y2="1"><stop stop-color="#fff1de"/><stop offset=".62" stop-color="#fce4d3"/><stop offset="1" stop-color="#ecc7b3"/></linearGradient>
+<linearGradient id="robe" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#393b37"/><stop offset=".45" stop-color="#1d201f"/><stop offset="1" stop-color="#101313"/></linearGradient>
+<linearGradient id="vest" x1="0" y1="0" x2=".95" y2="1"><stop stop-color="#356442"/><stop offset=".7" stop-color="#255035"/><stop offset="1" stop-color="#132d25"/></linearGradient>
+<linearGradient id="eyes" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#686766"/><stop offset=".6" stop-color="#aaa9a7"/><stop offset="1" stop-color="#bbb8b3"/></linearGradient>
+<linearGradient id="shoe" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#454646"/><stop offset="1" stop-color="#101213"/></linearGradient>
+<pattern id="plaid" width="21" height="20" patternUnits="userSpaceOnUse"><rect width="21" height="20" fill="#1b2924"/><path d="M3 0V20M11 0V20" stroke="#577066" stroke-width="2"/><path d="M0 2H21M0 10H21" stroke="#6f8176" stroke-width="2"/><path d="M7 0V20M0 6H21" stroke="#b2b6a7" stroke-width=".7" opacity=".72"/></pattern>
+<clipPath id="skirt-clip"><path d="M126 213Q162 218 201 210L213 253Q176 266 118 256Z"/></clipPath>
+<clipPath id="face-clip"><path d="M97 85C96 54 120 38 156 35Q209 33 228 85L220 137Q208 161 165 173Q124 171 101 151Q91 136 97 85Z"/></clipPath>
+</defs><g stroke="#202322" stroke-linejoin="round">
+<path d="M155 229L171 227L168 295L158 299Z" fill="#232525" stroke-width="3"/><path d="M183 229L198 225L202 294L191 300Z" fill="#232525" stroke-width="3"/>
+<path d="M160 288Q174 296 170 310Q159 315 134 312Q124 309 132 300Z" fill="url(#shoe)" stroke-width="3"/><path d="M190 287Q203 294 202 312Q189 317 179 311L177 302Z" fill="url(#shoe)" stroke-width="3"/>
+<path d="M149 158Q195 152 227 178L235 262Q204 282 168 267Q140 267 144 229Z" fill="url(#robe)" stroke-width="3"/><path d="M151 207L211 207L215 252Q179 261 150 252Z" fill="url(#plaid)" stroke-width="2"/>
+<path d="M145 158Q174 144 204 156L216 187Q199 198 188 211L158 217L139 198Z" fill="url(#vest)" stroke-width="3"/>
+<path d="M160 163L180 157L193 181L176 194Z" fill="#e3e6df" stroke-width="2"/><path d="M176 167L185 169L179 203" fill="#0f5438" stroke-width="6"/>
+<path d="M183 15Q238 18 251 76Q260 114 246 164Q257 215 264 250Q275 282 241 286Q218 292 207 266Q188 275 167 261Q145 272 136 238Q129 207 150 156Q132 98 139 67Q145 34 183 15Z" fill="url(#hair)" stroke-width="3"/>
+<path d="M195 30Q236 71 229 146Q216 195 250 268M213 32Q247 92 235 156Q230 208 250 255" fill="none" stroke="#d9b38f" stroke-width="1.5"/>
+<path d="M171 59Q145 62 131 95Q123 121 130 132L140 136Q133 156 154 170Q182 177 206 152L211 96Q192 58 171 59Z" fill="url(#skin)" stroke-width="2.6"/>
+<path d="M135 107Q145 105 153 110Q150 117 139 119" fill="#fefbf1" stroke-width="2"/><ellipse cx="143" cy="111" rx="4.5" ry="6" fill="#878787" stroke-width="1.2"/><path d="M132 105L159 102" stroke-width="3"/><path d="M133 96L158 93" stroke-width="3.5" fill="none"/>
+<path d="M126 125L118 129L127 131" stroke-width="1.7" fill="none"/><path d="M139 147L144 148" stroke-width="1.5" fill="none"/>
+<path d="M178 55Q166 26 176 20Q135 22 134 86L134 134Q141 158 154 170Q133 172 127 156Q118 121 126 80Q137 36 178 55Z" fill="url(#hair)" stroke-width="2.2"/>
+<path d="M153 34Q177 41 195 58Q200 77 187 117Q175 140 157 161Q178 163 190 149Q213 122 216 88Q207 45 182 22" fill="url(#hair)" stroke-width="2"/>
+<path d="M140 174Q151 168 170 171L180 231L164 259L135 251Z" fill="url(#robe)" stroke-width="2.4"/>
+<path d="M144 182L164 200L168 230" fill="none" stroke="#638069" stroke-width="2"/>
+<path d="M149 173Q132 181 134 201Q139 216 151 222L185 225Q197 220 196 211L163 198Z" fill="url(#robe)" stroke-width="3"/>
+<path d="M164 184Q173 180 181 193L186 215Q182 223 173 216L147 201Q143 191 153 188Z" fill="url(#robe)" stroke-width="2.6"/>
+<path d="M151 182L170 196M145 204L167 212" fill="none" stroke="#74786e" opacity=".38" stroke-width="1.4"/>
+</g></svg>
