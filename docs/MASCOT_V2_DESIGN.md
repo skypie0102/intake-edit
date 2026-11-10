@@ -47,7 +47,7 @@ Keep the existing logic and **five enum moods exactly**: NEW, WAITING, HAPPY, HU
 
 The production renderer already consumes **SVG frames inside a JSON pack**, with 96 reaction frames per mood, 48 poses per shared action (reading, writing and page_turn), two extended idle scenes per mood, a blink pose, and frame duration metadata. Keep this contract as the initial integration target. Avoid replacing it with an unsupported Android live-SVG-layer widget scheme. We may add internal authoring metadata, but export must remain compatible with the rendering pipeline.
 
-Build new source/animation outputs under a separate mascot-v2 directory. Existing Book Spirit files remain the production default until release cutover. Never overwrite \`companion/animation-pack.json\` during authoring or initial preview work.
+Build new source/animation outputs under a separate mascot-v2 directory. Existing Book Spirit files remain the production default until release cutover. Never overwrite `companion/animation-pack.json` during authoring or initial preview work.
 
 ## Acting bible
 
