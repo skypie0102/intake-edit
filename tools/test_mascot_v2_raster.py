@@ -51,6 +51,19 @@ class RasterAssetTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "real illustrated layers"):
                 atlas_packer.pack(path, root / "out")
 
+    def test_single_flattened_image_is_not_an_articulated_rig(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            Image.new("RGBA", (320, 320), (80, 90, 60, 255)).save(root / "flat.png")
+            manifest = {"format": 2, "canvas": [320, 320], "layers": [
+                {"id": "flat_character", "file": "flat.png", "position": [0, 0],
+                 "pivot": [160, 160], "parent": None, "z": 0}
+            ]}
+            path = root / "layers.json"
+            path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError, "at least two"):
+                atlas_packer.pack(path, root / "out")
+
     def test_atlas_crops_real_layers_without_alpha_loss_or_overlap(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
