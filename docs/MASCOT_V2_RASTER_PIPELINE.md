@@ -62,6 +62,14 @@ A dormant native Android renderer, `RasterCompanionAtlas.kt`, can load and draw 
 
 An [initial eye-only study](MASCOT_V2_PHASE1B_EYE_PILOT.md) isolates the original left/right eye pixels and reconstructs an approximate base below them, then checks an exact neutral RGBA recomposition. The first OpenRaster file has a flattened body and independently movable eyes, **not** 31 separate painted limbs. A [follow-up iris-only tracking study](MASCOT_V2_PHASE1B_IRIS_STUDY.md) leaves the eyelashes fixed and moves only the original iris/pupil interiors. The underpaint remains provisional and no blink is approved. Motion stress previews show seams under one eye, demonstrating why artist-painted eyelids/skin are mandatory. The eye layer technical test should be followed by a real expression-art pass, then head/hair, then body, then atlas/device validation. All checklists are in [ROADMAP.md](../ROADMAP.md).
 
+## Added Phase 1B art-source and neutral fidelity tools
+
+All twelve face-expression drawings are now available as exact-source, lossless WebP *reference crops*, regenerated from the approved Slytherin sheet using `tools/extract_mascot_v2_expressions.py`. They remain composite headshot images, not movable face layers.
+
+The `tools/qa_mascot_raster_atlas.py` diagnostic compares any genuine multi-sprite raster rig against the accepted neutral image at source resolution. It generates 160px light/dark previews and a pixel diff heatmap, and it can fail strictly on RGB or alpha changes. The existing iris-only atlas passed neutral reconstruction exactly (zero visible RGB and alpha errors). This does not validate joint movement or replace manual artistic QA. Details in [the Phase 1B QA report](MASCOT_V2_PHASE1B_QA_REFERENCES.md).
+
+Automatic closed-eye inpainting/eyelash transfers did not look acceptable; no blink is marked as finished. Manually painted hidden eye art remains the immediate visual blocker.
+
 ## Animation and home-screen widget architecture
 
 **In the app:** reuse a small atlas across moods; keyframes describe motion instead of embedding complete images for each frame. Maintain the existing NEW / WAITING / HAPPY / HUNGRY / SAD state rules, shared reading/writing/page turning and idle performances. Plan for proper occlusion, joint continuity and hair/robe follow-through.
