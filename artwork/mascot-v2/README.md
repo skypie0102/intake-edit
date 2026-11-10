@@ -51,3 +51,13 @@ python tools/prototype_mascot_v2_eye_layers.py \
 This produces an editable 640×640 OpenRaster file containing two independently isolated original-pixel eye illustrations, an approximate underpainted base and a hidden intact reference. Technical checks guarantee exact neutral recomposition **only**; they do not certify the underlying skin for blinking, the eyelid edge geometry, or the complete rig. In early motion stress frames a narrow seam becomes visible. The [eye pilot report](../../docs/MASCOT_V2_PHASE1B_EYE_PILOT.md) and [expanded Phase 1B checklist](../../ROADMAP.md) track the necessary artist repaint. The Slytherin sheet remains authoritative for the crest.
 
 This experiment is isolated from the app's production resources. The current Book Spirit remains unchanged.
+
+## Follow-up: iris-only tracking experiment
+
+The original whole-eye pilot exposed seams when moving eyelash outlines. The separate `tools/prototype_mascot_v2_iris_motion.py` isolates **only the illustrated iris interiors**, leaves lashes and eyelids fixed and proves pixel-exact neutral recomposition at 640×640. It exports a four-layer experimental OpenRaster master, five tiny gaze-shift frames and 160px comparison images. Run:
+
+```sh
+python tools/prototype_mascot_v2_iris_motion.py --portrait /path/to/Chibi_Malfoid_1000.png --output /tmp/iris-v2
+```
+
+These layers are not painted sclera or finished blinking assets. Read [the iris study](../../docs/MASCOT_V2_PHASE1B_IRIS_STUDY.md) before reusing the output. Production still uses the Book Spirit.
