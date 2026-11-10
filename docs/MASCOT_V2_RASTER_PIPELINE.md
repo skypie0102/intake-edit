@@ -1,6 +1,6 @@
 # Mascot v2: high-fidelity raster / hybrid animation pipeline
 
-**Adopted 2026-11-10. Current status: first static raster proof, NOT an animated or art-approved layered rig.**
+**Adopted 2026-11-10. Current status: Phase 1A static appearance accepted in principle, Phase 1B experimental eye-layer pilot created; no complete or art-approved rig.**
 
 ## Why this replaces the earlier pure-SVG requirement
 
@@ -28,7 +28,7 @@ Outputs:
 
 Every WebP is quality 95 with lossless alpha, and exported images are checked against their uncompressed rendered originals. The tool rejects artifacts with alpha mismatch or visible-pixel PSNR below 37 dB. These checks detect codec degradation; **human art review is still mandatory**.
 
-The user has not yet approved the transparent master or chosen full-body versus bust framing for the widget. Do not mark Phase 1A complete before that approval.
+The user confirmed the raster preview looked good enough to continue. This accepts the overall character appearance as the starting point; specific widget framing (full-body versus bust) is not finalized. Proceed to Phase 1B without claiming a finished layered rig.
 
 ## Phase 1B: proper illustrated layers and compact texture atlas (packer implemented)
 
@@ -58,6 +58,10 @@ The example demonstrates the schema, **not a finished layer**. The optional `pix
 
 A dormant native Android renderer, `RasterCompanionAtlas.kt`, can load and draw these separate sprites using pivots, rotation, scale and translation. It is **not enabled by default** and requires a valid artist-authored layer atlas. Later add selective mesh deformation where proven necessary, without shipping an entire Live2D SDK prematurely.
 
+### Phase 1B eye pilot (experimental)
+
+An [initial eye-only study](MASCOT_V2_PHASE1B_EYE_PILOT.md) isolates the original left/right eye pixels and reconstructs an approximate base below them, then checks an exact neutral RGBA recomposition. The first OpenRaster file has a flattened body and independently movable eyes, **not** 31 separate painted limbs. Motion stress previews show seams under one eye, demonstrating why artist-painted eyelids/skin are mandatory. The eye layer technical test should be followed by a real expression-art pass, then head/hair, then body, then atlas/device validation. All checklists are in [ROADMAP.md](../ROADMAP.md).
+
 ## Animation and home-screen widget architecture
 
 **In the app:** reuse a small atlas across moods; keyframes describe motion instead of embedding complete images for each frame. Maintain the existing NEW / WAITING / HAPPY / HUNGRY / SAD state rules, shared reading/writing/page turning and idle performances. Plan for proper occlusion, joint continuity and hair/robe follow-through.
@@ -81,4 +85,4 @@ The following constraints are locked:
 5. **Cutover:** both in-app mascot and widget use the same approved character, static fallbacks and the existing state/feeding logic.
 6. **Device testing and release:** build, test on Android, check launcher frame pacing/flicker, then merge and release.
 
-**Status as of this change:** image extraction, WebP previews, a real-layer atlas packer, dormant native renderer and automated tests have been created. **No illustrated rig layers, animation clips, production widget assets or replacement APK have been completed.**
+**Status as of this change:** image extraction, WebP previews, a real-layer atlas packer, dormant native renderer, automated tests, and **an eye-only experimental layer split** exist. The eye pilot's original-pixel neutral pose is exact; its provisional hidden skin fails the first motion/seam art gate. **Full independent illustration layers, production-quality expressions, animations, widget assets and a replacement APK have not been completed.**
