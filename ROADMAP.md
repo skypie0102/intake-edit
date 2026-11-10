@@ -19,6 +19,7 @@ The vector approximation from PR #62 is rejected. Keep the approved illustrated 
 
 - [x] Verify the original portrait is RGBA with a detached speech bubble; isolate the character without repainting or vectorization.
 - [x] Implement deterministic full-size extraction and compressed, transparent 160/320px WebP **still** previews, checking alpha preservation and visible-pixel fidelity.
+- [x] Export a one-layer, original-pixel-preserving OpenRaster art master to serve as a real editable starting point (not yet a rig).
 - [x] Produce full-body and bust framing comparisons on both light and dark backgrounds.
 - [ ] Get visual approval for the transparent master and preferred 2×2 widget framing.
 - [ ] Commit both original, SHA-256-verified reference images and the approved Slytherin character sheet to the art source directory; leave the user images untouched.
