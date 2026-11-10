@@ -6,13 +6,14 @@
   "reference_files": [
     {
       "role": "primary_character_sheet",
-      "filename": "1002471086.png",
-      "sha256": "480d78c9fd01d1cf0a2d9f2d758660a9ce8a7642dbe64181cd9e59a2df96de03",
+      "filename": "slytherin_chibi_character_master_sheet.png",
+      "sha256": "f89e7d8ea51ad8131994bf3a40660329e01d6839977a54c3157536f206b9e5f6",
       "pixel_size": [
         1536,
         1024
       ],
-      "checked_in": false
+      "checked_in": false,
+      "note": "Final user-approved chibi Slytherin master sheet; replaces earlier serpent-only concept"
     },
     {
       "role": "original_character_pose",
