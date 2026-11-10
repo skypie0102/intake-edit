@@ -23,6 +23,12 @@ To add the companion to your Android home screen, touch and hold an empty area, 
 
 The next companion is the user's blonde witch chibi character, based on the supplied character sheet. We are building an independent layered rig and full five-state animation pack while retaining the current Book Spirit in production until the replacement passes visual, Android and widget checks. The existing feed/level/project and tap-to-chapter behavior must stay unchanged. See the [active roadmap](ROADMAP.md), [character/rig design bible](docs/MASCOT_V2_DESIGN.md) and [art contract](artwork/mascot-v2/rig-contract.json). **No mascot artwork has been switched in the released app yet.**
 
+## Mascot v2 raster prototype (art preproduction only)
+
+The user-approved Slytherin chibi will use **high-quality painted raster layers** with a small lossless WebP texture atlas and compact animation keyframes, rather than the rejected hand-authored vector substitute. See [the raster pipeline specification](docs/MASCOT_V2_RASTER_PIPELINE.md) and [active roadmap](ROADMAP.md).
+
+The source portrait already has transparency. A standalone preproduction script can remove its **separately connected speech bubble** without redrawing the character, producing full-body and face/torso still images at 160 and 320 pixels with original alpha preserved. The atlas packer and dormant native Android renderer have been created with validation tests. **These are not animated frames or separately painted rig parts**: proper articulated layers, human visual approval, preview integration, widget integration and all five mood animations remain outstanding. The shipped Book Spirit and all translation functions remain unchanged.
+
 ## Glossary governance
 
 The Glossary section reads the master glossary state from the configured translation repository.
