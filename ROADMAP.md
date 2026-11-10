@@ -44,6 +44,7 @@ The vector approximation from PR #62 is rejected. Keep the approved illustrated 
 - [x] Render first tiny eye translations/squashes for visual diagnostics; **the stress poses expose seams**, so they are intentionally marked **unapproved**.
 - [x] Prototype **iris-only motion** while keeping eyelashes and eyelids attached to the face; neutral RGBA reconstructs exactly from the original artwork. Export an editable OpenRaster file, 160px previews, and a compact preliminary lossless WebP atlas.
 - [ ] Repaint the hidden sclera/eyelid art (currently a temporary sample fill) and verify all small iris shifts have no halos or mismatched shading at full resolution and 160px. **Gaze pilot is not visually approved or a blink animation.**
+- [x] Extract and checksum-lock all twelve **originally illustrated facial expression reference crops** from the approved Slytherin sheet, each with lossless WebP pixel-exact source match and a compact reference atlas. **References are not independent rig layers or approved interchangeable facial animation.**
 - [ ] Separate eyebrows, eyelids, pupils/highlights, mouth and facial blush, preserving the original unique half-lidded expression. Add fully drawn blink/open/closed-eye variants.
 - [ ] Reproduce twelve labeled expressions from the approved reference using genuinely edited facial artwork, not automatic warping of one face; validate that she remains recognizable in every state.
 
@@ -63,6 +64,7 @@ The vector approximation from PR #62 is rejected. Keep the approved illustrated 
 
 #### 1B.4 — Layer pack, diagnostics and performance
 
+- [x] Add a deterministic **raster neutral-pose atlas QA tool**: recompose from sprite atlas, test pixel/alpha fidelity on light and dark backgrounds, export magnified error heatmap and 160px comparisons. Existing iris pilot's static rest reconstruction tested with 0 alpha and 0 visible color difference.
 - [ ] Export real painted layers to PNG/WebP with alpha; create compact atlas and skeleton/pose manifest from the one master file.
 - [ ] Test no holes/halos at rest; layer redraw must match approved illustration at full resolution and 160/320px.
 - [ ] Test small head/eye/arm/hair deformations, all pivot bounds and return-to-rest reconstruction; label unapproved poses.
@@ -74,6 +76,8 @@ The vector approximation from PR #62 is rejected. Keep the approved illustrated 
 - [ ] Produce full-size and 160px contact sheets of neutral pose, expression tests and **actual movement stress frames**.
 - [ ] Obtain visual approval of resting character and key joint poses; fix likeness and art seams *before* Phase 2.
 - [ ] Document remaining animation/mesh deformation needs and freeze versioned rig assets for Phase 2.
+
+**Phase 1B development note (2026-11-11):** Automatic closed-eyelid painting trials failed visual quality (mismatched skin and hair edges); **none was accepted or shipped**. The twelve original approved expression illustrations are now preserved as lossless references, and neutral atlas art fidelity can be checked deterministically. See [Phase 1B QA report](docs/MASCOT_V2_PHASE1B_QA_REFERENCES.md).
 
 **Phase 1B pilot note (2026-11-10):** A local experimental pixel-preserving eye-layer/OpenRaster pack is available. It has a flattened remainder for the body and machine-estimated eye underpaint, and it does **not** satisfy the eye or whole-rig visual gate. See the [whole-eye pilot](docs/MASCOT_V2_PHASE1B_EYE_PILOT.md) and [iris-only follow-up](docs/MASCOT_V2_PHASE1B_IRIS_STUDY.md).
 
