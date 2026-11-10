@@ -20,8 +20,9 @@ internal data class RasterSprite(
     val sourceX: Int, val sourceY: Int,
     val width: Int, val height: Int,
     val x: Float, val y: Float,
+    val logicalWidth: Float, val logicalHeight: Float,
     val pivotX: Float, val pivotY: Float,
-    val z: Int,
+    val parent: String?, val z: Int,
 )
 
 internal data class RasterPose(
@@ -36,6 +37,20 @@ internal data class RasterAtlasSpecification(
     val atlasNames: List<String>,
     val sprites: List<RasterSprite>,
 ) {
+    /** All inherited transforms from root to this sprite, including its own. */
+    fun poseChain(sprite: RasterSprite): List<RasterSprite> {
+        val byId = sprites.associateBy { it.id }
+        val reversed = mutableListOf<RasterSprite>()
+        val seen = mutableSetOf<String>()
+        var current: RasterSprite? = sprite
+        while (current != null) {
+            require(seen.add(current.id)) { "Circular raster bone hierarchy" }
+            reversed += current
+            current = current.parent?.let { requireNotNull(byId[it]) { "Missing parent part $it" } }
+        }
+        return reversed.asReversed()
+    }
+
     companion object {
         fun parse(raw: String): RasterAtlasSpecification {
             val doc = JSONObject(raw)
@@ -60,7 +75,9 @@ internal data class RasterAtlasSpecification(
                 val rect = item.getJSONArray("src")
                 val location = item.getJSONArray("position")
                 val pivot = item.getJSONArray("pivot")
+                val drawSize = item.optJSONArray("size")
                 require(rect.length() == 4 && location.length() == 2 && pivot.length() == 2)
+                require(drawSize == null || drawSize.length() == 2)
                 val atlas = item.getInt("atlas")
                 val w = rect.getInt(2)
                 val h = rect.getInt(3)
@@ -70,7 +87,10 @@ internal data class RasterAtlasSpecification(
                     sourceX = rect.getInt(0), sourceY = rect.getInt(1),
                     width = w, height = h,
                     x = location.getDouble(0).toFloat(), y = location.getDouble(1).toFloat(),
+                    logicalWidth = drawSize?.getDouble(0)?.toFloat() ?: w.toFloat(),
+                    logicalHeight = drawSize?.getDouble(1)?.toFloat() ?: h.toFloat(),
                     pivotX = pivot.getDouble(0).toFloat(), pivotY = pivot.getDouble(1).toFloat(),
+                    parent = if (item.isNull("parent")) null else item.getString("parent"),
                     z = item.getInt("z")
                 )
                 val sheet = sheets.getJSONObject(atlas)
@@ -78,12 +98,15 @@ internal data class RasterAtlasSpecification(
                 require(spr.sourceX + spr.width <= sheet.getInt("width"))
                 require(spr.sourceY + spr.height <= sheet.getInt("height"))
                 require(Regex("^[a-z][a-z0-9_]*$").matches(spr.id))
-                require(listOf(spr.x, spr.y, spr.pivotX, spr.pivotY).all { it.isFinite() })
+                require(listOf(spr.x, spr.y, spr.pivotX, spr.pivotY, spr.logicalWidth, spr.logicalHeight).all { it.isFinite() })
+                require(spr.logicalWidth > 0 && spr.logicalHeight > 0)
                 spr
             }
             require(sprites.map { it.id }.distinct().size == sprites.size)
             require(sprites.map { it.z }.distinct().size == sprites.size)
-            return RasterAtlasSpecification(atlasNames, sprites.sortedBy { it.z })
+            val result = RasterAtlasSpecification(atlasNames, sprites.sortedBy { it.z })
+            result.sprites.forEach { result.poseChain(it) }
+            return result
         }
     }
 }
@@ -93,6 +116,7 @@ internal class RasterCompanionAtlas private constructor(
     private val specification: RasterAtlasSpecification,
 ) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val poseChains = specification.sprites.associate { it.id to specification.poseChain(it) }
 
     /**
      * Render with part-relative keyframes. No synthesized whole-character frames
@@ -103,15 +127,17 @@ internal class RasterCompanionAtlas private constructor(
         val saved = canvas.save()
         canvas.scale(displayWidth / 320f, displayHeight / 320f)
         for (layer in specification.sprites) {
-            val pose = poses[layer.id] ?: RasterPose()
             val local = canvas.save()
-            canvas.rotate(pose.rotationDegrees, layer.pivotX, layer.pivotY)
-            canvas.scale(pose.scaleX, pose.scaleY, layer.pivotX, layer.pivotY)
-            canvas.translate(pose.offsetX, pose.offsetY)
+            for (bone in poseChains.getValue(layer.id)) {
+                val pose = poses[bone.id] ?: continue
+                canvas.rotate(pose.rotationDegrees, bone.pivotX, bone.pivotY)
+                canvas.scale(pose.scaleX, pose.scaleY, bone.pivotX, bone.pivotY)
+                canvas.translate(pose.offsetX, pose.offsetY)
+            }
             canvas.drawBitmap(
                 atlasBitmaps[layer.atlas],
                 Rect(layer.sourceX, layer.sourceY, layer.sourceX + layer.width, layer.sourceY + layer.height),
-                RectF(layer.x, layer.y, layer.x + layer.width, layer.y + layer.height),
+                RectF(layer.x, layer.y, layer.x + layer.logicalWidth, layer.y + layer.logicalHeight),
                 paint,
             )
             canvas.restoreToCount(local)
