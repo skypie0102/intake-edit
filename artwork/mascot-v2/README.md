@@ -23,13 +23,13 @@ python3 tools/import_mascot_v2_references.py \
 
 The second command copies files to `artwork/mascot-v2/reference/`, then marks both `checked_in` fields in the contract. Commit both images and the updated manifest in one change. The user-provided sheet has a `.png` filename but may be stored as JPEG bytes in chat exports; preserve the original bytes and let the editor sniff content type. These source photos are for manual drawing only, never direct widget output.
 
-## Master design
+## Master artwork and rig design
 
-Create `master-rig.svg` in this directory with a `viewBox="0 0 320 320"`, all IDs declared in the `rig_layers` array, and independent brows/eyes/mouth/hair/limbs. Complete the expression and 160-pixel checks in the roadmap **before** setting `stage` to `rig_ready`.
+Create a native **layered** art source such as `master-layered.kra` (or PSD-equivalent), keeping the character's original detailed linework, shading and chibi proportions. This is not a code-drawn SVG task. Paint actual hidden hair/sleeve/neck/robe surfaces before splitting the joints; export each real moving part as transparent PNG. The 31 IDs and pivot values in `rig-contract.json` are still **provisional** and must be adjusted to the accepted painting.
 
-When the source and exported packs exist, `tools/test_mascot_v2_contract.py` enforces master layer IDs, reactions, shared actions, and frame counts. It deliberately skips those checks at specification stage, never silently treats a missing rig as finished.
+A completed, art-approved rig will be packaged with `tools/pack_mascot_raster_layers.py` into a transparent WebP atlas plus pose metadata. The `tools/test_mascot_v2_contract.py` checks still describe compatibility and draft topology; they do not certify character likeness. Never set `stage=rig_ready` based solely on generated assets, counts or passing tests.
 
-Do not replace `app/src/main/assets/companion/animation-pack.json` or the widget icon resources until final production cutover. The current original mascot generator and assets are kept intact.
+Do not replace `app/src/main/assets/companion/animation-pack.json` or the widget icon resources until final production cutover. The original mascot generator and assets remain intact.
 
 ## Raster proof of concept
 
