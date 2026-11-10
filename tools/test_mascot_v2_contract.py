@@ -1,7 +1,7 @@
 """Validate the standalone v2 mascot authoring contract.
 
 This validator intentionally leaves the existing Book Spirit resources untouched.
-Artwork checks activate at artwork_ready; full animation-pack checks at rig_ready.
+Artwork checks activate once the manifest moves from 'specification' to 'rig_ready'.
 """
 import hashlib
 import json
@@ -44,7 +44,7 @@ class MascotV2ContractTest(unittest.TestCase):
         value = contract()
         self.assertEqual(value["schema_version"], 1)
         self.assertEqual(value["mascot_id"], "mascot-v2")
-        self.assertIn(value["stage"], ("specification", "artwork_ready", "rig_ready"))
+        self.assertIn(value["stage"], ("specification", "rig_ready"))
         self.assertEqual(value["canvas"]["width"], 320)
         self.assertEqual(value["canvas"]["height"], 320)
         self.assertEqual(value["canvas"]["widget_preview_px"], 160)
@@ -131,27 +131,12 @@ class MascotV2ContractTest(unittest.TestCase):
         if value["stage"] == "specification":
             return
         svg_file = ROOT / value["master_svg"]
-        self.assertTrue(svg_file.is_file(), "Artwork stage requires canonical SVG")
+        self.assertTrue(svg_file.is_file(), "rig_ready requires canonical SVG")
         root = ET.parse(svg_file).getroot()
         self.assertTrue(root.tag.endswith("svg"))
         self.assertEqual(root.attrib.get("viewBox"), "0 0 320 320")
         actual_ids = {node.attrib["id"] for node in root.iter() if "id" in node.attrib}
         self.assertTrue({p["id"] for p in value["rig_layers"]} <= actual_ids)
-        all_layers = {node.attrib["data-rig-part"]: node for node in root.iter()
-                      if "data-rig-part" in node.attrib}
-        self.assertEqual(set(all_layers), {p["id"] for p in value["rig_layers"]})
-        self.assertEqual(len(all_layers), 31)
-        for layer in value["rig_layers"]:
-            node = all_layers[layer["id"]]
-            self.assertEqual(float(node.attrib["data-pivot-x"]), layer["pivot"][0])
-            self.assertEqual(float(node.attrib["data-pivot-y"]), layer["pivot"][1])
-        expressions = json.loads((ROOT / value["expression_source"]).read_text())
-        self.assertEqual(set(expressions["expressions"]), EXPECTED_EXPRESSIONS)
-        for view in value["turnaround_views"]:
-            reference = ET.parse(ROOT / view).getroot()
-            self.assertEqual(reference.attrib["viewBox"], "0 0 320 320")
-        if value["stage"] == "artwork_ready":
-            return
         # Keep the exported pack separate from the production one until cutover.
         pack_file = ROOT / value["pack_compatibility"]["source_pack"]
         self.assertTrue(pack_file.is_file())

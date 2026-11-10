@@ -11,20 +11,21 @@
 
 **Gate:** documented canonical source, validated manifest and unchanged old rendering.
 
-## Phase 1 — master artwork and layered vector rig
+## Phase 1 — master artwork and layered vector rig (RESET: visual work rejected)
 
-- [x] Draw initial front/3/4 master and independent side/back SVG silhouette studies (not raster cutouts).
-- [ ] Refine full front and 3/4-back turnaround details and confirm design consistency against the approved sheet.
-- [x] Author first-pass 31 separate SVG rig layers (hair, face, eyes, brows, mouth, articulated arms/hands, uniform, robe, legs and footwear) with normalized pivots.
-- [ ] Refine overlapping fills/masks and stress-test shoulder, wrist, hair and robe motion through the required movement range.
-- [x] Add the Slytherin-inspired chibi crest, uniform palette and 12 machine-editable facial expressions (first pass).
-- [ ] Visual polish: improve anatomical fidelity, clothing folds, hair strands, expression likeness and the Slytherin crest at 160px.
-- [x] Produce 320×320 transparent master rig, local expression/turnaround/pose contact sheets and 160px visibility images.
-- [ ] Complete visual art sign-off, including accurate front/back silhouette and small-widget comparison.
-- [x] Add 31-layer/12-expression SVG topology tests and generator verification in Android CI.
-- [ ] Complete rendered seam/occlusion stress checks and AndroidSVG feature compatibility review.
+**2026-11-10 quality decision:** The first-pass artwork in merged PR #62 was rejected by the user because it did not resemble the approved character. Its code-drawn SVG puppet, expression files and pose studies were removed from the active repository. **No Phase 1 artwork deliverable is accepted.** The 31-part list and animation contract describe requirements only, not completed art.
 
-**Current result:** first-pass vector rig committed on the Phase 1 branch, visual preview generated; detailed articulation/stress QA and design approval still open. **Gate not yet passed:** independent movement must remain seamless across full-range test poses.
+**Revised quality-first workflow:** Start from the user-approved high-detail character reference and Slytherin-crest sheet. Establish a faithful, high-resolution *isolated* master of the character with the same face, hair, eye shapes, uniform proportions, linework and shading. Visually compare full-size and 160px renders against the approved original before cutting layers. Once approved, separate/redraw occluded joints and hair/robe overlaps for rigging; verify full pose ranges, then export to an appropriate editable vector/layered format. Do not generate a simplified cartoon from hand-guessed SVG geometry. Structural tests and Android CI cannot substitute for character likeness or human visual approval.
+
+
+
+- [ ] Draw neutral front/3/4/side/back turnarounds from the user's images (not a cropped screenshot).
+- [ ] Draw independently movable back/front hair, face, brows, eyes/blinks, mouth, shoulders, arm segments, hands, torso, robe, skirt, legs and footwear, including overlapping fills/masks.
+- [ ] Reproduce green-and-black outfit, serpent crest, blonde hair, gray eyes and the 12 labeled expressions.
+- [ ] Export 320×320 alpha master rig, pose contact sheet and 160×160 visibility check; inspect character fidelity at both sizes.
+- [ ] Add rig tests for pivots, continuity, supported SVG features and unclipped silhouettes.
+
+**Gate:** independently movable and recognizable character with no visible joints or seams through test poses.
 
 ## Phase 2 — five state reactions and transitions
 
