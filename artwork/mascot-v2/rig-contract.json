@@ -31,7 +31,7 @@
     "transparent": true,
     "widget_preview_px": 160
   },
-  "master_svg": "artwork/mascot-v2/master-rig.svg",
+  "master_svg": null,
   "rig_layers": [
     {
       "id": "hair_back",
@@ -392,5 +392,23 @@
     "keep_chapter_deeplink": true,
     "keep_feeding_and_levels": true
   },
-  "notes": "The first vector prototype in PR #62 was visually rejected and removed. No artwork is approved; all pivots/layer names are provisional requirements. Verify reference likeness before rebuilding the rig."
+  "notes": "The previous vector approximation was rejected. These 31 part names/anchors are provisional requirements, not actual artwork. A faithful compact still reference has been extracted locally. True individually painted layers and visual acceptance are pending.",
+  "master_layered_source": "artwork/mascot-v2/master-layered.kra",
+  "pipeline": {
+    "format": 2,
+    "status": "static_reference_export_and_atlas_scaffold",
+    "art_type": "artist_painted_layered_raster",
+    "runtime": "Android Canvas / WebP texture atlas + keyframe transforms",
+    "widget": "small pre-rendered transparent bitmap frames via existing RemoteViews adapter",
+    "source_script": "tools/prepare_mascot_raster.py",
+    "packer_script": "tools/pack_mascot_raster_layers.py",
+    "native_renderer": "app/src/main/java/cloud/shadowmonarchbooks/intakeedit/RasterCompanionAtlas.kt",
+    "art_source_imported": false,
+    "original_portrait_is_rgba": true,
+    "speech_bubble_is_separate_alpha_component": true,
+    "approved_illustrated_layers": false,
+    "animated_rig_ready": false,
+    "app_widget_switched": false,
+    "initial_asset_budget_bytes": 5000000
+  }
 }
