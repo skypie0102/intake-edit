@@ -39,6 +39,7 @@ Once actual painted parts exist, prepare a manifest like:
 {
   "format": 2,
   "canvas": [320, 320],
+  "pixels_per_unit": 2,
   "layers": [
     {
       "id": "hair_back",
@@ -52,7 +53,7 @@ Once actual painted parts exist, prepare a manifest like:
 }
 ```
 
-The example demonstrates the schema, **not a finished layer**. Use `tools/pack_mascot_raster_layers.py --layers path/to/layers.json --output out/` to trim transparent margins and pack layers into a transparent **lossless WebP texture atlas**, separated by gutters. It exports `texture-0.webp` and `atlas-manifest.json` with each part's atlas rectangle, logical position, pivot, parent and draw order. The script rejects zero/single-layer packs, duplicate IDs, unsafe paths, empty parts, atlas overflow and textures exceeding a 5 MB first-pass budget. Automated tests cannot verify artistic quality: painter-authored joints and visual review remain mandatory. **Overlapping draw positions are allowed** because character layers intentionally overlap. That budget is a working target, not a guarantee for finished animations.
+The example demonstrates the schema, **not a finished layer**. The optional `pixels_per_unit` tells the exporter how many source-art pixels represent one logical canvas unit. For example, `2` allows 640px illustrated layer detail on a 320-unit rig; the atlas preserves the full pixels and exports separate logical draw dimensions. Children inherit parent joint transforms, so moving a head also moves its eyes and bangs. Use `tools/pack_mascot_raster_layers.py --layers path/to/layers.json --output out/` to trim transparent margins and pack layers into a transparent **lossless WebP texture atlas**, separated by gutters. It exports `texture-0.webp` and `atlas-manifest.json` with each part's atlas rectangle, logical position, pivot, parent and draw order. The script rejects zero/single-layer packs, duplicate IDs, unsafe paths, empty parts, atlas overflow and textures exceeding a 5 MB first-pass budget. Automated tests cannot verify artistic quality: painter-authored joints and visual review remain mandatory. **Overlapping draw positions are allowed** because character layers intentionally overlap. That budget is a working target, not a guarantee for finished animations.
 
 A dormant native Android renderer, `RasterCompanionAtlas.kt`, can load and draw these separate sprites using pivots, rotation, scale and translation. It is **not enabled by default** and requires a valid artist-authored layer atlas. Later add selective mesh deformation where proven necessary, without shipping an entire Live2D SDK prematurely.
 
