@@ -12,6 +12,8 @@ on:
       - 'gradle/**'
       - 'gradlew'
       - 'gradlew.bat'
+      - 'artwork/mascot-v2/**'
+      - 'tools/*mascot_v2*.py'
       - '.github/workflows/android.yml'
   pull_request:
     paths:
@@ -22,6 +24,8 @@ on:
       - 'gradle/**'
       - 'gradlew'
       - 'gradlew.bat'
+      - 'artwork/mascot-v2/**'
+      - 'tools/*mascot_v2*.py'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
@@ -44,6 +48,8 @@ jobs:
           gradle-version: '9.6.0'
       - name: Verify companion vector frames
         run: python3 -m unittest discover -s tools -p 'test_companion*.py'
+      - name: Verify mascot v2 contract
+        run: python3 -m unittest discover -s tools -p 'test_mascot_v2_*.py'
       - name: Run unit tests and build debug APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
       - name: Upload debug APK

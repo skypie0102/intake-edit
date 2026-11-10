@@ -1,0 +1,395 @@
+{
+  "schema_version": 1,
+  "mascot_id": "mascot-v2",
+  "stage": "specification",
+  "source_date": "2026-11-10",
+  "reference_files": [
+    {
+      "role": "primary_character_sheet",
+      "filename": "1002471086.png",
+      "sha256": "480d78c9fd01d1cf0a2d9f2d758660a9ce8a7642dbe64181cd9e59a2df96de03",
+      "pixel_size": [
+        1536,
+        1024
+      ],
+      "checked_in": false
+    },
+    {
+      "role": "original_character_pose",
+      "filename": "Chibi_Malfoid_1000.png",
+      "sha256": "57b9a2f264769656eaf39e58e0169cdb41d7c700ea93b535272b4e9efa2c0ce1",
+      "pixel_size": [
+        667,
+        1000
+      ],
+      "checked_in": false
+    }
+  ],
+  "canvas": {
+    "width": 320,
+    "height": 320,
+    "transparent": true,
+    "widget_preview_px": 160
+  },
+  "master_svg": "artwork/mascot-v2/master-rig.svg",
+  "rig_layers": [
+    {
+      "id": "hair_back",
+      "parent": null,
+      "pivot": [
+        160,
+        110
+      ],
+      "z": 0
+    },
+    {
+      "id": "leg_left",
+      "parent": null,
+      "pivot": [
+        143,
+        258
+      ],
+      "z": 1
+    },
+    {
+      "id": "leg_right",
+      "parent": null,
+      "pivot": [
+        185,
+        258
+      ],
+      "z": 2
+    },
+    {
+      "id": "shoe_left",
+      "parent": "leg_left",
+      "pivot": [
+        141,
+        292
+      ],
+      "z": 3
+    },
+    {
+      "id": "shoe_right",
+      "parent": "leg_right",
+      "pivot": [
+        189,
+        292
+      ],
+      "z": 4
+    },
+    {
+      "id": "robe_back",
+      "parent": null,
+      "pivot": [
+        166,
+        177
+      ],
+      "z": 5
+    },
+    {
+      "id": "skirt",
+      "parent": null,
+      "pivot": [
+        162,
+        226
+      ],
+      "z": 6
+    },
+    {
+      "id": "torso",
+      "parent": null,
+      "pivot": [
+        164,
+        172
+      ],
+      "z": 7
+    },
+    {
+      "id": "shirt",
+      "parent": "torso",
+      "pivot": [
+        165,
+        169
+      ],
+      "z": 8
+    },
+    {
+      "id": "tie",
+      "parent": "torso",
+      "pivot": [
+        166,
+        174
+      ],
+      "z": 9
+    },
+    {
+      "id": "knit",
+      "parent": "torso",
+      "pivot": [
+        166,
+        196
+      ],
+      "z": 10
+    },
+    {
+      "id": "crest",
+      "parent": "torso",
+      "pivot": [
+        186,
+        191
+      ],
+      "z": 11
+    },
+    {
+      "id": "neck",
+      "parent": "torso",
+      "pivot": [
+        162,
+        148
+      ],
+      "z": 12
+    },
+    {
+      "id": "face_base",
+      "parent": "neck",
+      "pivot": [
+        163,
+        112
+      ],
+      "z": 13
+    },
+    {
+      "id": "ear_left",
+      "parent": "face_base",
+      "pivot": [
+        109,
+        134
+      ],
+      "z": 14
+    },
+    {
+      "id": "ear_right",
+      "parent": "face_base",
+      "pivot": [
+        220,
+        135
+      ],
+      "z": 15
+    },
+    {
+      "id": "eye_left",
+      "parent": "face_base",
+      "pivot": [
+        138,
+        130
+      ],
+      "z": 16
+    },
+    {
+      "id": "eye_right",
+      "parent": "face_base",
+      "pivot": [
+        190,
+        130
+      ],
+      "z": 17
+    },
+    {
+      "id": "eyebrow_left",
+      "parent": "face_base",
+      "pivot": [
+        136,
+        115
+      ],
+      "z": 18
+    },
+    {
+      "id": "eyebrow_right",
+      "parent": "face_base",
+      "pivot": [
+        187,
+        114
+      ],
+      "z": 19
+    },
+    {
+      "id": "mouth",
+      "parent": "face_base",
+      "pivot": [
+        166,
+        162
+      ],
+      "z": 20
+    },
+    {
+      "id": "hair_side_left",
+      "parent": "face_base",
+      "pivot": [
+        111,
+        100
+      ],
+      "z": 21
+    },
+    {
+      "id": "hair_side_right",
+      "parent": "face_base",
+      "pivot": [
+        214,
+        103
+      ],
+      "z": 22
+    },
+    {
+      "id": "bangs",
+      "parent": "face_base",
+      "pivot": [
+        161,
+        78
+      ],
+      "z": 23
+    },
+    {
+      "id": "upper_arm_left",
+      "parent": "torso",
+      "pivot": [
+        130,
+        180
+      ],
+      "z": 24
+    },
+    {
+      "id": "forearm_left",
+      "parent": "upper_arm_left",
+      "pivot": [
+        138,
+        207
+      ],
+      "z": 25
+    },
+    {
+      "id": "hand_left",
+      "parent": "forearm_left",
+      "pivot": [
+        166,
+        212
+      ],
+      "z": 26
+    },
+    {
+      "id": "upper_arm_right",
+      "parent": "torso",
+      "pivot": [
+        209,
+        180
+      ],
+      "z": 27
+    },
+    {
+      "id": "forearm_right",
+      "parent": "upper_arm_right",
+      "pivot": [
+        198,
+        209
+      ],
+      "z": 28
+    },
+    {
+      "id": "hand_right",
+      "parent": "forearm_right",
+      "pivot": [
+        173,
+        212
+      ],
+      "z": 29
+    },
+    {
+      "id": "robe_front",
+      "parent": "torso",
+      "pivot": [
+        164,
+        192
+      ],
+      "z": 30
+    }
+  ],
+  "expressions": [
+    "neutral",
+    "hmph",
+    "annoyed",
+    "surprised",
+    "thinking",
+    "suspicious",
+    "flustered",
+    "angry",
+    "embarrassed",
+    "tired",
+    "satisfied",
+    "sulky"
+  ],
+  "moods": {
+    "new": {
+      "default_expression": "suspicious",
+      "reaction": "greeting",
+      "idle_actions": [
+        "curious_peek",
+        "absorbed"
+      ]
+    },
+    "waiting": {
+      "default_expression": "hmph",
+      "reaction": "waiting",
+      "idle_actions": [
+        "find_place",
+        "thinking"
+      ]
+    },
+    "happy": {
+      "default_expression": "satisfied",
+      "reaction": "happy",
+      "idle_actions": [
+        "humming",
+        "delighted"
+      ]
+    },
+    "hungry": {
+      "default_expression": "annoyed",
+      "reaction": "hungry",
+      "idle_actions": [
+        "food",
+        "rumble"
+      ]
+    },
+    "sad": {
+      "default_expression": "tired",
+      "reaction": "sad",
+      "idle_actions": [
+        "losing_focus",
+        "book_comfort"
+      ]
+    }
+  },
+  "shared_actions": [
+    "reading",
+    "writing",
+    "page_turn"
+  ],
+  "pack_compatibility": {
+    "format": 1,
+    "reaction_frames": 96,
+    "shared_action_frames": 48,
+    "frame_duration_ms": 83,
+    "source_pack": "artwork/mascot-v2/animation-pack.json",
+    "preview_pack": "rig-preview/mascot-v2-animation-pack.json",
+    "production_pack": "app/src/main/assets/companion/animation-pack.json"
+  },
+  "guardrails": {
+    "do_not_modify_production_pack_until_cutover": true,
+    "production_cutover": false,
+    "no_text_in_widget": true,
+    "transparent_widget": true,
+    "no_whole_character_fades": true,
+    "keep_chapter_deeplink": true,
+    "keep_feeding_and_levels": true
+  }
+}
