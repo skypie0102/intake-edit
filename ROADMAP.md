@@ -21,21 +21,62 @@ The vector approximation from PR #62 is rejected. Keep the approved illustrated 
 - [x] Implement deterministic full-size extraction and compressed, transparent 160/320px WebP **still** previews, checking alpha preservation and visible-pixel fidelity.
 - [x] Export a one-layer, original-pixel-preserving OpenRaster art master to serve as a real editable starting point (not yet a rig).
 - [x] Produce full-body and bust framing comparisons on both light and dark backgrounds.
-- [ ] Get visual approval for the transparent master and preferred 2×2 widget framing.
+- [x] User approved the overall raster character preview as good enough to continue on 2026-11-10; **specific full-body vs bust widget framing remains undecided**.
 - [ ] Commit both original, SHA-256-verified reference images and the approved Slytherin character sheet to the art source directory; leave the user images untouched.
 
 **Gate:** the illustrated raster master must look like the approved character. A crop is not a rig.
 
-### Phase 1B — true layered raster rig
+### Phase 1B — true layered raster rig (ACTIVE)
 
-- [x] Create deterministic lossless WebP atlas packer for separately painted images, with pivots, draw order, safe paths and size guardrails.
-- [x] Add a dormant Android Canvas atlas renderer with composable part transforms; do **not** replace the current Book Spirit.
-- [ ] Produce a real editable layered source (.kra/PSD-equivalent), painting hidden anatomy beneath hair/robe/arms, and isolate 31 provisional parts.
-- [ ] Author twelve faithful facial expressions and maintain the chibi Slytherin crest.
-- [ ] Run edge/halo and joint stress tests, 160px visibility reviews, physical-device memory/decoding measurements.
-- [ ] Approve the character's rig appearance at rest and during small trial movement.
+**Visual baseline:** The user accepted the high-fidelity static raster preview. This approves the design direction, **not** a movable rig. All editable layers must be faithful to the approved portrait and Slytherin sheet. No crude SVG substitutions, no image sliced into fake rectangle puppet parts, no claims of acceptance based only on passing tests.
 
-**Gate:** an approved character rig with no gaps, detached hands or loss of illustration quality; not merely a passing part-count test.
+#### 1B.0 — Layer authoring workflow and source control
+
+- [x] Implement a transparent WebP atlas packer and dormant Android Canvas renderer (prior foundation).
+- [ ] Import the two original SHA-256-pinned character references and Slytherin sheet as untouched source images.
+- [ ] Establish a **single editable master project** (OpenRaster/Krita or PSD-equivalent) with original flattened art preserved as locked reference; export separate RGBA layers without rescaling or degrading detail.
+- [ ] Record logical canvas, pixel density, parent/bone hierarchy, z-order, pivot coordinates, visual source and art-review status for each moving piece. Do not call a crop with no hidden paint an approved bone.
+
+#### 1B.1 — Facial pilot before large-scale separation
+
+- [x] Produce an **experimental eye-only** layer pilot from exact original portrait pixels (separate left/right eye artwork and editable OpenRaster layers); verify a pixel-exact neutral reassembly at 640×640. **No full rig or blink approval implied.**
+- [ ] Artist-repaint skin and eyelid geometry hidden by those eye layers; refine eye masks and repeat neutral/stress checks to eliminate outline seams.
+- [x] Render first tiny eye translations/squashes for visual diagnostics; **the stress poses expose seams**, so they are intentionally marked **unapproved**.
+- [ ] Validate improved eye motion without edge halos at 160px and full resolution after the underpaint has been manually fixed. A pilot is not a production-approved blink.
+- [ ] Separate eyebrows, eyelids, pupils/highlights, mouth and facial blush, preserving the original unique half-lidded expression. Add fully drawn blink/open/closed-eye variants.
+- [ ] Reproduce twelve labeled expressions from the approved reference using genuinely edited facial artwork, not automatic warping of one face; validate that she remains recognizable in every state.
+
+#### 1B.2 — Hair and head
+
+- [ ] Separate back hair, bangs, left/right side locks and smaller flowing sections with correct depth and root pivots.
+- [ ] Paint **hidden forehead, scalp, ears, and hair underneath each moving lock**; do not accept transparent holes when a strand moves.
+- [ ] Build unified head+neck joint and ensure eye/eyebrow/mouth/hair attachments follow head orientation.
+- [ ] Stress-test small head rotation/translation and delayed hair movement without stiff cutout seams.
+
+#### 1B.3 — Body, outfit and articulated arms
+
+- [ ] Paint torso, neck/collar, gray shirt, green tie, knit vest, Slytherin crest, skirt, tights/legs, shoes and robe front/back at full detail.
+- [ ] Isolate both upper arms, forearms and hands as continuous anatomical chains, painting **hidden shoulders, wrists and sleeves** for uncrossing and gestures.
+- [ ] Verify crossed-arm resting pose, writing/reaching pose and return, with hands attached and robe sleeves covering joints.
+- [ ] Add correctly occluded prop attachment points for book, pen and wand; do not author full action animation yet.
+
+#### 1B.4 — Layer pack, diagnostics and performance
+
+- [ ] Export real painted layers to PNG/WebP with alpha; create compact atlas and skeleton/pose manifest from the one master file.
+- [ ] Test no holes/halos at rest; layer redraw must match approved illustration at full resolution and 160/320px.
+- [ ] Test small head/eye/arm/hair deformations, all pivot bounds and return-to-rest reconstruction; label unapproved poses.
+- [ ] Measure asset size (initial **5 MB texture budget**, not a guaranteed cap), decode memory/time and Android preview behavior.
+- [ ] Verify render order, layer edge handling, static fallback and rapid pose/mood switching, without modifying Book Spirit.
+
+#### 1B.5 — Approval and hand-off
+
+- [ ] Produce full-size and 160px contact sheets of neutral pose, expression tests and **actual movement stress frames**.
+- [ ] Obtain visual approval of resting character and key joint poses; fix likeness and art seams *before* Phase 2.
+- [ ] Document remaining animation/mesh deformation needs and freeze versioned rig assets for Phase 2.
+
+**Phase 1B pilot note (2026-11-10):** A local experimental pixel-preserving eye-layer/OpenRaster pack is available. It has a flattened remainder for the body and machine-estimated eye underpaint, and it does **not** satisfy the eye or whole-rig visual gate. See [pilot report](docs/MASCOT_V2_PHASE1B_EYE_PILOT.md).
+
+**Phase 1B gate:** The character must remain visibly faithful to the approved illustrations *and* support real independent motions. Automated image/fidelity tests check technical integrity; human visual review decides artistic acceptance. **At present the full character is not layered or animatable; the Book Spirit remains the production mascot.**
 
 ## Phase 2 — five state reactions and transitions
 
