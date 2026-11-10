@@ -21,8 +21,8 @@ def pack(manifest_path: Path, output: Path, width: int = 1024,
     if source.get("format") != 2 or source.get("canvas") != [320, 320]:
         raise ValueError("Input must be raster rig manifest v2 on 320x320")
     entries = source.get("layers", [])
-    if not entries:
-        raise ValueError("Rig pack requires real illustrated layers; a flat image is not a rig")
+    if len(entries) < 2:
+        raise ValueError("Rig pack requires at least two painted layers; one flat image is reference only")
     if len(entries) > 128:
         raise ValueError("Too many layers")
     layers = []
