@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" aria-label="Mascot v2 back silhouette reference"><defs>
+<linearGradient id="hair" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#fffdf0"/><stop offset=".43" stop-color="#fbf1dc"/><stop offset=".75" stop-color="#f7e8ca"/><stop offset="1" stop-color="#e9c9a2"/></linearGradient>
+<linearGradient id="hairUnder" x1="0" y1="0" x2="1" y2=".2"><stop stop-color="#e8c29a"/><stop offset=".45" stop-color="#fff7e6"/><stop offset="1" stop-color="#f3dcbb"/></linearGradient>
+<linearGradient id="skin" x1=".15" y1=".1" x2=".8" y2="1"><stop stop-color="#fff1de"/><stop offset=".62" stop-color="#fce4d3"/><stop offset="1" stop-color="#ecc7b3"/></linearGradient>
+<linearGradient id="robe" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#393b37"/><stop offset=".45" stop-color="#1d201f"/><stop offset="1" stop-color="#101313"/></linearGradient>
+<linearGradient id="vest" x1="0" y1="0" x2=".95" y2="1"><stop stop-color="#356442"/><stop offset=".7" stop-color="#255035"/><stop offset="1" stop-color="#132d25"/></linearGradient>
+<linearGradient id="eyes" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#686766"/><stop offset=".6" stop-color="#aaa9a7"/><stop offset="1" stop-color="#bbb8b3"/></linearGradient>
+<linearGradient id="shoe" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#454646"/><stop offset="1" stop-color="#101213"/></linearGradient>
+<pattern id="plaid" width="21" height="20" patternUnits="userSpaceOnUse"><rect width="21" height="20" fill="#1b2924"/><path d="M3 0V20M11 0V20" stroke="#577066" stroke-width="2"/><path d="M0 2H21M0 10H21" stroke="#6f8176" stroke-width="2"/><path d="M7 0V20M0 6H21" stroke="#b2b6a7" stroke-width=".7" opacity=".72"/></pattern>
+<clipPath id="skirt-clip"><path d="M126 213Q162 218 201 210L213 253Q176 266 118 256Z"/></clipPath>
+<clipPath id="face-clip"><path d="M97 85C96 54 120 38 156 35Q209 33 228 85L220 137Q208 161 165 173Q124 171 101 151Q91 136 97 85Z"/></clipPath>
+</defs><g stroke="#242525" stroke-linejoin="round">
+<path d="M125 246L150 246L151 301L136 305Z" fill="#252626" stroke-width="2.5"/><path d="M172 245L198 245L194 302L177 305Z" fill="#222323" stroke-width="2.5"/>
+<path d="M147 294Q155 302 153 309Q131 319 110 309Q112 298 133 292Z" fill="url(#shoe)" stroke-width="3"/><path d="M194 294Q205 299 207 310Q194 316 173 311L174 298Z" fill="url(#shoe)" stroke-width="3"/>
+<path d="M111 155Q158 136 206 158Q233 172 244 221L249 267Q237 277 217 272L203 236L130 238L118 270Q103 283 90 270L94 217Q96 176 111 155Z" fill="url(#robe)" stroke-width="3"/>
+<path d="M128 160Q163 146 206 163L218 191L213 249Q172 263 124 246L119 197Z" fill="#1b4a32" stroke-width="2"/>
+<path d="M175 23Q231 23 241 85Q254 150 244 188Q241 241 258 255Q269 275 252 281Q234 289 222 270Q213 296 190 288Q166 309 148 291Q121 302 115 273Q99 283 93 260Q107 239 100 188Q83 134 92 88Q108 27 175 23Z" fill="url(#hair)" stroke-width="3"/>
+<path d="M145 33Q108 80 117 138Q113 204 121 271Q130 287 143 287M166 31Q153 99 153 179Q142 235 160 283M187 34Q203 104 200 179Q213 253 190 288M211 42Q242 95 227 171Q220 224 242 268" fill="none" stroke="#e2bea1" stroke-width="1.5"/>
+<path d="M125 71Q159 40 207 67M117 122Q104 211 120 269M225 102Q236 201 246 259" fill="none" stroke="#fffdf3" stroke-width="2.2"/>
+<path d="M100 233Q107 247 108 270M236 236Q238 260 244 270" fill="none" stroke="#666c63" stroke-width="1.1"/>
+</g></svg>
