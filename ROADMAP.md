@@ -56,8 +56,8 @@ The vector approximation from PR #62 is rejected. Keep the approved illustrated 
 
 ## Phase 4 — preview, pack and production cutover
 
-- [ ] Produce distinct mascot-v2 preview pack, retaining remote refresh for the **in-app** preview.
-- [ ] Export the production-compatible SVG/JSON animation pack and test parsing, package size and memory.
+- [ ] Add a dedicated mascot-v2 raster preview mode (independent from legacy Book Spirit SVG preview), with a refreshable approved atlas/pose pack.
+- [ ] Package the illustrated WebP atlas and separate keyframe tracks (raster format 2), and validate decoding, size and memory without routing them through the Book Spirit SVG parser.
 - [ ] Replace the in-app portrait, 2×2 transparent widget, picker preview, static/reduced-motion fallbacks and companion-branded app icon together.
 - [ ] Preserve tap-to-chapter, levels, feeding, project/branch cache, GitHub sync and offline behavior. Retain Book Spirit assets until the v2 fallback is verified.
 
