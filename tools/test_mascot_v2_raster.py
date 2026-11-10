@@ -73,7 +73,7 @@ class RasterAssetTest(unittest.TestCase):
             ImageDraw.Draw(robe).rectangle((30,30,100,100), fill=(25,80,60,200))
             hair.save(root / "hair.png")
             robe.save(root / "robe.png")
-            manifest = {"format":2, "canvas":[320,320], "layers":[
+            manifest = {"format":2, "canvas":[320,320], "pixels_per_unit": 2, "layers":[
                 {"id":"hair_back","file":"hair.png","position":[70,30],"pivot":[120,90],"parent":None,"z":0},
                 {"id":"robe","file":"robe.png","position":[90,120],"pivot":[140,170],"parent":"hair_back","z":1}
             ]}
@@ -81,6 +81,9 @@ class RasterAssetTest(unittest.TestCase):
             p.write_text(json.dumps(manifest))
             packed = atlas_packer.pack(p, root / "out", width=256)
             self.assertEqual(len(packed["sprites"]),2)
+            self.assertEqual(packed["pixels_per_unit"], 2)
+            self.assertEqual(packed["sprites"][0]["position"], [77.5, 40.0])
+            self.assertEqual(packed["sprites"][0]["size"], [47.0, 55.0])
             texture = Image.open(root / "out" / "texture-0.webp").convert("RGBA")
             bounds=[]
             for sprite in packed["sprites"]:
