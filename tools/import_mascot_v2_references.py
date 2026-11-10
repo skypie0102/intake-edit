@@ -2,7 +2,7 @@
 
 Usage:
   python tools/import_mascot_v2_references.py \
-    --sheet /path/to/1002471086.png \
+    --sheet /path/to/slytherin_chibi_character_master_sheet.png \
     --pose /path/to/Chibi_Malfoid_1000.png
 
 The tool verifies SHA-256 *before* writing either file. It does not crop, scale,
