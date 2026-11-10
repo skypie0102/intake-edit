@@ -9,6 +9,8 @@ import argparse
 import hashlib
 import json
 import math
+from io import BytesIO
+from zipfile import ZipFile, ZIP_STORED, ZIP_DEFLATED
 from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageStat
 
@@ -68,6 +70,24 @@ def opaque_psnr(reference: Image.Image, result: Image.Image) -> float:
     mse = sum(rms * rms for rms in stat.rms) / 3
     return float("inf") if mse == 0 else 10 * math.log10(255 * 255 / mse)
 
+def save_openraster(image: Image.Image, path: Path) -> None:
+    """Save an exact one-layer editable art starting point, NOT a finished rig."""
+    xml = (
+        f'<image version="0.0.3" w="{image.width}" h="{image.height}" '
+        'name="Mascot V2 - faithful neutral source">'
+        '<stack><layer name="Original illustrated character (not rigged)" '
+        'src="data/neutral.png" x="0" y="0" opacity="1.0" '
+        'visibility="visible" composite-op="svg:src-over"/></stack></image>'
+    )
+    buffer = BytesIO()
+    image.save(buffer, "PNG")
+    with ZipFile(path, "w") as archive:
+        archive.writestr("mimetype", "image/openraster", compress_type=ZIP_STORED)
+        archive.writestr("stack.xml", xml, compress_type=ZIP_DEFLATED)
+        archive.writestr("data/neutral.png", buffer.getvalue(), compress_type=ZIP_DEFLATED)
+        archive.writestr("mergedimage.png", buffer.getvalue(), compress_type=ZIP_DEFLATED)
+
+
 def build(source: Path, output: Path, quality: int = 95) -> dict:
     if not 85 <= quality <= 100:
         raise ValueError("Character artwork requires quality in [85, 100]")
@@ -78,6 +98,7 @@ def build(source: Path, output: Path, quality: int = 95) -> dict:
         isolated = isolate_character(raw)
     output.mkdir(parents=True, exist_ok=True)
     isolated.save(output / "neutral-isolated-lossless.png", optimize=True)
+    save_openraster(isolated, output / "neutral-master.ora")
     manifest = {
         "format": 2, "id": "mascot-v2", "kind": "raster-preproduction",
         "status": "reference-only", "source_sha256": digest,
