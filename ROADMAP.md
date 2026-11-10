@@ -11,21 +11,30 @@
 
 **Gate:** documented canonical source, validated manifest and unchanged old rendering.
 
-## Phase 1 — master artwork and layered vector rig (RESET: visual work rejected)
+## Phase 1 — high-fidelity illustrated raster foundation (ACTIVE)
 
-**2026-11-10 quality decision:** The first-pass artwork in merged PR #62 was rejected by the user because it did not resemble the approved character. Its code-drawn SVG puppet, expression files and pose studies were removed from the active repository. **No Phase 1 artwork deliverable is accepted.** The 31-part list and animation contract describe requirements only, not completed art.
+The vector approximation from PR #62 is rejected. Keep the approved illustrated artwork. [New pipeline and quality gates](docs/MASCOT_V2_RASTER_PIPELINE.md).
 
-**Revised quality-first workflow:** Start from the user-approved high-detail character reference and Slytherin-crest sheet. Establish a faithful, high-resolution *isolated* master of the character with the same face, hair, eye shapes, uniform proportions, linework and shading. Visually compare full-size and 160px renders against the approved original before cutting layers. Once approved, separate/redraw occluded joints and hair/robe overlaps for rigging; verify full pose ranges, then export to an appropriate editable vector/layered format. Do not generate a simplified cartoon from hand-guessed SVG geometry. Structural tests and Android CI cannot substitute for character likeness or human visual approval.
+### Phase 1A — faithful source and static reference
 
+- [x] Verify the original portrait is RGBA with a detached speech bubble; isolate the character without repainting or vectorization.
+- [x] Implement deterministic full-size extraction and compressed, transparent 160/320px WebP **still** previews, checking alpha preservation and visible-pixel fidelity.
+- [x] Produce full-body and bust framing comparisons on both light and dark backgrounds.
+- [ ] Get visual approval for the transparent master and preferred 2×2 widget framing.
+- [ ] Commit both original, SHA-256-verified reference images and the approved Slytherin character sheet to the art source directory; leave the user images untouched.
 
+**Gate:** the illustrated raster master must look like the approved character. A crop is not a rig.
 
-- [ ] Draw neutral front/3/4/side/back turnarounds from the user's images (not a cropped screenshot).
-- [ ] Draw independently movable back/front hair, face, brows, eyes/blinks, mouth, shoulders, arm segments, hands, torso, robe, skirt, legs and footwear, including overlapping fills/masks.
-- [ ] Reproduce green-and-black outfit, serpent crest, blonde hair, gray eyes and the 12 labeled expressions.
-- [ ] Export 320×320 alpha master rig, pose contact sheet and 160×160 visibility check; inspect character fidelity at both sizes.
-- [ ] Add rig tests for pivots, continuity, supported SVG features and unclipped silhouettes.
+### Phase 1B — true layered raster rig
 
-**Gate:** independently movable and recognizable character with no visible joints or seams through test poses.
+- [x] Create deterministic lossless WebP atlas packer for separately painted images, with pivots, draw order, safe paths and size guardrails.
+- [x] Add a dormant Android Canvas atlas renderer with composable part transforms; do **not** replace the current Book Spirit.
+- [ ] Produce a real editable layered source (.kra/PSD-equivalent), painting hidden anatomy beneath hair/robe/arms, and isolate 31 provisional parts.
+- [ ] Author twelve faithful facial expressions and maintain the chibi Slytherin crest.
+- [ ] Run edge/halo and joint stress tests, 160px visibility reviews, physical-device memory/decoding measurements.
+- [ ] Approve the character's rig appearance at rest and during small trial movement.
+
+**Gate:** an approved character rig with no gaps, detached hands or loss of illustration quality; not merely a passing part-count test.
 
 ## Phase 2 — five state reactions and transitions
 
