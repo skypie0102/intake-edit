@@ -6,7 +6,7 @@
 
 ## Source of truth
 
-- **Primary design reference:** the user's 2026-11-10 character sheet (chibi blonde witch in green/black school uniform, turnaround, 12 expressions, detail studies, color palette, and actions).
+- **Primary design reference:** the final user-approved 2026-11-10 Slytherin character master sheet (`slytherin_chibi_character_master_sheet.png`) (chibi blonde witch in green/black school uniform, turnaround, 12 expressions, detail studies, color palette, and actions).
 - **Secondary, higher-resolution pose reference:** the user's original single-character illustration from the same conversation, with arms crossed and a "Hmph!" bubble.
 - These images were provided in the conversation; **the actual reference image files have not yet been imported into this repository**. The corresponding original filenames and SHA-256 digests are tracked in [rig-contract.json](../artwork/mascot-v2/rig-contract.json). Copy the originals without resizing or lossy conversion before attempting a production rig. The speech bubble and illustration page decorations are **not** part of the mascot.
 - Maintain one canonical design; do not stitch unrelated drawings into the rig. The sheet's turnaround is for silhouette guidance; the larger image supplies the authoritative likeness.
