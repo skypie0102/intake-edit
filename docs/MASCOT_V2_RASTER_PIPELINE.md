@@ -60,7 +60,7 @@ A dormant native Android renderer, `RasterCompanionAtlas.kt`, can load and draw 
 
 ### Phase 1B eye pilot (experimental)
 
-An [initial eye-only study](MASCOT_V2_PHASE1B_EYE_PILOT.md) isolates the original left/right eye pixels and reconstructs an approximate base below them, then checks an exact neutral RGBA recomposition. The first OpenRaster file has a flattened body and independently movable eyes, **not** 31 separate painted limbs. Motion stress previews show seams under one eye, demonstrating why artist-painted eyelids/skin are mandatory. The eye layer technical test should be followed by a real expression-art pass, then head/hair, then body, then atlas/device validation. All checklists are in [ROADMAP.md](../ROADMAP.md).
+An [initial eye-only study](MASCOT_V2_PHASE1B_EYE_PILOT.md) isolates the original left/right eye pixels and reconstructs an approximate base below them, then checks an exact neutral RGBA recomposition. The first OpenRaster file has a flattened body and independently movable eyes, **not** 31 separate painted limbs. A [follow-up iris-only tracking study](MASCOT_V2_PHASE1B_IRIS_STUDY.md) leaves the eyelashes fixed and moves only the original iris/pupil interiors. The underpaint remains provisional and no blink is approved. Motion stress previews show seams under one eye, demonstrating why artist-painted eyelids/skin are mandatory. The eye layer technical test should be followed by a real expression-art pass, then head/hair, then body, then atlas/device validation. All checklists are in [ROADMAP.md](../ROADMAP.md).
 
 ## Animation and home-screen widget architecture
 
