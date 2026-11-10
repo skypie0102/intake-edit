@@ -21,6 +21,7 @@ python tools/prepare_mascot_raster.py \
 
 Outputs:
 - `neutral-isolated-lossless.png`: original full-resolution RGBA character, speech bubble gone; no repaint.
+- `neutral-master.ora`: editable OpenRaster working file containing **one original illustrated character layer**; use Krita or another compatible art editor to paint actual movable components. It is NOT already rigged.
 - `neutral-full-160.webp`, `neutral-full-320.webp`: transparent, full-character still preview.
 - `neutral-bust-160.webp`, `neutral-bust-320.webp`: alternative head/torso **crop** from the same illustration, not an additional artwork asset.
 - `preview-manifest.json`: source digest, export sizes, pixel-fidelity checks, and explicit `rig_ready=false`, `animation_ready=false`, `layers=[]`.
