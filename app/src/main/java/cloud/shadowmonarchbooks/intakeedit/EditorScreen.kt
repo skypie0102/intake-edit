@@ -713,17 +713,6 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Copy ref", style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                    Switch(
-                        checked = includeReferenceInCopy,
-                        onCheckedChange = { enabled ->
-                            includeReferenceInCopy = enabled
-                            copyPreferences.edit().putBoolean("include_reference", enabled).apply()
-                        },
-                        modifier = Modifier.semantics { contentDescription = "Include translation in copied text" },
-                    )
-                }
                 // Allow the secondary actions to scroll without moving the primary action.
                 Row(
                     modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
@@ -753,6 +742,19 @@ fun stageProposalDecision(proposalId: String, status: String) {
                     IconButton(onClick = { showTranslationChoices = true }, enabled = !busy && !importBusy) {
                         Icon(Icons.Default.Translate, "Translation reference")
                     }
+                    Switch(
+                        checked = includeReferenceInCopy,
+                        onCheckedChange = { enabled ->
+                            includeReferenceInCopy = enabled
+                            copyPreferences.edit().putBoolean("include_reference", enabled).apply()
+                            Toast.makeText(
+                                context,
+                                if (enabled) "Copy: RAW + translation" else "Copy: RAW only",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+                        modifier = Modifier.semantics { contentDescription = "Include translation in copied text" },
+                    )
                 }
                 Button(
                     onClick = {
@@ -1347,27 +1349,6 @@ LaunchedEffect(qaFindings) {
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
-                    onClick = {
-                        focusManager.clearFocus(force = true)
-                        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
-                        if (GitHubCredentialGuard.containsCredential(text)) {
-                            Toast.makeText(
-                                context,
-                                "Paste blocked: clipboard looks like a GitHub credential.",
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        } else if (text.isNotEmpty()) {
-                            recordHistory(EntryEditKind.COMMAND)
-                            rich = RichInlineState.fromClipboard(text)
-                            syncLocalEndnotesTo(rich)
-                            onEnglishChange(rich.toMarkup())
-                        }
-                    },
-                    enabled = clipboard.hasPrimaryClip(),
-                ) {
-                    Icon(Icons.Default.ContentPaste, "Paste English")
-                }
                 Row(
                     Modifier.weight(1f).horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -1430,6 +1411,27 @@ LaunchedEffect(qaFindings) {
                         onUseImport(importedText)
                     }) { Text(if (machineReference) "Use Translation" else "Use Import") }
                 }
+                }
+                IconButton(
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+                        if (GitHubCredentialGuard.containsCredential(text)) {
+                            Toast.makeText(
+                                context,
+                                "Paste blocked: clipboard looks like a GitHub credential.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        } else if (text.isNotEmpty()) {
+                            recordHistory(EntryEditKind.COMMAND)
+                            rich = RichInlineState.fromClipboard(text)
+                            syncLocalEndnotesTo(rich)
+                            onEnglishChange(rich.toMarkup())
+                        }
+                    },
+                    enabled = clipboard.hasPrimaryClip(),
+                ) {
+                    Icon(Icons.Default.ContentPaste, "Paste English")
                 }
             }
         }
