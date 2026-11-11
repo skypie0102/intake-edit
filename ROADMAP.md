@@ -4,8 +4,8 @@
 
 ## Current priority — chapter editor usability (2026-11-11)
 
-- [x] Keep Paste anchored on the left of each paragraph card's toolbar while formatting actions scroll.
-- [x] Add a persistent **Copy ref** switch in the editor bottom bar. OFF = RAW only; ON = RAW plus the current imported/machine translation.
+- [x] Keep Paste anchored at the far right of each paragraph card's toolbar while formatting actions scroll.
+- [x] Keep a persistent unlabeled copy switch immediately after Translation reference, with short on/off toast feedback and no extra bottom-bar height. OFF = RAW only; ON = RAW plus the current imported/machine translation.
 - [x] Auto-dismiss editor, chapter-list and settings notices after five seconds; keep enduring QA warnings visible.
 
 The mascot replacement is paused until explicitly resumed. The existing Book Spirit assets remain the production graphics.

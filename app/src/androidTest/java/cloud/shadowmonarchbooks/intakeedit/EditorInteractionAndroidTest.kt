@@ -62,6 +62,11 @@ class EditorInteractionAndroidTest {
         }
         compose.onNodeWithContentDescription("Bold selection").assertExists()
         compose.onNodeWithContentDescription("Paste English").assertExists()
+        compose.onNodeWithText("Copy ref").assertDoesNotExist()
+        // Paste is a fixed right-side action; formatting icons scroll to its left.
+        val pasteLeft = compose.onNodeWithContentDescription("Paste English").fetchSemanticsNode().boundsInRoot.left
+        val boldRight = compose.onNodeWithContentDescription("Bold selection").fetchSemanticsNode().boundsInRoot.right
+        assertTrue("Paste must stay to the right of formatting controls", pasteLeft >= boldRight)
         compose.onNodeWithContentDescription("Include translation in copied text").assertExists()
         compose.onNodeWithContentDescription("Italicize selection").assertExists()
         compose.onNodeWithContentDescription("Edit endnote for selection").assertExists()
