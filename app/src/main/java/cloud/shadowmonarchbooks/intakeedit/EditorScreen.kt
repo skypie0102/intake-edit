@@ -589,7 +589,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
             if (recoveryDrafts.isNotEmpty()) {
                 TextButton(onClick = { showSavedDrafts = true }) { Text("Saved drafts (${recoveryDrafts.size})") }
             }
-            TransientNotice(editorNotice)
+            TransientNotice(editorNotice, onTimeout = { editorNotice = null })
             if (qaPassStale) {
                 Text(
                     "Previous QA pass is stale because protected/unflagged content changed. This chapter cannot be committed for approval; commit it for Fresh QA instead.",
@@ -713,10 +713,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Copy ref", style = MaterialTheme.typography.labelSmall, maxLines = 1)
                     Switch(
                         checked = includeReferenceInCopy,
