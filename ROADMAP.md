@@ -1,6 +1,14 @@
 # Intake Edit roadmap
 
-**Active initiative (opened 2026-11-10): replace the Book Spirit with the user's blonde witch chibi mascot.** The approved direction uses the supplied character sheet and original illustration; it requires a new layered character rig, not a reskin of the Book Spirit. See the [Mascot v2 design bible](docs/MASCOT_V2_DESIGN.md) and [machine-readable rig contract](artwork/mascot-v2/rig-contract.json). **The existing Book Spirit remains in production until the new character is complete.**
+**On hold as of 2026-11-11: replace the Book Spirit with the user's blonde witch chibi mascot.** The approved direction uses the supplied character sheet and original illustration; it requires a new layered character rig, not a reskin of the Book Spirit. See the [Mascot v2 design bible](docs/MASCOT_V2_DESIGN.md) and [machine-readable rig contract](artwork/mascot-v2/rig-contract.json). **The existing Book Spirit remains in production until the new character is complete.**
+
+## Current priority — chapter editor usability (2026-11-11)
+
+- [x] Keep Paste anchored on the left of each paragraph card's toolbar while formatting actions scroll.
+- [x] Add a persistent **Copy ref** switch in the editor bottom bar. OFF = RAW only; ON = RAW plus the current imported/machine translation.
+- [x] Auto-dismiss editor, chapter-list and settings notices after five seconds; keep enduring QA warnings visible.
+
+The mascot replacement is paused until explicitly resumed. The existing Book Spirit assets remain the production graphics.
 
 ## Phase 0 — audit and safe foundation
 
@@ -11,7 +19,7 @@
 
 **Gate:** documented canonical source, validated manifest and unchanged old rendering.
 
-## Phase 1 — high-fidelity illustrated raster foundation (ACTIVE)
+## Phase 1 — high-fidelity illustrated raster foundation (PAUSED)
 
 The vector approximation from PR #62 is rejected. Keep the approved illustrated artwork. [New pipeline and quality gates](docs/MASCOT_V2_RASTER_PIPELINE.md).
 
@@ -26,7 +34,7 @@ The vector approximation from PR #62 is rejected. Keep the approved illustrated 
 
 **Gate:** the illustrated raster master must look like the approved character. A crop is not a rig.
 
-### Phase 1B — true layered raster rig (ACTIVE)
+### Phase 1B — true layered raster rig (PAUSED)
 
 **Visual baseline:** The user accepted the high-fidelity static raster preview. This approves the design direction, **not** a movable rig. All editable layers must be faithful to the approved portrait and Slytherin sheet. No crude SVG substitutions, no image sliced into fake rectangle puppet parts, no claims of acceptance based only on passing tests.
 

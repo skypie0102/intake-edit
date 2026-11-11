@@ -443,7 +443,7 @@ internal fun ChapterListScreen(
                     )
                 }
             }
-            notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            TransientNotice(notice)
             if (bulkApproving) Text("Starting approval workflows…", style = MaterialTheme.typography.bodySmall)
             if (refreshing && files.isEmpty()) CircularProgressIndicator()
             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -575,7 +575,7 @@ private fun SettingsScreen(
             Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            TransientNotice(notice)
             Text("Connect directly to GitHub. The token is encrypted with a key held by Android Keystore.")
             OutlinedTextField(owner, { owner = it }, label = { Text("Owner") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(repo, { repo = it }, label = { Text("Repository") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
