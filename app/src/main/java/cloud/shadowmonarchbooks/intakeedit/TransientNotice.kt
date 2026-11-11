@@ -17,7 +17,7 @@ private const val NOTICE_DURATION_MILLIS = 5_000L
  * dismissal coroutine is canceled so it cannot hide the new notice.
  */
 @Composable
-internal fun TransientNotice(message: String?) {
+internal fun TransientNotice(message: String?, onTimeout: (() -> Unit)? = null) {
     var visibleMessage by remember { mutableStateOf(message) }
 
     LaunchedEffect(message) {
@@ -25,6 +25,7 @@ internal fun TransientNotice(message: String?) {
         if (message != null) {
             delay(NOTICE_DURATION_MILLIS)
             visibleMessage = null
+            onTimeout?.invoke()
         }
     }
 
