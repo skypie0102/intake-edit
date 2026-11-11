@@ -61,6 +61,8 @@ class EditorInteractionAndroidTest {
             }
         }
         compose.onNodeWithContentDescription("Bold selection").assertExists()
+        compose.onNodeWithContentDescription("Paste English").assertExists()
+        compose.onNodeWithContentDescription("Include translation in copied text").assertExists()
         compose.onNodeWithContentDescription("Italicize selection").assertExists()
         compose.onNodeWithContentDescription("Edit endnote for selection").assertExists()
         compose.onNodeWithText("English").performTextInput("Hello")
