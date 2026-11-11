@@ -1,6 +1,12 @@
 package cloud.shadowmonarchbooks.intakeedit
 
-internal fun rawCopyText(raw: String, reference: String?, machineReference: Boolean): String {
-    val imported = if (machineReference) null else reference
-    return "RAW:\n$raw" + (imported?.let { "\n\nIMPORTED TRANSLATION:\n$it" } ?: "")
+internal fun rawCopyText(
+    raw: String,
+    reference: String?,
+    includeReference: Boolean,
+    machineReference: Boolean,
+): String {
+    if (!includeReference || reference == null) return "RAW:\n$raw"
+    val heading = if (machineReference) "MACHINE TRANSLATION" else "IMPORTED TRANSLATION"
+    return "RAW:\n$raw\n\n$heading:\n$reference"
 }
