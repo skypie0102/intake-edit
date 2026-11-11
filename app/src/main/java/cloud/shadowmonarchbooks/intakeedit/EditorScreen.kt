@@ -54,6 +54,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -123,6 +124,10 @@ internal fun EditorScreen(
         mutableStateOf<ImportedTranslationOverlay?>(null)
     }
     var useMachine by rememberSaveable(initial.file.path, initial.document.sourceSha256) { mutableStateOf(false) }
+    val copyPreferences = remember(context) { context.getSharedPreferences("editor_copy", Context.MODE_PRIVATE) }
+    var includeReferenceInCopy by rememberSaveable {
+        mutableStateOf(copyPreferences.getBoolean("include_reference", false))
+    }
     val imported = if (useMachine) machineTranslation else importedFile
     var importBusy by remember(initial.file.path, initial.document.sourceSha256) { mutableStateOf(true) }
     var filter by rememberSaveable { mutableStateOf(EntryFilter.ALL) }
@@ -580,11 +585,11 @@ fun stageProposalDecision(proposalId: String, status: String) {
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            TransientNotice(notice)
             if (recoveryDrafts.isNotEmpty()) {
                 TextButton(onClick = { showSavedDrafts = true }) { Text("Saved drafts (${recoveryDrafts.size})") }
             }
-            editorNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            TransientNotice(editorNotice)
             if (qaPassStale) {
                 Text(
                     "Previous QA pass is stale because protected/unflagged content changed. This chapter cannot be committed for approval; commit it for Fresh QA instead.",
@@ -684,6 +689,7 @@ fun stageProposalDecision(proposalId: String, status: String) {
                                 qaCanResolveById = qaCanResolveById,
                                 importedTranslation = imported?.translationFor(entry.locator),
                                 machineReference = useMachine,
+                                includeReferenceInCopy = includeReferenceInCopy,
                                 nextEndnoteId = { EndnoteIntegrity.nextId(current.document, entry.locator) },
                                 onUseImport = { text -> useImported(entry.locator, text) },
                                 onEnglishChange = { english -> updateEnglish(entry.locator, english) },
@@ -707,6 +713,20 @@ fun stageProposalDecision(proposalId: String, status: String) {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text("Copy ref", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    Switch(
+                        checked = includeReferenceInCopy,
+                        onCheckedChange = { enabled ->
+                            includeReferenceInCopy = enabled
+                            copyPreferences.edit().putBoolean("include_reference", enabled).apply()
+                        },
+                        modifier = Modifier.semantics { contentDescription = "Include translation in copied text" },
+                    )
+                }
                 // Allow the secondary actions to scroll without moving the primary action.
                 Row(
                     modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
@@ -1127,6 +1147,7 @@ private fun EntryCard(
     qaCanResolveById: Map<String, Boolean>,
     importedTranslation: String?,
     machineReference: Boolean,
+    includeReferenceInCopy: Boolean,
     nextEndnoteId: () -> String,
     onUseImport: (String) -> Unit,
     onEnglishChange: (String) -> Unit,
@@ -1289,10 +1310,10 @@ LaunchedEffect(qaFindings) {
                 }
                 IconButton(onClick = {
                     focusManager.clearFocus(force = true)
-                    val copiedText = rawCopyText(entry.sourceJapanese, importedTranslation, machineReference)
+                    val copiedText = rawCopyText(entry.sourceJapanese, importedTranslation, includeReferenceInCopy, machineReference)
                     clipboard.setPrimaryClip(ClipData.newPlainText("raw ${entry.locator}", copiedText))
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                }) { Icon(Icons.Default.ContentCopy, if (!machineReference && importedTranslation != null) "Copy raw and imported text for ${entry.locator}" else "Copy raw text for ${entry.locator}") }
+                }) { Icon(Icons.Default.ContentCopy, if (includeReferenceInCopy && importedTranslation != null) "Copy raw and translation for ${entry.locator}" else "Copy raw text for ${entry.locator}") }
             }
             DisplayBlock("Raw", entry.sourceJapanese)
             importedTranslation?.let { DisplayBlock(if (machineReference) "Machine Translation · Google Translate" else "Imported", it) }
@@ -1325,10 +1346,36 @@ LaunchedEffect(qaFindings) {
                     .semantics { contentDescription = "English for ${entry.locator}" },
             )
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                IconButton(
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+                        if (GitHubCredentialGuard.containsCredential(text)) {
+                            Toast.makeText(
+                                context,
+                                "Paste blocked: clipboard looks like a GitHub credential.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        } else if (text.isNotEmpty()) {
+                            recordHistory(EntryEditKind.COMMAND)
+                            rich = RichInlineState.fromClipboard(text)
+                            syncLocalEndnotesTo(rich)
+                            onEnglishChange(rich.toMarkup())
+                        }
+                    },
+                    enabled = clipboard.hasPrimaryClip(),
+                ) {
+                    Icon(Icons.Default.ContentPaste, "Paste English")
+                }
+                Row(
+                    Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                 IconButton(
                     onClick = {
                         recordHistory(EntryEditKind.COMMAND)
@@ -1386,26 +1433,6 @@ LaunchedEffect(qaFindings) {
                         onUseImport(importedText)
                     }) { Text(if (machineReference) "Use Translation" else "Use Import") }
                 }
-                IconButton(
-                    onClick = {
-                        focusManager.clearFocus(force = true)
-                        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
-                        if (GitHubCredentialGuard.containsCredential(text)) {
-                            Toast.makeText(
-                                context,
-                                "Paste blocked: clipboard looks like a GitHub credential.",
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        } else if (text.isNotEmpty()) {
-                            recordHistory(EntryEditKind.COMMAND)
-                            rich = RichInlineState.fromClipboard(text)
-                            syncLocalEndnotesTo(rich)
-                            onEnglishChange(rich.toMarkup())
-                        }
-                    },
-                    enabled = clipboard.hasPrimaryClip(),
-                ) {
-                    Icon(Icons.Default.ContentPaste, "Paste English")
                 }
             }
         }
