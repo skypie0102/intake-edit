@@ -14,13 +14,13 @@ Updated 2026-11-13. The active companion investigation is a 3D Draconia Malfoy a
 ## Phase 1 — source and feasibility
 
 - [ ] Preserve original FBX/textures and record their exact provenance, license version, and any changes. Model: [Malfoid Chibi (Draco Malfoy)](https://sketchfab.com/3d-models/malfoid-chibi-draco-malfoy-25dce601e17945a89fac8381fab5f7cc), by 0x00001337. The download screen states CC Attribution and commercial use; verify exact license and provide required attribution. Character/franchise rights are separate from the model license, particularly before public distribution.
-- [ ] Inspect topology, facial planes, joints, original pose, and materials at full and 160px sizes; decide where remodeling, reposing, or new art is needed. Keep original files pristine.
+- [x] Inspect topology, separate mesh islands, original pose and material appearance; preserve source hashes and compare flat/smooth renders, head close-ups and 160px poses in the [head-control study](https://chatgpt.com/library?file_id=libfile_7b404028f5b881919bce733ca8db10d0&account_id=personal). Arm and hand islands can be separated; head geometry is coarse, while hair and cloak are single connected meshes. More detailed deformation inspection remains part of rigging.
 - [ ] Improve shading and define the camera, lighting, transparent composition, and 2×2 framing; compare with the user's character references. Low-poly face and fixed asymmetrical arm pose are known limitations.
-- [ ] Build a reproducible editable source with packed textures, correct pivots and pose controls, and a repeatable render setup.
+- [ ] Build a complete reproducible editable source with packed textures, validated pivots and pose controls, and a repeatable render setup. A packed Blender scene and one-bone head test exist in the head-control study; a complete rig does not.
 
 ## Phase 2 — expressive prototype
 
-- [ ] Rig head, body, both arms and hands with coherent shoulders and sleeves; repair geometry where needed. Add usable eye direction, blinks, brows and mouth/expression controls.
+- [ ] Rig head, body, both arms and hands with coherent shoulders and sleeves; repair geometry where needed. A one-bone head-only test moves the facial parts and hair together in small static poses. Hair remains rigid and the test is not a complete rig or animation. Add usable eye direction, blinks, brows and mouth/expression controls.
 - [ ] Build a correctly oriented book and connected hands; fix intersections, silhouette and pages. Stage other props only when needed.
 - [ ] Create a composed reading performance: eyes track the page, a small skeptical or interested pause, and a smooth return. No floating book or disconnected hands.
 - [ ] Create a happy reaction: surprise/pleasure, a proud attempt to regain composure, a fleeting genuine smile, and a natural return. Her expression must actually change.
