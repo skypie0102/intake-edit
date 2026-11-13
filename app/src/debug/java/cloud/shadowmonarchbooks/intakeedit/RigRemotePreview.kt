@@ -181,7 +181,7 @@ internal object RigRemoteFrames {
 }
 
 @Composable
-internal fun RigRemotePreview() {
+internal fun LegacyRigRemotePreview() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences(DEMO_PREFS, Context.MODE_PRIVATE) }
     var mood by remember { mutableStateOf(readRigDemoMood(context) ?: PetMood.WAITING) }

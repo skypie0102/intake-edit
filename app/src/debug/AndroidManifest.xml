@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
-    <application android:label="Intake Edit Rig Preview" tools:replace="android:label">
+    <application android:label="Draconia Preview" tools:replace="android:label">
         <receiver android:name=".TranslationPetWidget"
             android:label="Companion — Rig Preview" tools:replace="android:label" />
     </application>

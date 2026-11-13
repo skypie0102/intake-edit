@@ -30,11 +30,11 @@ internal fun RigPreviewPanel() { RigRemotePreview() }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RigOnlyPreviewScreen() {
-    Scaffold(topBar = { TopAppBar(title = { Text("Companion rig preview") }) }) { padding ->
+    Scaffold(topBar = { TopAppBar(title = { Text("Draconia preview") }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RigPreviewPanel()
-            Text("Select a mood to compare the preview with the production transition.")
-            Text("Add Companion — Rig Preview from your launcher to check the widget.")
+            Text("Select a study and refresh to load new previews from the repository.")
+            Text("The existing Book Spirit widget is separate and is not updated by this preview.")
         }
     }
 }
