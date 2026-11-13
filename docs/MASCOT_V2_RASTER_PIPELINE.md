@@ -1,3 +1,5 @@
+> **Historical raster study (2026-11-13):** This document describes the previous illustrated-raster approach. It is retained for reference and does not describe the active 3D companion plan. See [the current roadmap](../ROADMAP.md).
+
 # Mascot v2: high-fidelity raster / hybrid animation pipeline
 
 **Adopted 2026-11-10. Current status: Phase 1A static appearance accepted in principle, Phase 1B experimental eye-layer pilot created; no complete or art-approved rig.**

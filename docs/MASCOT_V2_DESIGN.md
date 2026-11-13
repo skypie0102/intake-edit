@@ -1,3 +1,5 @@
+> **Historical raster study (2026-11-13):** This document describes the previous illustrated-raster approach. It is retained for reference and does not describe the active 3D companion plan. See [the current roadmap](../ROADMAP.md).
+
 # Mascot v2 — character bible, rig and motion contract
 
 **Status:** raster-art preproduction, visual reset and hybrid-pipeline decision on 2026-11-10. See [raster pipeline](MASCOT_V2_RASTER_PIPELINE.md). The previous vector prototype in PR #62 was rejected for failing character resemblance and is not an accepted art asset. No mascot replacement has shipped.

@@ -1,3 +1,5 @@
+> **Historical raster study (2026-11-13):** This document describes the previous illustrated-raster approach. It is retained for reference and does not describe the active 3D companion plan. See [the current roadmap](../ROADMAP.md).
+
 # Phase 1B first pilot — original-pixel eye layers (experimental)
 
 **Status: exploratory rigging test, NOT approved artwork or a complete mascot rig.** Created 2026-11-10 after the user approved the raster-first static visual approach.

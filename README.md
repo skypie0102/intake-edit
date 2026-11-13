@@ -19,15 +19,9 @@ The workspace includes a companion that is fed when a chapter is successfully ta
 
 To add the companion to your Android home screen, touch and hold an empty area, choose **Widgets**, then find **Translation companion** under Intake Edit. It is designed for a 2×2 space and can be resized where supported. Tap it to open the earliest Pending Review chapter with missing English; if none are missing English, it opens the earliest Pending Review chapter. When the project is not connected, it opens the connection screen. The widget refreshes after successful feedings and around the next local day; it periodically syncs project progress in the background. Android may delay background work when the device is idle. The current companion uses mood-specific animation frames in the app and widget, with mood conveyed visually on a transparent widget. Widget size, placement, and animation behavior depend on the launcher. The app includes mood-specific reactions and shared reading, writing, and page-turning actions. The widget requests the full sequence from a launcher-hosted adapter; timing and behavior depend on the launcher. Android’s reduced-motion setting displays a still pose.
 
-## Mascot v2 replacement (on hold)
+## Draconia companion investigation
 
-The next companion is the user's blonde witch chibi character, based on the supplied character sheet. Work on the layered rig and five-state animation pack is paused while chapter editor usability changes take priority. The current Book Spirit remains in production until the replacement passes visual, Android and widget checks. The existing feed/level/project and tap-to-chapter behavior must stay unchanged. See the [active roadmap](ROADMAP.md), [character/rig design bible](docs/MASCOT_V2_DESIGN.md) and [art contract](artwork/mascot-v2/rig-contract.json). **No mascot artwork has been switched in the released app yet.**
-
-## Mascot v2 raster prototype (art preproduction only)
-
-The user-approved Slytherin chibi will use **high-quality painted raster layers** with a small lossless WebP texture atlas and compact animation keyframes, rather than the rejected hand-authored vector substitute. See [the raster pipeline specification](docs/MASCOT_V2_RASTER_PIPELINE.md) and [active roadmap](ROADMAP.md).
-
-The source portrait already has transparency. A standalone preproduction script can remove its **separately connected speech bubble** without redrawing the character, producing full-body and face/torso still images at 160 and 320 pixels with original alpha preserved. It also exports a one-layer OpenRaster working master that can be opened in Krita to begin properly painting the moving parts. The atlas packer and dormant native Android renderer have been created with validation tests. **These are not animated frames or separately painted rig parts**: proper articulated layers, human visual approval, preview integration, widget integration and all five mood animations remain outstanding. The shipped Book Spirit and all translation functions remain unchanged.
+A 3D Draconia Malfoy companion is being investigated as a replacement. The model has been textured and a static preview produced; the rig, expressive performances and Android integration remain unfinished. The current Book Spirit remains in production. See the [current roadmap](ROADMAP.md) and [3D design and work record](docs/DRACONIA_COMPANION.md). Earlier illustrated-raster prototypes are historical references.
 
 ## Glossary governance
 

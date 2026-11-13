@@ -1,3 +1,5 @@
+> **Historical raster study (2026-11-13):** This document describes the previous illustrated-raster approach. It is retained for reference and does not describe the active 3D companion plan. See [the current roadmap](../../ROADMAP.md).
+
 # Mascot v2 artwork staging area
 
 The [design bible](../../docs/MASCOT_V2_DESIGN.md) is the creative direction and [rig-contract.json](rig-contract.json) is the normative file/part/state manifest. The current production mascot remains the Book Spirit. The active new direction is [illustrated raster layers and a compact WebP atlas](../../docs/MASCOT_V2_RASTER_PIPELINE.md), not an SVG puppet.

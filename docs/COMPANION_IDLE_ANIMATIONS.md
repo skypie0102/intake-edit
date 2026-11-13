@@ -1,3 +1,5 @@
+> **Production Book Spirit reference:** This document records the existing character's idle designs. For the planned Draconia replacement, use [the current design](DRACONIA_COMPANION.md) and [roadmap](../ROADMAP.md).
+
 # Companion idle-animation design
 
 This is a design reference for the completed companion animations and the [current roadmap](../ROADMAP.md), not a separate task tracker. Existing five-state reactions and shared reading, writing, and page turning remain in place. The user approved the first-pass in-app mood transition and the ten additional idle sequences. This document is a design reference; completed work is recorded in the [animation milestone archive](archive/COMPANION_ANIMATION_MILESTONE_2026-11.md).
@@ -42,7 +44,7 @@ Pause mid-read, look toward his stomach, and react to a small rumble mark. Rest 
 
 ### Losing focus
 
-Read slowly, let his eyes stop, and hold the pause. Glance up as if waiting for someone, then lower his gaze and retreat a little closer to the book. Let the tuft and bookmark settle afterward. This action does not need a tear. The standalone preview was approved; app and widget integration remains open.
+Read slowly, let his eyes stop, and hold the pause. Glance up as if waiting for someone, then lower his gaze and retreat a little closer to the book. Let the tuft and bookmark settle afterward. This action does not need a tear. The standalone preview was approved; standalone preview was approved; verify current integration and device behavior against the production app.
 
 ### Comforting himself with the book
 

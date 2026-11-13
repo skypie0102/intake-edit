@@ -1,3 +1,5 @@
+> **Historical raster study (2026-11-13):** This document describes the previous illustrated-raster approach. It is retained for reference and does not describe the active 3D companion plan. See [the current roadmap](../ROADMAP.md).
+
 # Mascot v2 Phase 1B — expression references and neutral atlas QA
 
 **Date: 2026-11-11. Status:** reference extraction and QA tools are implemented. No approved blink, layered facial rig, or production mascot replacement.

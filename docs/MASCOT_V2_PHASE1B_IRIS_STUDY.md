@@ -1,3 +1,5 @@
+> **Historical raster study (2026-11-13):** This document describes the previous illustrated-raster approach. It is retained for reference and does not describe the active 3D companion plan. See [the current roadmap](../ROADMAP.md).
+
 # Mascot v2 Phase 1B — Iris-only gaze pilot (2026-11-10)
 
 **Status: technical / visual experiment, NOT art-approved; no finished rig.**
