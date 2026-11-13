@@ -49,14 +49,14 @@ def main():
         for side in ('L', 'R'):
             name = f'{garment}Follow.{side}'
             constraint = rig.pose.bones[name].constraints.new('COPY_ROTATION')
-            constraint.name = 'Half thigh rotation'
+            constraint.name = 'Thigh follow'
             constraint.target = rig
             constraint.subtarget = f'Thigh.{side}'
             constraint.target_space = constraint.owner_space = 'LOCAL'
             constraint.use_x = constraint.use_z = True
             constraint.use_y = False
             constraint.mix_mode = 'REPLACE'
-            constraint.influence = 0.5
+            constraint.influence = 0.6 if garment == 'Cloak' else 0.5
             if garment == 'Cloak':
                 # Ease the outer hem away from the thigh only near extreme
                 # lateral lifts, without taking over the animator's hem bone.
@@ -79,7 +79,7 @@ def main():
     # Separate additive constraints leave the manual centre control free to pose.
     for side in ('L', 'R'):
         constraint = rig.pose.bones['CloakFollow.C'].constraints.new('COPY_ROTATION')
-        constraint.name = f'Half thigh rotation {side}'
+        constraint.name = f'Thigh follow {side}'
         constraint.target = rig
         constraint.subtarget = f'Thigh.{side}'
         constraint.target_space = constraint.owner_space = 'LOCAL'

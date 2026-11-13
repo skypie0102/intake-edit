@@ -68,14 +68,16 @@ def run(path, after):
                 assert not follow.bone.use_deform
                 assert follow.parent.name == 'Hips'
                 assert rig.pose.bones[f'{garment}Hem.{side}'].parent.name == follow.name
-                con = follow.constraints['Half thigh rotation']
+                con = follow.constraints['Thigh follow']
                 assert con.target == rig and con.subtarget == f'Thigh.{side}'
+                assert abs(con.influence - (0.6 if garment == 'Cloak' else 0.5)) < 1e-5
         center = rig.pose.bones['CloakFollow.C']
         assert not center.bone.use_deform and center.parent.name == 'Hips'
         assert rig.pose.bones['CloakHem.C'].parent.name == center.name
         for side in ('L', 'R'):
-            con = center.constraints[f'Half thigh rotation {side}']
+            con = center.constraints[f'Thigh follow {side}']
             assert con.target == rig and con.subtarget == f'Thigh.{side}'
+            assert abs(con.influence - 0.5) < 1e-5
     samples = ({}, {'Torso': (0, 0, 20), 'UpperArm.R': (0, 0, -30), 'Forearm.R': (45, 0, 0)},
                {'CloakHem.L': (10, 0, -8), 'SkirtHem.R': (10, 0, 8)})
     static = []

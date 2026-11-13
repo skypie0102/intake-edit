@@ -24,7 +24,7 @@ for view, label in (('front', 'Leg and garment follow — front'), ('angle', 'Le
         frames.append(base64.b64encode(out.getvalue()).decode('ascii'))
     new.append({'id': 'garment_' + view, 'label': label, 'frame_ms': 125, 'frames': frames})
 pack['clips'] = [c for c in pack['clips'] if c['id'] not in {v['id'] for v in new}] + new
-pack['revision'] = '2026-11-13-garment-follow-1'
+pack['revision'] = '2026-11-13-garment-follow-2'
 pack['description'] = 'Experimental automatic cloak and skirt follow; larger motions and sleeve deformation need further work.'
 assert 1 <= len(pack['clips']) <= 12
 assert sum(len(c['frames']) for c in pack['clips']) <= 240
