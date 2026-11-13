@@ -1,6 +1,6 @@
 """Update sleeve and leg studies in a Draconia preview pack.
 
-python tools/draconia_pack_sleeve_loops.py INPUT.json SLEEVE_FRAMES LEG_FRAMES OUTPUT.json
+python tools/draconia_pack_sleeve_loops.py INPUT.json SLEEVE_FRAMES LEG_FRAMES CROSS_FRAMES OUTPUT.json
 Each frames directory must be rendered from the same current Blender scene.
 """
 import base64
@@ -12,9 +12,9 @@ from pathlib import Path
 from PIL import Image
 
 args = sys.argv[1:]
-if len(args) != 4:
-    raise ValueError('Expected INPUT.json SLEEVE_FRAMES LEG_FRAMES OUTPUT.json')
-source, sleeves, legs, output = map(Path, args)
+if len(args) != 5:
+    raise ValueError('Expected INPUT.json SLEEVE_FRAMES LEG_FRAMES CROSS_FRAMES OUTPUT.json')
+source, sleeves, legs, cross, output = map(Path, args)
 pack = json.loads(source.read_text())
 assert pack['format'] == 1
 replacements = {}
@@ -25,6 +25,7 @@ for clip_id, label, directory in (
     ('other_angle', 'Other sleeve — angle', sleeves / 'other_angle'),
     ('garment_front', 'Leg and garment follow — front', legs / 'front'),
     ('garment_angle', 'Leg and garment follow — angle', legs / 'angle'),
+    ('cross_step', 'Mixed leg and clothing test — angle', cross),
 ):
     frames = []
     for number in range(24):
@@ -36,11 +37,13 @@ for clip_id, label, directory in (
         frames.append(base64.b64encode(out.getvalue()).decode('ascii'))
     replacements[clip_id] = {'id': clip_id, 'label': label, 'frame_ms': 125, 'frames': frames}
 old_ids = {c['id'] for c in pack['clips']}
-if not replacements.keys() <= old_ids:
+if not (replacements.keys() - {'cross_step'}) <= old_ids:
     raise ValueError('Input pack is missing one or more expected study clips')
 pack['clips'] = [replacements.get(c['id'], c) for c in pack['clips']]
-pack['revision'] = '2026-11-13-sleeve-cuff-refinement-1'
-pack['description'] = 'Experimental sleeve edge and cuff weighting with garment leg follow; clipping tests continue.'
+if 'cross_step' not in old_ids:
+    pack['clips'].append(replacements['cross_step'])
+pack['revision'] = '2026-11-13-underarm-cloak-follow-1'
+pack['description'] = 'Refined underarm and cloak-follow controls; mixed-pose clipping tests continue.'
 assert 1 <= len(pack['clips']) <= 12
 assert sum(len(c['frames']) for c in pack['clips']) <= 240
 ids = set()
