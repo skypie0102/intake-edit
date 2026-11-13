@@ -14,7 +14,7 @@ source, frames_dir, output = map(Path, sys.argv[1:])
 pack = json.loads(source.read_text())
 assert pack['format'] == 1
 new = []
-for view, label in (('front', 'Garment controls — front'), ('angle', 'Garment controls — angle')):
+for view, label in (('front', 'Leg and garment follow — front'), ('angle', 'Leg and garment follow — angle')):
     frames = []
     for number in range(24):
         image = Image.open(frames_dir / view / f'{number:02}.png').convert('RGBA')
@@ -24,8 +24,8 @@ for view, label in (('front', 'Garment controls — front'), ('angle', 'Garment 
         frames.append(base64.b64encode(out.getvalue()).decode('ascii'))
     new.append({'id': 'garment_' + view, 'label': label, 'frame_ms': 125, 'frames': frames})
 pack['clips'] = [c for c in pack['clips'] if c['id'] not in {v['id'] for v in new}] + new
-pack['revision'] = '2026-11-13-garment-controls-1'
-pack['description'] = 'Experimental body and garment controls; sleeve deformation and collision testing remain unfinished.'
+pack['revision'] = '2026-11-13-garment-follow-1'
+pack['description'] = 'Experimental automatic cloak and skirt follow; larger motions and sleeve deformation need further work.'
 assert 1 <= len(pack['clips']) <= 12
 assert sum(len(c['frames']) for c in pack['clips']) <= 240
 ids = set()
