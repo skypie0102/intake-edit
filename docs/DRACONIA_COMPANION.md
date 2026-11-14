@@ -224,3 +224,9 @@ Preview revision `2026-11-14-blink-study-2` replaces the two blink clips with th
 ### Closed corners and fuller lid line
 
 The previous study retained hanging outer eye-frame wings and small detached lower-lash triangles when closed. `tools/draconia_refine_blink_corners.py` reshapes the frame into a fuller closed-lid line with tapered corners, collapses the lower-lash triangles, and collapses the iris geometry at full closure to avoid a colored sliver. The open-eye preview renders still match the prior revision pixel-for-pixel at both angles. `tools/draconia_validate_blink_corners.py` checks the driven shapes and their closed geometry. Preview revision `2026-11-14-blink-study-3` replaces the blink clips and retains the other previews. This remains a stylized Blender-specific study requiring visual review.
+
+### Irises covered by the eyelid
+
+The previous closed-corner study shrank the iris meshes during a blink. `tools/draconia_cover_irises.py` restores their full shape at every blink value and leaves gaze controls active. It gives the irises a separate Blender material with a descending coverage mask synchronized to the painted-white mask on the head, and adjusts the lid endpoint to follow the coverage. A head-bone-parented reference keeps the iris mask attached to the face during head movement. `tools/draconia_validate_iris_cover.py` checks evaluated iris vertices at open, half, and closed blink values and three gaze settings, plus the reference's head-bone attachment. A rendered head-turn sample and both preview views were visually checked. Open-eye renders match the previous study pixel-for-pixel from both preview cameras.
+
+Preview revision `2026-11-14-blink-study-4` replaces the two complete blink clips while retaining the other previews. The moving cover is a stylized Blender shader solution, not physical eyelid geometry; compatibility with other renderers and a broader range of poses still needs verification.
