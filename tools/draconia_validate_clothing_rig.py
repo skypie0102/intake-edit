@@ -39,6 +39,9 @@ def main():
         if i == 0:
             print('MAX_NEUTRAL_DIFFERENCE', check_equal(before, after))
     rig = bpy.data.objects[RIG]
+    file_images = [image for image in bpy.data.images if image.source == 'FILE']
+    assert file_images and all(image.packed_file for image in file_images)
+    print('PACKED_TEXTURES', len(file_images))
     deform_names = {b.name for b in rig.data.bones if b.use_deform}
     for obj in bpy.data.objects:
         if obj.type != 'MESH':
@@ -55,6 +58,16 @@ def main():
         con = skirt_center.constraints[f'Thigh follow {side}']
         assert con.target == rig and con.subtarget == f'Thigh.{side}'
         assert abs(con.influence - .15) < 1e-5
+    for name in ('SkirtFront.C', 'SkirtBack.C'):
+        assert rig.pose.bones[name].parent.name == 'SkirtHem.C'
+        assert rig.data.bones[name].use_deform
+    for l, r in ((0, 0), (40, 0), (0, -40), (40, 40), (40, -40), (-30, -30)):
+        pose(rig, {'Thigh.L': (l, 0, 0), 'Thigh.R': (r, 0, 0)})
+        evaluated = rig.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        front = math.degrees(evaluated.pose.bones['SkirtFront.C'].rotation_euler.x)
+        back = math.degrees(evaluated.pose.bones['SkirtBack.C'].rotation_euler.x)
+        assert abs(front - (.3*min(l, r, 0) - .15*(l+r))) < 1e-3
+        assert abs(back - (.3*max(l, r, 0) - .15*(l+r))) < 1e-3
     for axis in (0, 2):
         for l, r in ((0, 0), (40, 0), (0, -40), (40, 40), (40, -40), (-30, -30)):
             left, right = [0, 0, 0], [0, 0, 0]
@@ -62,7 +75,10 @@ def main():
             pose(rig, {'Thigh.L': left, 'Thigh.R': right})
             evaluated = rig.evaluated_get(bpy.context.evaluated_depsgraph_get())
             actual = math.degrees(evaluated.pose.bones['CloakFollow.C'].rotation_euler[axis])
-            expected = .7*(l+r) - .4*min(max(l, 0), max(r, 0)) + .4*min(max(-l, 0), max(-r, 0))
+            if axis == 0:
+                expected = .7*max(l, r, 0) + .3*min(max(l, 0), max(r, 0)) + min(max(l, r), 0)
+            else:
+                expected = .7*(l+r) - .4*min(max(l, 0), max(r, 0)) + .4*min(max(-l, 0), max(-r, 0))
             assert abs(actual - expected) < 1e-3, (axis, l, r, actual, expected)
     for side, outward in (('L', 1), ('R', -1)):
         skirt = rig.pose.bones[f'SkirtFollow.{side}'].constraints['Thigh follow']
@@ -72,6 +88,7 @@ def main():
             evaluated = rig.evaluated_get(bpy.context.evaluated_depsgraph_get())
             follow = evaluated.pose.bones[f'CloakFollow.{side}']
             assert not follow.constraints['Thigh follow'].use_z
+            assert abs(follow.constraints['Thigh follow'].influence - .7) < 1e-5
             actual = follow.constraints['Sideways thigh follow'].influence
             assert abs(actual - expected) < 1e-3, (side, angle, actual, expected)
     pose(rig, {})

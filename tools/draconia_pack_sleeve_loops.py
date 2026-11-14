@@ -42,8 +42,8 @@ if not (replacements.keys() - {'cross_step'}) <= old_ids:
 pack['clips'] = [replacements.get(c['id'], c) for c in pack['clips']]
 if 'cross_step' not in old_ids:
     pack['clips'].append(replacements['cross_step'])
-pack['revision'] = '2026-11-13-underarm-cloak-follow-1'
-pack['description'] = 'Refined underarm and cloak-follow controls; mixed-pose clipping tests continue.'
+pack['revision'] = '2026-11-14-clothing-follow-1'
+pack['description'] = 'Refined rear cloak and independently following skirt panels, with sleeve and mixed-leg tests.'
 assert 1 <= len(pack['clips']) <= 12
 assert sum(len(c['frames']) for c in pack['clips']) <= 240
 ids = set()
