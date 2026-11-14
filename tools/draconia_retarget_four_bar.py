@@ -19,8 +19,8 @@ MAPPING = (
     ('thigh_r', 'Thigh.L'), ('calf_r', 'Shin.L'), ('foot_r', 'Foot.L'),
 )
 # Segment direction takes the difference in the characters' rest poses into
-# account, particularly Draconia's bent wand arm. The wand wrist is adjusted
-# separately for visibility while preserving its original grip.
+# account. If the wand is visible, its wrist is adjusted separately to keep
+# the prop visible; a hidden-wand character uses the source hand motion.
 DIRECTION_BONES = {'UpperArm.L', 'Forearm.L', 'UpperArm.R', 'Forearm.R',
                    'Thigh.L', 'Shin.L', 'Thigh.R', 'Shin.R'}
 
@@ -78,7 +78,7 @@ def main():
         for source_name, target_name in MAPPING:
             sb = source.pose.bones[source_name]
             bone = target.pose.bones[target_name]
-            if target_name == 'Hand.L':
+            if target_name == 'Hand.L' and not bpy.data.objects['Wand'].hide_render:
                 # The source has no wand. Keep the authored grip and turn the
                 # wrist so its tip is visible to the front preview camera.
                 bone.rotation_quaternion = (1, 0, 0, 0)
