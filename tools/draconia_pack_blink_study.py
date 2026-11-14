@@ -28,7 +28,7 @@ for view in ('front', 'angle'):
 old = [c for c in pack['clips'] if c['id'] not in ('blink_study_front', 'blink_study_angle')]
 index = next((i for i, c in enumerate(old) if c['id'] == 'clearance_front'), len(old))
 pack['clips'] = old[:index]+new+old[index:]
-pack['revision'] = '2026-11-14-blink-study-2'
-pack['description'] = 'Neutral stance, reach and hair controls, revised blink study, and full dance.'
+pack['revision'] = '2026-11-14-blink-study-3'
+pack['description'] = 'Neutral stance, reach and hair controls, fuller-lid blink study, and full dance.'
 output.write_text(json.dumps(pack, ensure_ascii=True, separators=(',', ':')))
 print('PACKED', len(pack['clips']), 'clips and', len(new)*48, 'new frames')
