@@ -9,3 +9,5 @@ The updated app stores encoded images and decodes frames as they are played inst
 Render transparent frames from the Blender master, package them under this format, test playback, and commit the pack to this branch. Once the updated APK is installed, opening or refreshing the app fetches future pack changes without another reinstall. Changes to app code still require a new APK. The debug package uses the `.rigpreview` application ID and is separate from production.
 
 **Experimental blink — front/angle** shows the revised blink study: the lid lowers over the painted whites and full-size irises, with a fuller closed lid and tapered corners. It remains a stylized, Blender-specific approximation and is separate from the neutral default.
+
+**Reach clearance — front/rear** compares a refined two-second reach with smoother manually keyed hair clearance and the accepted blink. Some hair/cloak intersections remain; the correction applies to this motion and is not a collision solver. The earlier **Reach and hair** views remain available for comparison.
