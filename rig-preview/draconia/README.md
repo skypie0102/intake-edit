@@ -15,3 +15,5 @@ Render transparent frames from the Blender master, package them under this forma
 **Clothing fix — front/side/rear** plays all 192 frames of the eight-second dance with the jacket-side clearance, approved blink, and keyed hair adjustments. **Clothing fix — close-up** shows all 192 frames at a closer scale. The prior **Dance without wand** views remain for comparison. Some intersections remain; the hair correction is specific to this animation.
 
 **Experimental hands — neutral/front/angle** previews separate replacement hands with individual finger and thumb bones. The default neutral model is unchanged. The front and angled studies each play the full four-second finger-motion test; the hand mesh, wrist transitions, and grasping need further work.
+
+**Joined hands — neutral/front/angle/dance close-up** shows the revised hand study, with connected palms, fingers, and wrist bridges. The finger views play the full four-second diagnostic; the dance close-up plays the full eight seconds with open hands. These remain a separate study, and wand grasping and wider poses need review.
