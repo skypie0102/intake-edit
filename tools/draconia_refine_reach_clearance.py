@@ -35,7 +35,7 @@ for frame in range(1, 49):
 # both ends keeps the looping preview's default open-eyed appearance.
 for frame, value in ((1, 0), (8, 0), (10, 1), (13, 0),
                      (30, 0), (32, 1), (35, 0), (48, 0)):
-    rig['Blink'] = value
+    rig['Blink'] = float(value)
     rig.keyframe_insert(data_path='["Blink"]', frame=frame)
 for curve in rig.animation_data.action.fcurves:
     if curve.data_path == '["Blink"]' or (curve.data_path.startswith('pose.bones["Hair.') and curve.array_index == 0):

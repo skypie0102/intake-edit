@@ -63,7 +63,7 @@ new_total = sum(frame[1] for frame in refined)
 assert new_total < old_total
 scene = bpy.context.scene
 rig = bpy.data.objects['Draconia Body Rig - experimental']
-for frame, value in ((1, 0), (10, 1), (13, 0), (32, 1), (35, 0), (48, 0)):
+for frame, value in ((1, 0), (9, .5), (10, 1), (11, 2 / 3), (12, 1 / 3), (13, 0), (32, 1), (35, 0), (48, 0)):
     scene.frame_set(frame)
     assert abs(rig['Blink'] - value) < 1e-5
 print('HAIR_CLOAK_PAIRS', old_total, '->', new_total,

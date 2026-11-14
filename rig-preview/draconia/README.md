@@ -11,3 +11,5 @@ Render transparent frames from the Blender master, package them under this forma
 **Experimental blink — front/angle** shows the revised blink study: the lid lowers over the painted whites and full-size irises, with a fuller closed lid and tapered corners. It remains a stylized, Blender-specific approximation and is separate from the neutral default.
 
 **Reach clearance — front/rear** compares a refined two-second reach with smoother manually keyed hair clearance and the accepted blink. Some hair/cloak intersections remain; the correction applies to this motion and is not a collision solver. The earlier **Reach and hair** views remain available for comparison.
+
+**Refined dance — front/side/rear** plays all 192 frames of the eight-second dance with the approved blink and keyed lower and front hair-clearance adjustments. The prior **Dance without wand** views remain for comparison. Some hair/cloak intersections remain, and the hair correction is specific to this animation.
