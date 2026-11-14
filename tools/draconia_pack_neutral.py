@@ -46,7 +46,7 @@ for clip in old:
     if len(clip['label']) > 80:
         raise ValueError(f"Label too long: {clip['id']}")
 pack['clips'] = new + old
-pack['revision'] = '2026-11-14-neutral-arm-repair-1'
-pack['description'] = 'Repaired neutral arm and full wand-free dance; earlier studies are preserved.'
+pack['revision'] = '2026-11-14-sleeve-shape-1'
+pack['description'] = 'Refined cloak sleeve and full wand-free dance; earlier studies are preserved.'
 output.write_text(json.dumps(pack, ensure_ascii=True, separators=(',', ':')))
 print('Wrote', output, len(new), 'new views and', len(pack['clips']), 'total clips')
