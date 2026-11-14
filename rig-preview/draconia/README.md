@@ -17,3 +17,5 @@ Render transparent frames from the Blender master, package them under this forma
 **Experimental hands — neutral/front/angle** previews separate replacement hands with individual finger and thumb bones. The default neutral model is unchanged. The front and angled studies each play the full four-second finger-motion test; the hand mesh, wrist transitions, and grasping need further work.
 
 **Joined hands — neutral/front/angle/dance close-up** shows the revised hand study, with connected palms, fingers, and wrist bridges. The finger views play the full four-second diagnostic; the dance close-up plays the full eight seconds with open hands. These remain a separate study, and wand grasping and wider poses need review.
+
+**Joined hands — neutral/front/angle** now uses a small, reversible neutral arm-clearance control while keeping both arms down. **Wrist clearance — front/angle** plays a complete four-second moderate wrist-turn test. Larger wrist turns can still intersect the cloak, and the original joined-hand dance keeps its previous motion.
