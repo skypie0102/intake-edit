@@ -20,7 +20,7 @@ def tree(name, fingers_only=False):
     vertices = [obj.matrix_world @ vertex.co for vertex in mesh.vertices]
     if fingers_only:
         ids = {group.index for group in source.vertex_groups
-               if group.name.startswith(('Index.', 'Middle.', 'Ring.', 'Pinky.', 'Thumb.'))}
+               if group.name.startswith(('Index.', 'Middle.', 'Ring.', 'Pinky.', 'Fingers.', 'Thumb.'))}
         chosen = {vertex.index for vertex in source.data.vertices
                   if sum(weight.weight for weight in vertex.groups if weight.group in ids) > .5}
         assert chosen and len(source.data.vertices) == len(mesh.vertices)
